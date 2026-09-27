@@ -93,11 +93,12 @@ jobs:
           curl.exe -fsSL -o $zip "https://github.com/upx/upx/releases/download/v$env:UPX_VERSION/$zip"
           Expand-Archive -Path $zip -DestinationPath upx-dist -Force
           $upx = (Get-ChildItem -Recurse upx-dist -Filter upx.exe | Select-Object -First 1).FullName
-          # Appending to GITHUB_PATH is the supported way to extend PATH;
-          # the deprecated `::add-path::` command is disabled outright, and
-          # GITHUB_ENV entries must be KEY=VALUE (a bare path is rejected).
+          # Appending to GITHUB_PATH is the supported way to extend PATH; it
+          # takes effect for LATER steps, so the Pack step below is where
+          # `upx` resolves (and fails loudly if it does not). The deprecated
+          # `::add-path::` command is disabled outright, and GITHUB_ENV
+          # entries must be KEY=VALUE (a bare path is rejected).
           "$((Split-Path $upx))" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          upx --version | Select-Object -First 1
 
       - name: Pack binary (UPX --best)
         shell: bash
