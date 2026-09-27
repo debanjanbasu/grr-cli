@@ -106,13 +106,26 @@ jobs:
         run: |
           BIN="target/${{ matrix.target.triple }}/release/${{ matrix.target.artifact }}"
           BEFORE=$(stat -c %s "$BIN" 2>/dev/null || stat -f %z "$BIN")
-          if upx --best "$BIN" 2>&1 | tee upx.log | grep -qi 'error\|not packable'; then
-            echo "::warning::UPX could not pack ${{ matrix.target.name }}; shipping unpacked"
+          # Never pack in place: UPX's win64 packer segfaults (exit 139) on
+          # the ARM64 PE and can leave a corrupted binary behind. Pack a
+          # copy, require exit 0 AND that the result still executes, and
+          # only then replace the original. Anything else ships unpacked.
+          WORK="$BIN.packed"
+          cp "$BIN" "$WORK"
+          if upx --best "$WORK" 2>&1 | tee upx.log; then
+            if "$WORK" --version >/dev/null 2>&1; then
+              AFTER=$(stat -c %s "$WORK" 2>/dev/null || stat -f %z "$WORK")
+              mv "$WORK" "$BIN"
+              echo "packed ${{ matrix.target.name }}: $BEFORE -> $AFTER bytes"
+              printf 'target=%s raw=%s packed=%s\n' \
+                "${{ matrix.target.name }}" "$BEFORE" "$AFTER" >> pack-report.txt
+            else
+              echo "::warning::UPX packed ${{ matrix.target.name }} but the result does not run; shipping unpacked"
+              rm -f "$WORK"
+            fi
           else
-            AFTER=$(stat -c %s "$BIN" 2>/dev/null || stat -f %z "$BIN")
-            echo "packed ${{ matrix.target.name }}: $BEFORE -> $AFTER bytes" | tee -a upx.log
-            printf 'target=%s raw=%s packed=%s\n' \
-              "${{ matrix.target.name }}" "$BEFORE" "$AFTER" >> pack-report.txt
+            echo "::warning::UPX failed on ${{ matrix.target.name }}; shipping unpacked"
+            rm -f "$WORK"
           fi
           "$BIN" --version
 
