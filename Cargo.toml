@@ -44,6 +44,13 @@ num_cpus = "1.17"
 keyring = { version = "4.2.0", features = ["windows-native-keyring-store", "apple-native-keyring-store", "zbus-secret-service-keyring-store"] }
 comfy-table = "8.0"
 
+# The io_uring availability probe (core::runtime) feeds `grr transport`'s
+# report; the typed-client file-I/O path that used to share these deps is
+# gone, but the probe is a shipped, documented feature.
+[target.'cfg(target_os = "linux")'.dependencies]
+tokio-uring = "0.5.0"
+io-uring = "0.6.4"
+
 [dev-dependencies]
 wiremock = "0.6.5"
 tempfile = "3.27.0"
