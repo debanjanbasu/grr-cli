@@ -1,7 +1,7 @@
 {
-  "version": "0.4.0",
-  "crateDownloads": 21,
-  "crateDownloads30d": 21,
+  "version": "0.5.0",
+  "crateDownloads": 23,
+  "crateDownloads30d": 23,
   "githubDownloads": 19,
   "latestRelease": "v0.4.0",
   "latestReleaseDate": "2026-09-25T22:56:53Z",
@@ -10,5 +10,5 @@
     "macos-aarch64": 4043440,
     "windows-x86_64": 4484401
   },
-  "updatedAt": "2026-09-26T05:25:03.772Z"
+  "updatedAt": "2026-09-27T21:10:32.143Z"
 }
