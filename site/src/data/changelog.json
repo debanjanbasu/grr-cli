@@ -1,12 +1,37 @@
 {
-  "generatedAt": "2026-09-27T21:10:31.282Z",
+  "generatedAt": "2026-09-27T21:29:51.295Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
-      "sections": []
+      "sections": [
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "restore the linux io\\_uring deps the transport probe still needs",
+              "scope": null,
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "documentation",
+          "heading": "Documentation",
+          "items": [
+            {
+              "description": "0.5.0 changelog + refreshed stats",
+              "scope": null,
+              "type": "docs",
+              "note": null
+            }
+          ]
+        }
+      ]
     },
     {
       "version": "0.5.0",

@@ -928,6 +928,21 @@ function writeSiteJson(tags: Tag[], slug: string | null): void {
     process.exitCode = 1;
     return;
   }
+  // Same stamp rule: rewriting unconditionally would change the file on
+  // every run and open a PR that carries nothing but a fresh timestamp.
+  if (existsSync(SITE_JSON)) {
+    const stripStamp = (value: unknown): string => {
+      const record = { ...(value as Record<string, unknown>) };
+      delete record.generatedAt;
+      return JSON.stringify(record);
+    };
+    if (
+      stripStamp(JSON.parse(readFileSync(SITE_JSON, 'utf8'))) ===
+      stripStamp(JSON.parse(json))
+    ) {
+      return;
+    }
+  }
   mkdirSync(dirname(SITE_JSON), { recursive: true });
   writeFileSync(SITE_JSON, json, 'utf8');
 }

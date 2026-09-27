@@ -22,7 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+
+- restore the linux io\_uring deps the transport probe still needs
+
+### Documentation
+
+- 0.5.0 changelog + refreshed stats
 
 ## [0.5.0] - 2026-09-28
 
