@@ -1,4 +1,4 @@
-﻿//! `grr schema`: dump the command tree as JSON.
+//! `grr schema`: dump the command tree as JSON.
 //!
 //! The binary is its own contract (inspired by gogcli's "discover the
 //! contract"): agents and docs generators read this instead of scraping
@@ -77,4 +77,47 @@ fn arg_json(arg: &Arg) -> Value {
     }
 
     v
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The dumped schema must stay valid JSON (the machine-readable
+    /// contract) and must contain the generated tree's leaf ids — the
+    /// dotted method ids ARE the leaf names, so the dump self-documents
+    /// every callable method.
+    #[test]
+    fn schema_dump_is_valid_json_and_covers_the_generated_tree() {
+        let root = crate::cli::root_command();
+        let dump = serde_json::to_string(&walk(&root)).expect("dump serializes");
+        let reparsed: Value = serde_json::from_str(&dump).expect("dump re-parses as valid JSON");
+        assert!(reparsed.get("name").map(|n| n == "grr").unwrap_or(false));
+
+        for leaf in [
+            "gmail.users.messages.list",
+            "tasks.tasklists.list",
+            "chat.spaces.get",
+        ] {
+            assert!(dump.contains(leaf), "dump is missing `{leaf}`");
+        }
+        // The static commands ride along.
+        assert!(dump.contains("\"auth\""));
+        assert!(dump.contains("\"api\""));
+    }
+
+    #[test]
+    fn schema_dump_stays_fast_for_a_308_leaf_tree() {
+        let root = crate::cli::root_command();
+        let started = std::time::Instant::now();
+        let dump = serde_json::to_string(&walk(&root)).expect("dump serializes");
+        let elapsed = started.elapsed();
+        // Generous ceiling so a slow CI box never flakes; the point is to
+        // notice an order-of-magnitude regression, not to benchmark.
+        assert!(
+            elapsed < std::time::Duration::from_secs(1),
+            "serialising the tree took {elapsed:?} for {} bytes",
+            dump.len()
+        );
+    }
 }

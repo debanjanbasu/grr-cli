@@ -1,38 +1,12 @@
-﻿//! CLI command modules
+//! CLI command modules.
+//!
+//! Every service command lives in `generated.rs` (compiled from the
+//! Discovery index) and is dispatched by `gen_dispatch.rs`; the rest are
+//! the hand-written account-level commands.
 
-#[cfg(feature = "gmail")]
+pub mod api;
 pub mod auth;
-#[cfg(feature = "calendar")]
-pub mod calendar;
-#[cfg(feature = "chat")]
-pub mod chat;
-#[cfg(feature = "people")]
-pub mod contacts;
-#[cfg(feature = "gmail")]
-pub mod drafts;
-#[cfg(feature = "drive")]
-pub mod drive;
-#[cfg(feature = "forms")]
-pub mod forms;
-#[cfg(feature = "gmail")]
-pub mod history;
-#[cfg(feature = "gmail")]
-pub mod import;
-#[cfg(feature = "gmail")]
-pub mod labels;
-#[cfg(feature = "gmail")]
-pub mod message_ops;
-#[cfg(feature = "gmail")]
-pub mod messages;
-#[cfg(feature = "gmail")]
-pub mod profile;
-#[cfg(feature = "gmail")]
-pub mod send;
-#[cfg(feature = "gmail")]
-pub mod send_as;
-#[cfg(feature = "gmail")]
-pub mod thread_ops;
-#[cfg(feature = "gmail")]
+pub mod gen_dispatch;
+pub mod generated;
+pub mod setup;
 pub mod transport;
-#[cfg(feature = "gmail")]
-pub mod watch;

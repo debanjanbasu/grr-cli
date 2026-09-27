@@ -1,0 +1,324 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import SectionIntro from '../../components/SectionIntro.astro';
+
+const base = import.meta.env.BASE_URL;
+
+const naming = `# A method id, with dots turned into spaces, IS the command.
+gmail.users.messages.list        grr gmail users messages list
+calendar.events.list             grr calendar events list
+drive.files.list                 grr drive files list
+tasks.tasklists.list             grr tasks tasklists list
+sheets.spreadsheets.values.get   grr sheets spreadsheets values get
+
+# Resources nest as subcommands; the method is the leaf. Each leaf also
+# carries its bare name as a visible alias, shown in --help.
+grr gmail --help                  # "users" and its children, alphabetically
+grr gmail users --help            # "messages", "drafts", "labels", ...
+
+# camelCase method names keep their casing as aliases:
+grr gmail users getProfile --user-id me`;
+const flags = `# Flags are generated from Discovery parameter names: camelCase -> kebab-case.
+grr gmail users messages list --user-id me \\
+    --q "is:unread" \\
+    --max-results 5 \\
+    --label-ids INBOX --label-ids UNREAD \\
+    --include-spam-trash
+
+# --max-results is parsed as an integer, --include-spam-trash is a presence
+# flag, --label-ids repeats. Enum parameters validate; required ones are
+# enforced before anything is sent.
+
+# Collision rule: a parameter literally named "format" or "query" becomes
+# --param-format / --param-query (the -f output flag keeps --format).
+grr gmail users messages get --user-id me --id <id> --param-format metadata
+
+# Bodies are untyped by design -- Discovery request schemas are not in the
+# index -- so they pass through --params or --body-file verbatim.
+grr calendar events insert --calendar-id primary --body-file ./event.json`;
+const services = [
+  {
+    name: 'Gmail',
+    namespace: 'grr gmail',
+    description:
+      '79 methods. Messages, threads, drafts, labels, history, attachments, filters, forwarding, POP/IMAP, send-as, CSE, delegates, and watches — the deepest tree.',
+    commands: `grr gmail users messages list --user-id me --q "in:inbox" --max-results 5
+grr gmail users messages get --user-id me --id <message-id> --param-format metadata
+grr gmail users messages attachments get --user-id me --message-id <message-id> --id <attachment-id>
+grr gmail users threads list --user-id me --max-results 10
+grr gmail users labels list --user-id me
+grr gmail users drafts create --user-id me --body-file ./draft.json
+grr gmail users settings filters list --user-id me`,
+  },
+  {
+    name: 'Calendar',
+    namespace: 'grr calendar',
+    description:
+      '38 methods. Calendars, events, recurring instances, ACL, free/busy, colors, and settings. The calendar id is a parameter like any other — `primary` where one is accepted.',
+    commands: `grr calendar events list --calendar-id primary --max-results 10
+grr calendar events get --calendar-id primary --event-id <event-id>
+grr calendar events insert --calendar-id primary --body-file ./event.json
+grr calendar calendarList list
+grr calendar freebusy query --body-file ./freebusy.json
+grr calendar colors get`,
+  },
+  {
+    name: 'Drive',
+    namespace: 'grr drive',
+    description:
+      '64 methods. Files, permissions, comments, replies, revisions, changes, drives, and approvals — including the long tail no CLI ever wraps by hand.',
+    commands: `grr drive files list --q "name contains 'report'" --page-size 10
+grr drive files get --file-id <file-id>
+grr drive files export --file-id <document-id> --mime-type application/pdf
+grr drive permissions list --file-id <file-id>
+grr drive comments list --file-id <file-id>
+grr drive changes list --page-token <token>
+grr drive files emptyTrash`,
+  },
+  {
+    name: 'People',
+    namespace: 'grr people',
+    description:
+      '24 methods. The People API verbatim: resource names look like people/c12345, and the API nests one `people` level, so the command says it twice.',
+    commands: `grr people people connections list --resource-name people/me
+grr people people get --resource-name people/c12345
+grr people contactGroups list
+grr people otherContacts list`,
+  },
+  {
+    name: 'Chat',
+    namespace: 'grr chat',
+    description:
+      '54 methods. Spaces, members, messages, reactions, media, custom emoji, and read state. Space-scoped methods take --parent spaces/… .',
+    commands: `grr chat spaces list --page-size 10
+grr chat spaces messages create --parent spaces/AAAA --body-file ./message.json
+grr chat spaces messages list --parent spaces/AAAA --page-size 25
+grr chat spaces members list --parent spaces/AAAA`,
+  },
+  {
+    name: 'Forms',
+    namespace: 'grr forms',
+    description:
+      '10 methods. Form bodies, responses, publish settings, and push-notification watches. The API nests one `forms` level, like People does with `people`.',
+    commands: `grr forms forms get --form-id <form-id>
+grr forms forms responses list --form-id <form-id>
+grr forms forms watches list --form-id <form-id>`,
+  },
+  {
+    name: 'Tasks',
+    namespace: 'grr tasks',
+    description:
+      '14 methods. Task lists and the tasks inside them. Note the scope caveat: this build does not consent to the Tasks scope, so live calls can 403.',
+    commands: `grr tasks tasklists list
+grr tasks tasks list --tasklist @default
+grr tasks tasks insert --tasklist @default --body-file ./task.json`,
+  },
+  {
+    name: 'Sheets',
+    namespace: 'grr sheets',
+    description:
+      '17 methods. Spreadsheets, values (read, write, append, batch), and developer metadata. Colon-verb paths like values/{range}:append are handled for you.',
+    commands: `grr sheets spreadsheets values get --spreadsheet-id <id> --range Sheet1!A1:B10
+grr sheets spreadsheets values update --spreadsheet-id <id> --range Sheet1!A1 --body-file ./values.json
+grr sheets spreadsheets values append --spreadsheet-id <id> --range Sheet1!A:A --value-input-option USER_ENTERED
+grr sheets spreadsheets get --spreadsheet-id <id>`,
+  },
+  {
+    name: 'Docs',
+    namespace: 'grr docs',
+    description:
+      '3 methods. Documents get, create, and batchUpdate — the smallest service in the index.',
+    commands: `grr docs documents get --document-id <id>
+grr docs documents create --body-file ./new-doc.json
+grr docs documents batchUpdate --document-id <id> --body-file ./requests.json`,
+  },
+  {
+    name: 'Slides',
+    namespace: 'grr slides',
+    description:
+      '5 methods. Presentations, pages, and thumbnails. camelCase methods keep their casing as aliases: getThumbnail, not get-thumbnail.',
+    commands: `grr slides presentations get --presentation-id <id>
+grr slides presentations pages getThumbnail --presentation-id <id> --page-object-id g1
+grr slides presentations batchUpdate --presentation-id <id> --body-file ./requests.json`,
+  },
+];
+const formats = `# Every command accepts -f/--format. JSON is the default.
+$ grr gmail users messages list --user-id me --max-results 5 -f table
++----------+--------------------+------------------+
+| ID       | THREAD_ID          | SNIPPET          |
++----------+--------------------+------------------+
+| 19f8ab2c | 19f8ab2c           | Build notes ...  |
++----------+--------------------+------------------+
+
+$ grr gmail users messages list --user-id me -f jsonl
+{"id":"19f8ab2c","threadId":"19f8ab2c"}
+{"id":"19f8ab31","threadId":"19f8ab31"}
+
+$ grr gmail users messages list --user-id me -f pretty`;
+const account = `$ grr auth status
+{"authenticated":true,"email":"you@example.com","messages_total":48213,"threads_total":9120,"history_id":"1280000"}
+
+$ grr transport
+negotiated_protocol: HTTP_3
+http3_requested: true
+http3_effective: true
+fell_back: false
+...
+
+$ grr schema | jq -r '.subcommands[].name'
+["auth","api","transport","schema","calendar","chat","docs","drive","forms","gmail","people","sheets","slides","tasks"]`;
+const pipes = `# stdout is data, stderr is logs -- so this is always valid JSON.
+$ grr gmail users messages list --user-id me --q "from:github.com" --max-results 10 | jq -r '.[0].id'
+19f8ab2c
+
+# --dry-run prints the resolved request as JSON and sends nothing.
+$ grr gmail users messages list --user-id me --q "is:unread" --dry-run | jq -r '.url'
+https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is%3Aunread
+
+# The same method, reached through the flat escape hatch, byte-identical:
+$ grr api call gmail.users.messages.list --param userId=me --param 'q=is:unread' --dry-run`;
+const schemaBlock = `$ grr schema > tree.json        # ~290 KB, valid JSON, well under 100 ms
+$ grr schema | jq '.subcommands[] | select(.name == "gmail") | .subcommands[].name'
+["users"]
+$ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list") | .args[].name]'`;
+---
+
+<BaseLayout
+  title="Commands"
+  description="The full grr command surface: ten services, one generated tree — the naming rule that predicts any command from its method id, typed flags per method, and the account-level commands."
+>
+  <section class="page-hero section">
+    <div class="container page-hero-grid">
+      <div class="reveal">
+        <span class="eyebrow">commands</span>
+        <h1>Ten services, one generated tree.</h1>
+        <p>Every service command is generated from Google&rsquo;s Discovery Service at build time &mdash; 308 methods, 839 typed flags, zero hand-written per-service commands. That makes the tree predictable instead of memorized. For the flat, id-based view of the same index, see <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
+      </div>
+      <div class="page-hero-aside reveal">308 methods · 10 services · generated, not curated</div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="naming-title">
+    <div class="container">
+      <SectionIntro
+        id="naming-title"
+        eyebrow="the naming rule"
+        title="Predict any command from its method id."
+        copy="There is nothing to memorize: a Discovery method id, with dots turned into spaces, is the command. The same rule generates every flag."
+      />
+      <div class="container prose reveal">
+        <CodeBlock code={naming} label="method id → command" />
+        <p>Top level: <code>grr auth</code>, <code>grr api</code>, <code>grr schema</code>, <code>grr transport</code>, plus one subcommand per service. The tree is emitted into <code>src/commands/generated.rs</code> by a generator that reads the committed Discovery index, and a daily workflow opens a PR when Google adds a method &mdash; so new surface arrives without a grr release.</p>
+        <p>Flag names come from the same ids, camelCase collapsed to kebab-case, typed by what Discovery declares:</p>
+        <ul>
+          <li><strong>Integers</strong> are parsed as numbers: <code>--max-results 10</code>.</li>
+          <li><strong>Booleans</strong> are presence flags: <code>--include-spam-trash</code>, not <code>--include-spam-trash true</code>.</li>
+          <li><strong>Repeated parameters repeat</strong>: <code>--label-ids INBOX --label-ids UNREAD</code>. (Single-string parameters that take comma lists inside the value, like Drive&rsquo;s <code>--order-by</code>, are passed through as-is.)</li>
+          <li><strong>Enum parameters validate</strong> their values; a bad one is caught before anything is sent.</li>
+          <li><strong>Required parameters are enforced</strong> by clap &mdash; you cannot build a request missing <code>--user-id</code>.</li>
+          <li><strong>Bodies are untyped, deliberately.</strong> Discovery&rsquo;s request schemas are not part of the distilled index, so <code>POST</code>/<code>PATCH</code>/<code>PUT</code> bodies pass through <code>--params</code> (a JSON object) or <code>--body-file</code> (a file, or <code>-</code> for stdin) verbatim. Typed flags win over <code>--params</code> on conflict.</li>
+        </ul>
+        <CodeBlock code={flags} label="typed flags · collision rule · bodies" />
+        <p>Every leaf also carries the same escape hatches <code>grr api call</code> has: <code>--params</code>, <code>--body-file</code>, repeatable <code>--query KEY=VALUE</code> for raw query pairs, <code>--dry-run</code>, and <code>-f/--format</code>. Dispatch resolves the leaf&rsquo;s id against the embedded index and funnels into one shared call path &mdash; the two routes below produce byte-identical output:</p>
+        <CodeBlock code={pipes} label="piping · dry runs · parity" />
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="surface-title">
+    <div class="container">
+      <SectionIntro
+        id="surface-title"
+        eyebrow="the services"
+        title="Every service, a few real commands."
+        copy="Verified against the binary and the committed index. Run grr <service> --help for the authoritative version of any branch — these are samples, not the census."
+      />
+      <div class="install-grid">
+        {services.map((service) => (
+          <article class="install-card install-card-wide">
+            <h2>{service.name}</h2>
+            <p>{service.description}</p>
+            <CodeBlock code={service.commands} label={service.namespace} />
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="format-title">
+    <div class="container">
+      <SectionIntro
+        id="format-title"
+        eyebrow="output"
+        title="Four formats, one flag."
+        copy="Every command takes -f/--format, including the generated leaves. There is no global --format flag: it would collide by id with per-method parameters named format."
+      />
+    </div>
+    <div class="container prose reveal">
+        <p class="lead"><code>json</code> (default), <code>jsonl</code>, <code>table</code>, <code>pretty</code>. JSON is the default because the common consumer is a pipe, not a person.</p>
+        <p><code>jsonl</code> emits one JSON document per line for array results, which is what you want when streaming into <code>jq</code> without loading everything. <code>table</code> renders arrays as one row per element with the union of keys as columns, a single object as a Field/Value table, and nested values as compact JSON inside a cell.</p>
+        <CodeBlock code={formats} label="output formats" />
+      </div>
+    </section>
+
+  <section class="section" aria-labelledby="account-title">
+    <div class="container">
+      <SectionIntro
+        id="account-title"
+        eyebrow="account level"
+        title="The four commands that are not a service."
+        copy="These sit at the top level because they are not about one API. grr schema is the one to build against."
+      />
+      <div class="install-grid">
+        <article class="install-card">
+          <h2><code>grr auth</code></h2>
+          <p><code>login</code> runs the PKCE browser flow, or the device flow with <code>--device</code>. <code>status</code> makes a live profile call through the shared path and reports the account plus the <code>history_id</code> cursor. <code>setup</code> creates and stores your own OAuth client.</p>
+        </article>
+        <article class="install-card">
+          <h2><code>grr transport</code></h2>
+          <p>Prints the negotiated protocol, whether HTTP/3 was requested and effective, whether it fell back, the core count, and io_uring support. Plain text, not JSON &mdash; it is a diagnostic, not data.</p>
+        </article>
+        <article class="install-card">
+          <h2><code>grr schema</code></h2>
+          <p>Dumps the entire command tree as JSON: every subcommand, every argument, whether it is required, whether it takes a value, its default, and its possible values. Because the tree itself is generated from the index, schema is a faithful census of all 308 methods.</p>
+        </article>
+        <article class="install-card">
+          <h2><code>grr api</code></h2>
+          <p><code>list</code>, <code>describe</code>, <code>call</code>, and <code>refresh</code> against the embedded Discovery index &mdash; the flat escape hatch that reaches any method by id. Same index, same call path as the tree.</p>
+        </article>
+      </div>
+    </div>
+    <div class="container prose reveal">
+      <CodeBlock code={account} label="account · transport · schema" />
+      <p><code>grr schema</code> is the canonical reference. It is honest about its own size: roughly 290 KB of valid JSON, emitted in well under 100 ms, with zero configuration and before any OAuth exists. Generate a wrapper or an agent tool definition from it &mdash; because it is derived from the same tree the binary dispatches on, it cannot drift from the commands that actually exist.</p>
+      <CodeBlock code={schemaBlock} label="grr schema · the canonical reference" />
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="conventions-title">
+    <div class="container prose reveal">
+      <h2 id="conventions-title">Conventions worth knowing</h2>
+      <ul>
+        <li><strong>Results on stdout, logs on stderr.</strong> The tracing subscriber is wired to stderr explicitly, so <code>grr … | jq</code> never receives a log line. The one stdout exception is <code>grr auth login --device</code>, which prints its human-readable URL and code before the final JSON.</li>
+        <li><strong>Paging is yours to drive.</strong> The tree does not follow page tokens: <code>--max-results</code> is the API&rsquo;s own page size, and <code>--page-token</code> takes the <code>nextPageToken</code> from the previous response. That keeps a list command from turning into an unbounded crawl.</li>
+        <li><strong>Booleans are presence flags</strong> (<code>--include-spam-trash</code>), a deliberate change from value-taking booleans: a flag is either passed or absent, so a script never has to guess.</li>
+        <li><strong>Errors are actionable.</strong> A 403 names the missing scope, an unknown method id returns ranked suggestions, a missing required parameter names itself. Non-zero exit on failure, always.</li>
+        <li><strong>Two commands print plain text, not JSON:</strong> <code>grr transport</code> and the device-login line above. <code>--dry-run</code> output <em>is</em> JSON, so it pipes.</li>
+        <li><strong>Timestamps are RFC 3339</strong> (<code>--time-min 2026-10-01T00:00:00Z</code>), or a bare <code>YYYY-MM-DD</code> where the API accepts a date.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="next-title">
+    <div class="container prose reveal">
+      <h2 id="next-title">Where the tree comes from</h2>
+      <p>Every leaf above is generated from the committed Discovery index at build time and refreshed daily by a workflow PR. The same index drives the flat <code>grr api</code> surface, so the census never splits in two.</p>
+      <ul>
+        <li><a href={`${base}docs/discovery/`}>Discovery API — the index behind the whole tree</a></li>
+        <li><a href={`${base}docs/agents/`}>Agents and harnesses — output contract and discovery discipline</a></li>
+        <li><a href={`${base}docs/getting-started/`}>Getting started — install, login, and verify</a></li>
+      </ul>
+    </div>
+  </section>
+</BaseLayout>

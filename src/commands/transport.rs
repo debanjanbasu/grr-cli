@@ -1,15 +1,26 @@
 //! Transport introspection CLI command.
 //!
-//! Reports the HTTP version negotiated during client construction, the
-//! HTTP/3 request/effective/fallback flags, and detected runtime features.
+//! Reports the HTTP version negotiated during a real probe, the HTTP/3
+//! request/effective/fallback flags, and detected runtime features.
 //! Everything shown is auto-tuned — there is no user-facing transport
 //! configuration, this command exists to prove it.
+//!
+//! The probe is the same one the typed Gmail client runs at construction
+//! (Gmail base URL + `users/me/profile`), issued through a plain
+//! `HttpCore` so no typed client is needed. The report's shape is quoted
+//! verbatim in the site docs and must not change.
 
 use crate::core::RuntimeFeatures;
-use crate::core::http::TransportInfo;
-use crate::gmail::GmailClient;
+use crate::core::auth::GoogleAuth;
+use crate::core::http::{HttpCore, TransportInfo};
 use anyhow::Result;
 use clap::Args;
+
+/// The Gmail base URL and probe path the typed Gmail client used at
+/// construction — keeping them identical keeps the report's meaning
+/// identical.
+const PROBE_BASE_URL: &str = "https://gmail.googleapis.com/gmail/v1/";
+const PROBE_PATH: &str = "users/me/profile";
 
 #[derive(Args, Debug)]
 pub struct TransportArgs {}
@@ -46,9 +57,12 @@ fn format_transport_report(info: &TransportInfo, features: &RuntimeFeatures) -> 
     )
 }
 
-pub async fn handle_transport_cmd(client: &GmailClient, _args: TransportArgs) -> Result<()> {
+pub async fn handle_transport_cmd(auth: GoogleAuth, _args: TransportArgs) -> Result<()> {
+    let base = crate::core::http::parse_url(PROBE_BASE_URL, "transport probe base")?;
+    // Consuming the auth handle: this command's only job is the probe.
+    let core = HttpCore::connect(auth, &base, PROBE_PATH).await?;
     let report = format_transport_report(
-        client.transport_info(),
+        core.transport_info(),
         &crate::core::runtime::detect_runtime_features().await,
     );
     println!("{report}");

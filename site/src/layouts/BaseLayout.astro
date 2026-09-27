@@ -7,17 +7,29 @@ interface Props {
   title: string;
   description: string;
   noindex?: boolean;
+  /**
+   * Path the canonical/og:url should point at. Defaults to the route being
+   * rendered; the 404 page overrides it with `/` so it never advertises a
+   * canonical URL that does not exist.
+   */
+  canonicalPath?: string;
 }
 
-const { title, description, noindex = false } = Astro.props;
+const { title, description, noindex = false, canonicalPath } = Astro.props;
 const base = import.meta.env.BASE_URL;
 const normalizedBase = base.endsWith('/') ? base : `${base}/`;
 const site = Astro.site ?? new URL('https://grr-cli.pages.dev');
 const relativePath = Astro.url.pathname.startsWith(normalizedBase)
   ? Astro.url.pathname.slice(normalizedBase.length)
   : Astro.url.pathname.replace(/^\/+/, '');
-const canonical = new URL(`${normalizedBase}${relativePath}`, site).toString();
-const socialImage = new URL(`${normalizedBase}og.svg`, site).toString();
+const canonical = new URL(`${normalizedBase}${canonicalPath ?? relativePath}`, site).toString();
+// Social crawlers do not render SVG, so the rasterised card is the share image.
+const socialImage = new URL(`${normalizedBase}og.png`, site).toString();
+const socialImageAlt = 'grr pixel-art crab mascot beside a terminal running grr commands';
+// The home page passes `title="grr"` so it renders the exact brand title; every
+// other route passes a real title and gets the `${title} · Rust Rewrite (grr)`
+// suffix form. Both strings are verification-critical, so neither is derived
+// from page copy.
 const fullTitle = title === 'grr' ? 'Rust Rewrite (grr) — Google tools from the terminal' : `${title} · Rust Rewrite (grr)`;
 const jsonLd = JSON.stringify({
   '@context': 'https://schema.org',
@@ -25,8 +37,20 @@ const jsonLd = JSON.stringify({
   name: 'Rust Rewrite',
   alternateName: 'grr',
   applicationCategory: 'DeveloperApplication',
+  applicationSubCategory: 'Command line utility',
   operatingSystem: 'macOS, Linux, Windows',
-  license: 'MIT',
+  license: 'https://opensource.org/licenses/MIT',
+  url: site.toString(),
+  image: socialImage,
+  author: {
+    '@type': 'Organization',
+    name: 'grr project',
+    url: 'https://github.com/debanjanbasu/grr-cli',
+  },
+  softwareVersion: '0.5.0',
+  datePublished: '2026-09-22',
+  isAccessibleForFree: true,
+  sameAs: ['https://github.com/debanjanbasu/grr-cli', 'https://crates.io/crates/grr-cli'],
   codeRepository: 'https://github.com/debanjanbasu/grr-cli',
   description,
   offers: {
@@ -73,15 +97,16 @@ const jsonLd = JSON.stringify({
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={socialImage} />
-    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:secure_url" content={socialImage} />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="grr pixel-art crab mascot and terminal command" />
+    <meta property="og:image:alt" content={socialImageAlt} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={fullTitle} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={socialImage} />
-    <meta name="twitter:image:alt" content="grr pixel-art crab mascot and terminal command" />
+    <meta name="twitter:image:alt" content={socialImageAlt} />
     <script type="application/ld+json" set:html={jsonLd}></script>
     <title>{fullTitle}</title>
   </head>
@@ -124,6 +149,68 @@ const jsonLd = JSON.stringify({
           query.addEventListener('change', sync);
         }
         sync();
+      })();
+
+      /* Copy-to-clipboard, delegated.
+         One listener for every code block on the page rather than a handler
+         per block: the text is read back out of the DOM, so the command is
+         never duplicated into a data attribute and the HTML stays smaller. */
+      (function () {
+        function flash(button, label) {
+          var state = button.querySelector('[data-copy-state]');
+          if (!state) return;
+          if (button.dataset.copyReset) clearTimeout(button.dataset.copyReset);
+          state.textContent = label;
+          button.classList.add('is-copied');
+          button.dataset.copyReset = setTimeout(function () {
+            state.textContent = 'Copy';
+            button.classList.remove('is-copied');
+          }, 1600);
+        }
+
+        // execCommand fallback for browsers or contexts without the async
+        // clipboard API (older Safari, non-secure origins).
+        function legacyCopy(text) {
+          var area = document.createElement('textarea');
+          area.value = text;
+          area.setAttribute('readonly', '');
+          area.style.position = 'fixed';
+          area.style.top = '-1000px';
+          area.style.opacity = '0';
+          document.body.appendChild(area);
+          area.select();
+          var ok = false;
+          try {
+            ok = document.execCommand('copy');
+          } catch (error) {
+            ok = false;
+          }
+          document.body.removeChild(area);
+          return ok;
+        }
+
+        document.addEventListener('click', function (event) {
+          var button = event.target.closest ? event.target.closest('[data-copy]') : null;
+          if (!button) return;
+          var block = button.closest('.code-window');
+          var code = block && block.querySelector('pre code');
+          if (!code) return;
+          var text = code.textContent.replace(/\s+$/, '');
+          event.preventDefault();
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(
+              function () {
+                flash(button, 'Copied');
+              },
+              function () {
+                flash(button, legacyCopy(text) ? 'Copied' : 'Press Ctrl+C');
+              },
+            );
+          } else {
+            flash(button, legacyCopy(text) ? 'Copied' : 'Press Ctrl+C');
+          }
+        });
       })();
     </script>
   </body>

@@ -1,9 +1,14 @@
 {
   "version": "0.4.0",
-  "crateDownloads": 11,
-  "crateDownloads30d": 11,
-  "githubDownloads": 8,
+  "crateDownloads": 21,
+  "crateDownloads30d": 21,
+  "githubDownloads": 19,
   "latestRelease": "v0.4.0",
   "latestReleaseDate": "2026-09-25T22:56:53Z",
-  "updatedAt": "2026-09-25T22:59:52.029Z"
+  "binarySizes": {
+    "linux-x86_64": 5356081,
+    "macos-aarch64": 4043440,
+    "windows-x86_64": 4484401
+  },
+  "updatedAt": "2026-09-26T05:25:03.772Z"
 }

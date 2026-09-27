@@ -1,0 +1,136 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SectionIntro from '../../components/SectionIntro.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import { discoveryMethodTotal, discoveryServices } from '../../data/discovery-coverage';
+
+const base = import.meta.env.BASE_URL;
+const releaseUrl = 'https://github.com/debanjanbasu/grr-cli/releases';
+const schemaUrl = 'https://github.com/debanjanbasu/grr-cli/blob/main/docs/gcp-setup.md';
+
+const pages = [
+  {
+    href: `${base}docs/getting-started/`,
+    eyebrow: 'first run',
+    title: 'Getting started',
+    copy: 'Install on macOS, Linux, or Windows, log in once, run a real command, and check that auth and transport are healthy.',
+  },
+  {
+    href: `${base}docs/commands/`,
+    eyebrow: 'the generated tree',
+    title: 'Commands',
+    copy: 'The naming rule that predicts any command from its method id, the typed-flag rules, per-service examples, and the output formats they share.',
+  },
+  {
+    href: `${base}docs/discovery/`,
+    eyebrow: 'the index',
+    title: 'Discovery API',
+    copy: `The index behind the whole tree: grr api list, describe, call, and refresh — ${discoveryMethodTotal} methods across ten Google APIs.`,
+  },
+  {
+    href: `${base}docs/agents/`,
+    eyebrow: 'for agents',
+    title: 'Agents and harnesses',
+    copy: 'The JSON output contract, how to discover capabilities instead of assuming them, the packaged agent skill, and where tokens live.',
+  },
+];
+
+const shape = `$ grr gmail users messages list --user-id me --max-results 5
+$ grr sheets spreadsheets values get --spreadsheet-id 1a2b3c --range Sheet1!A1:D10
+$ grr api call sheets.spreadsheets.values.get \\
+    --param spreadsheetId=1a2b3c --param range=A1:D10
+$ grr auth status`;
+---
+
+<BaseLayout
+  title="Docs"
+  description="Docs for grr, the zero-config Rust CLI for Google Workspace: install and first login, the generated command tree over 10 APIs, the 308-method Discovery index, and agent guidance."
+>
+  <section class="page-hero section">
+    <div class="container page-hero-grid">
+      <div class="reveal">
+        <span class="eyebrow">documentation</span>
+        <h1>Everything grr can do, verified against the source.</h1>
+        <p>Four pages. Every command, flag, and method id on them was checked against the binary, the Rust source, and the committed Discovery index, so if it is written here it exists.</p>
+      </div>
+      <div class="page-hero-aside reveal">10 APIs · {discoveryMethodTotal} methods · one generated tree</div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="pages-title">
+    <div class="container">
+      <SectionIntro
+        id="pages-title"
+        eyebrow="start here"
+        title="Pick the page that matches what you are doing."
+        copy="If you are here to install grr, read this one first. If you are wiring grr into an agent, skip to the last page."
+      />
+      <div class="link-grid">
+        {pages.map((page) => (
+          <a class="link-card reveal" href={page.href}>
+            <strong>{page.title}</strong>
+            <span>{page.copy}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="surface-title">
+    <div class="container prose reveal">
+      <h2 id="surface-title">One index, two ways in</h2>
+      <p class="lead">grr exposes the same Google account two ways, and both are generated from the same committed Discovery index — they cannot drift apart.</p>
+      <p>The <strong>generated tree</strong> is namespaced by service and mirrors Discovery method ids exactly: <code>gmail.users.messages.list</code> is <code>grr gmail users messages list</code>, with typed kebab-case flags per method. All ten services — gmail, calendar, drive, people, chat, forms, tasks, docs, sheets, slides — have a full command path, and a daily workflow regenerates the tree when Google adds a method, with no grr release in between.</p>
+      <p>The <strong>flat view</strong> is <code>grr api</code>. It reads the same index by method id — <code>list</code>, <code>describe</code>, <code>call</code>, <code>refresh</code> — which is the convenient shape when you are composing ids dynamically or building tool definitions.</p>
+      <p>Both routes share one OAuth login, one transport, one call path, and one output contract. See <a href={`${base}docs/commands/`}>Commands</a> for the tree and <a href={`${base}docs/discovery/`}>Discovery API</a> for the index.</p>
+      <CodeBlock code={shape} label="terminal · grr" />
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="coverage-title">
+    <div class="container">
+      <SectionIntro
+        id="coverage-title"
+        eyebrow="what the index covers"
+        title="Ten services, one embedded index."
+        copy="The table below is transcribed from the index grr embeds. Method counts are what `grr api list` reports at runtime."
+      />
+      <div class="install-grid">
+        {discoveryServices.map((service) => (
+          <article class="install-card">
+            <h2>{service.label}</h2>
+            <p>{service.note}</p>
+            <p class="install-note">
+              {service.version} · {service.methods} methods · revision {service.revision}
+            </p>
+            <p class="install-note">
+              <code>grr {service.name}</code>
+            </p>
+          </article>
+        ))}
+      </div>
+      <p class="legal-note">
+        Method totals and Discovery revisions come from the committed index at
+        <code>src/discovery/manifest.json</code>, refreshed daily by the repository&rsquo;s Discovery workflow.
+        See <a href={`${base}docs/discovery/`}>Discovery API</a> for the full breakdown and the one scope caveat that matters.
+      </p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="elsewhere-title">
+    <div class="container prose reveal">
+      <h2 id="elsewhere-title">Beyond these pages</h2>
+      <ul>
+        <li><a href={releaseUrl} target="_blank" rel="noreferrer">GitHub Releases — prebuilt binaries for all four platforms ↗</a></li>
+        <li><a href={schemaUrl} target="_blank" rel="noreferrer">Google Cloud setup guide — only needed for source builds ↗</a></li>
+        <li><a href={`${base}install/`}>Install page — channels, sizes, and the Homebrew <code>trust</code> caveat</a></li>
+        <li><a href="https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md" target="_blank" rel="noreferrer">Agent skill — the packaged SKILL.md for AI harnesses ↗</a></li>
+        <li><a href="/llms.txt">llms.txt — machine-readable site index for LLM agents</a></li>
+      </ul>
+      <p>
+        The binary is also its own contract: <code>grr schema</code> dumps the entire command tree as JSON,
+        and <code>grr &lt;service&gt; --help</code> is always the last word on a flag.
+      </p>
+    </div>
+  </section>
+</BaseLayout>

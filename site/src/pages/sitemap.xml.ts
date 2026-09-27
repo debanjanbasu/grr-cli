@@ -2,14 +2,35 @@ import type { APIRoute } from 'astro';
 
 export const prerender = true;
 
-const pages = ['', 'install/', 'privacy/', 'terms/'];
+const pages = [
+  '',
+  'install/',
+  'docs/',
+  'docs/getting-started/',
+  'docs/commands/',
+  'docs/discovery/',
+  'docs/agents/',
+  'changelog/',
+  'compare/',
+  'privacy/',
+  'terms/',
+];
+
+// A build-time stamp is the honest `lastmod` here: every one of these documents
+// is regenerated from source on each deploy, so the build date is when the
+// served HTML last changed.
+const lastModified = new Date().toISOString().slice(0, 10);
 
 export const GET: APIRoute = ({ site }) => {
   const origin = site ?? new URL('https://grr-cli.pages.dev');
   const configuredBase = import.meta.env.BASE_URL;
   const root = configuredBase.endsWith('/') ? configuredBase : `${configuredBase}/`;
   const body = pages
-    .map((path) => `  <url><loc>${new URL(`${root}${path}`, origin).toString()}</loc></url>`)
+    .map((path) => {
+      const loc = new URL(`${root}${path}`, origin).toString();
+      const priority = path === '' ? '1.0' : '0.7';
+      return `  <url>\n    <loc>${loc}</loc>\n    <lastmod>${lastModified}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+    })
     .join('\n');
   const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
   return new Response(sitemap, {

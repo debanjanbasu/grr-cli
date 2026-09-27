@@ -7,6 +7,23 @@
   font-display: swap;
 }
 
+/* Metric-matched stand-in for the swap window. IBM 3270 advances 0.54em and
+   Courier New 0.60em, so the fallback is scaled to 90%: glyph widths, and
+   therefore line breaks, are identical before and after the real font lands.
+   ascent/descent are overridden to IBM 3270's 80/20 split. */
+@font-face {
+  font-family: 'IBM3270 Fallback';
+  src:
+    local('Courier New'),
+    local('CourierNewPSMT'),
+    local('Liberation Mono'),
+    local('DejaVu Sans Mono');
+  size-adjust: 90%;
+  ascent-override: 88.9%;
+  descent-override: 22.2%;
+  line-gap-override: 0%;
+}
+
 :root {
   color-scheme: light dark;
 
@@ -16,7 +33,9 @@
   --ink: light-dark(#1a120b, #fff4e8);
   --ink-soft: light-dark(#3f3025, #f0d8c5);
   --muted: light-dark(#6b5c50, #c7ad99);
-  --quiet: light-dark(#857263, #a78d7a);
+  /* #857263 only reached 4.29:1 on --paper; #7d6a5b clears AA at 4.82:1 while
+     staying a visible step below --muted. */
+  --quiet: light-dark(#7d6a5b, #a78d7a);
   --line: light-dark(#eadfd5, #46311f);
   --line-strong: light-dark(#d6c3b0, #76513a);
 
@@ -25,6 +44,9 @@
   --accent-deep: #c2410c;
   --accent-text: light-dark(#c2410c, #fb923c);
   --accent-soft: light-dark(#ffedd5, #5b2a16);
+  /* --accent is theme-independent, so text sitting on it needs a fixed dark ink
+     rather than var(--ink), which inverts to a 2.58:1 failure in dark mode. */
+  --on-accent: #1a120b;
 
   --terminal-bg: #241a14;
   --terminal-line: #684532;
@@ -38,7 +60,7 @@
   --star-dim: light-dark(rgba(64, 37, 20, 0.3), rgba(255, 236, 214, 0.24));
   --star-accent: light-dark(rgba(194, 65, 12, 0.4), rgba(251, 146, 60, 0.42));
 
-  --font: 'IBM3270', 'Courier New', ui-monospace, monospace;
+  --font: 'IBM3270', 'IBM3270 Fallback', ui-monospace, monospace;
 
   --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
   --step-ease: steps(7, end);
@@ -191,7 +213,7 @@ strong {
   top: 8px;
   left: 8px;
   padding: 8px 14px;
-  color: var(--ink);
+  color: var(--on-accent);
   background: var(--accent);
   font-size: 13px;
   line-height: 20px;
@@ -883,6 +905,60 @@ strong {
   background: var(--accent);
 }
 
+.download-sizes {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 2px solid var(--line-strong);
+}
+
+.download-sizes-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.download-sizes-release {
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.download-sizes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 24px;
+  margin: 14px 0 0;
+}
+
+.download-sizes-cell {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.download-sizes-cell dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.download-sizes-cell dd {
+  margin: 6px 0 0;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.download-sizes-cell dd.is-pending {
+  color: var(--quiet);
+}
+
+.download-sizes-note {
+  max-width: 58ch;
+  margin: 14px 0 0;
+  color: var(--quiet);
+  font-size: 12px;
+}
+
 .section-intro {
   max-width: 62ch;
   margin-bottom: 36px;
@@ -1021,7 +1097,81 @@ strong {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 8px;
+}
+
+/* Keeps the caret and the copy button together on the trailing edge. */
+.code-window-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.copy-button {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  gap: 6px;
+  /* 28px tall, but the hit area is padded out to the 44px target below
+     rather than inflating the bar. */
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--terminal-dim);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--motion-1) var(--ease-out), border-color var(--motion-1) var(--ease-out),
+    background-color var(--motion-1) var(--ease-out);
+}
+
+.copy-button:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.copy-button::before {
+  position: absolute;
+  inset: -12px -8px;
+  content: '';
+}
+
+.copy-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.copy-button.is-copied {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Small clipboard glyph drawn in CSS so there is no icon font or SVG
+   request. Two rounded rectangles: the sheet and the body behind it. */
+.copy-glyph {
+  position: relative;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid currentcolor;
+  border-radius: 2px;
+  opacity: 0.85;
+}
+
+.copy-glyph::after {
+  position: absolute;
+  inset: 2px -3px -3px 2px;
+  border: 1.5px solid currentcolor;
+  border-radius: 2px;
+  background: var(--surface, transparent);
+  content: '';
+}
+
+.copy-text {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .code-window-label {
@@ -1126,6 +1276,24 @@ strong {
 
 .inventory-panel > p code {
   color: var(--accent-text);
+}
+
+/* The `grr api` panel reuses the inventory chrome, so only the terminal-style
+   sample block and the extra breathing room are new. */
+.api-panel {
+  margin-top: 28px;
+}
+
+.api-commands {
+  margin-top: 14px;
+  padding: 12px 16px 14px;
+  overflow-x: auto;
+  color: var(--terminal-text);
+  background: var(--terminal-bg);
+  border-top: 2px solid var(--accent);
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre;
 }
 
 .story-section {
@@ -1256,6 +1424,16 @@ strong {
 .source-copy code {
   color: var(--accent-text);
   font-size: 0.94em;
+}
+
+/* Code inside a terminal window is terminal output, not an accent run. Left to
+   the rule above it inherited --accent-text (#c2410c) on --terminal-bg
+   (#241a14), which is only 3.29:1. Restore the window's own foreground and
+   size so install cards match the code slabs on the overview page. */
+.code-window code,
+.install-card .code-window code {
+  color: var(--terminal-text);
+  font-size: inherit;
 }
 
 .architecture-heading {
@@ -1469,8 +1647,169 @@ strong {
   font-size: 14px;
 }
 
+/* ── Changelog ─────────────────────────────────────────────────────── */
+
+.changelog-head h1 {
+  margin: 0 0 14px;
+  font-size: clamp(30px, 4.4vw, 46px);
+  line-height: 1.05;
+}
+
+.changelog-lede {
+  max-width: 58ch;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.changelog-meta {
+  margin: 0;
+  color: var(--quiet);
+  font-size: 12px;
+}
+
+.changelog-meta a,
+.changelog-foot a {
+  color: var(--accent-text);
+  text-underline-offset: 3px;
+}
+
+.changelog-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: clamp(28px, 4vw, 48px);
+}
+
+.changelog-jump a {
+  padding: 5px 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+  transition: color var(--motion-1) var(--ease-out), border-color var(--motion-1) var(--ease-out);
+}
+
+.changelog-jump a:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.changelog-jump a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.changelog-release {
+  padding: 0 0 clamp(28px, 4vw, 44px);
+  border-bottom: 1px solid var(--line);
+  /* Anchored headings must clear the sticky header. */
+  scroll-margin-top: 96px;
+}
+
+.changelog-release + .changelog-release {
+  padding-top: clamp(28px, 4vw, 44px);
+}
+
+.changelog-release-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.changelog-release-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: clamp(19px, 2.2vw, 24px);
+}
+
+.changelog-release-head time {
+  color: var(--quiet);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.changelog-section {
+  margin: 0 0 18px;
+}
+
+.changelog-section h3 {
+  margin: 0 0 8px;
+  color: var(--quiet);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.changelog-section ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.changelog-section li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* A scope chip, e.g. the `api` in a conventional-commit subject. */
+.changelog-scope {
+  flex: none;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--quiet);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+.changelog-note {
+  flex-basis: 100%;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+  color: var(--quiet);
+  font-size: 12px;
+}
+
+.changelog-section.is-breaking {
+  padding: 14px 16px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-wash);
+}
+
+.changelog-empty,
+.changelog-foot {
+  color: var(--quiet);
+  font-size: 12.5px;
+}
+
+.changelog-foot p {
+  margin: 0 0 6px;
+}
+
+/* ── FAQ ───────────────────────────────────────────────────────────── */
+
 .faq-item {
   border-top: 1px solid var(--line);
+  /* Reserve the gutter the open-state accent bar is painted into. Without it
+     the inset box-shadow lands on top of the first glyph of every line
+     ("binary" rendering as "inary"), because the summary and answer both
+     have zero left padding. Reserved unconditionally so opening an item
+     does not shift its text sideways. */
+  padding-left: 16px;
   transition: opacity var(--motion-2) var(--ease-out), box-shadow var(--motion-2) var(--ease-out),
     background-color var(--motion-2) var(--ease-out);
 }
@@ -1852,6 +2191,10 @@ strong {
   margin-top: 14px;
 }
 
+.install-card .code-window + .code-window {
+  margin-top: 10px;
+}
+
 .install-note {
   margin: 12px 0 0;
   color: var(--muted);
@@ -1927,6 +2270,14 @@ strong {
   height: 6px;
   content: '';
   background: var(--accent);
+}
+
+/* Prose lists are the one place the site links out in running text, so give
+   those links a real hit area instead of a bare text line. */
+.prose ul li a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
 }
 
 .terms-list {
@@ -2005,6 +2356,10 @@ strong {
 }
 
 @media (max-width: 960px) {
+  .header-inner {
+    flex-wrap: wrap;
+  }
+
   .hero-grid,
   .feature-row,
   .crate-grid,
@@ -2026,6 +2381,11 @@ strong {
 
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .download-sizes-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 14px;
   }
 
   .link-grid {
@@ -2068,6 +2428,7 @@ strong {
   .primary-nav {
     order: 3;
     flex-basis: 100%;
+    flex-wrap: wrap;
     justify-content: flex-start;
     gap: 2px;
   }
@@ -2096,6 +2457,64 @@ strong {
 
   .command-marquee-group span {
     margin-right: 40px;
+  }
+
+  /* Touch: every interactive target clears 48px on the short axis. */
+  .theme-toggle {
+    width: 48px;
+    height: 48px;
+  }
+
+  .primary-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 6px 10px;
+  }
+
+  .primary-nav a::after {
+    right: 10px;
+    left: 10px;
+    bottom: 10px;
+  }
+
+  .button {
+    min-height: 48px;
+  }
+
+  .button-small {
+    min-height: 44px;
+  }
+
+  .changelog-jump a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+  }
+
+  .footer-links a {
+    min-height: 48px;
+    padding: 12px 0;
+  }
+
+  .footer-links a::after {
+    bottom: 12px;
+  }
+
+  .stats-footnote a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+  }
+
+  .prose ul li a {
+    min-height: 48px;
+  }
+
+  .service-command-details summary {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
   }
 }
 

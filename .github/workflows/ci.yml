@@ -31,16 +31,29 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v5
+        timeout-minutes: 2
       - uses: dtolnay/rust-toolchain@nightly
+        timeout-minutes: 5
         with:
           components: rust-src
       - uses: Swatinem/rust-cache@v2
+        timeout-minutes: 5
         with:
           cache-bin: true
+      - uses: actions/setup-node@v5
+        timeout-minutes: 5
+        with:
+          # The repo standard: .ts scripts run on Node's native type
+          # stripping, which needs >= 23.6. No npm cache here — this job
+          # never installs packages, it only runs node directly.
+          node-version: "24"
+      - name: Generated command tree is current
+        run: node scripts/generate-commands.ts --check
       - name: Build
         run: cargo build --locked
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
+        timeout-minutes: 5
       - name: Test
         run: cargo nextest run --locked --all-features
       - name: Test doctests
@@ -53,10 +66,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+        timeout-minutes: 2
       - uses: dtolnay/rust-toolchain@nightly
+        timeout-minutes: 5
         with:
           components: clippy, rust-src
       - uses: Swatinem/rust-cache@v2
+        timeout-minutes: 5
       - name: Lint
         run: cargo clippy --all-targets --locked -- -D warnings
 
@@ -67,11 +83,57 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
+        timeout-minutes: 2
       - uses: dtolnay/rust-toolchain@nightly
+        timeout-minutes: 5
         with:
           components: rustfmt, rust-src
       - name: Check formatting
         run: cargo fmt --all -- --check
+
+  scripts:
+    if: github.event_name != 'schedule'
+    name: scripts typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        timeout-minutes: 2
+      - uses: actions/setup-node@v5
+        timeout-minutes: 5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install script toolchain
+        run: npm ci
+      - name: Typecheck scripts
+        run: npm run typecheck
+
+  feature-subset:
+    # The per-service cargo features are gone; the one meaningful subset left
+    # is a CLI-only build (`--no-default-features --features cli`). Lib+bins
+    # only, deliberately not --all-targets: the integration tests exercise
+    # the curated clients, which are not part of this subset.
+    if: github.event_name != 'schedule'
+    name: feature-subset (cli)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        timeout-minutes: 2
+      - uses: dtolnay/rust-toolchain@nightly
+        timeout-minutes: 5
+        with:
+          components: clippy, rust-src
+      - uses: Swatinem/rust-cache@v2
+        timeout-minutes: 5
+        with:
+          # Distinct key from the clippy job: a different feature set means a
+          # different target dir; sharing a key would evict each other.
+          key: cli-only
+      - name: Clippy (no default features, cli only)
+        run: cargo clippy --locked --no-default-features --features cli -- -D warnings
 
   security:
     name: security audit
@@ -84,7 +146,9 @@ jobs:
       checks: write
     steps:
       - uses: actions/checkout@v5
+        timeout-minutes: 2
       - name: Audit Rust dependencies
         uses: rustsec/audit-check@v2
+        timeout-minutes: 10
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

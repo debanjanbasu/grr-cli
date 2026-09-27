@@ -1,11 +1,24 @@
 # grr configuration — the only file grr reads.
 #
-# Copy to ~/.grr/config.toml (Windows: %USERPROFILE%\.grr\config.toml)
-# and paste your OAuth client ID.
+# You probably do not need this file. Release binaries (GitHub Releases,
+# Homebrew, winget) are built with an OAuth client already compiled in, so
+# `grr auth login` works immediately after install. This file exists only to
+# OVERRIDE that built-in client — with your own, or when you built from
+# source and have no embedded client at all.
+#
+# The easy way to write it:  grr auth setup
+# It validates the client id, writes this file (mode 0600 on unix), and
+# refuses to clobber an existing one without --force.
+#
+# To write it by hand, copy to ~/.grr/config.toml
+# (Windows: %USERPROFILE%\.grr\config.toml) and paste your OAuth client ID.
 #
 # Full Google Cloud walkthrough: docs/gcp-setup.md
 # GRR_CONFIG_PATH overrides the file location.
 # Both snake_case and kebab-case key spellings are accepted.
+#
+# Resolution order: this file > GRR_OAUTH__CLIENT_ID / GRR_OAUTH__CLIENT_SECRET
+# > the client compiled into the binary.
 
 [oauth]
 # Desktop-app OAuth client ID (ends in .apps.googleusercontent.com).

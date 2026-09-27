@@ -14,10 +14,10 @@ const { surfaces } = Astro.props;
 <div class="inventory-panel">
   <div class="inventory-heading">
     <div>
-      <span class="eyebrow">complete 0.4 command surface</span>
+      <span class="eyebrow">the generated command surface</span>
       <h3>Every branch, still namespaced.</h3>
     </div>
-    <span class="inventory-count">06 services</span>
+    <span class="inventory-count">10 APIs</span>
   </div>
   <div class="inventory-list">
     {surfaces.map((surface) => (
@@ -30,5 +30,5 @@ const { surfaces } = Astro.props;
       </details>
     ))}
   </div>
-  <p>Run <code>grr &lt;service&gt; --help</code> and <code>grr schema</code> for the exact flags. Gmail filters, forwarding, auto-forwarding, POP, and IMAP are under <code>grr gmail msg</code>; <code>thread list</code>, <code>send-as verify</code>, and paginated history are also available.</p>
+  <p>Run <code>grr &lt;service&gt; --help</code> and <code>grr schema</code> for the exact flags. The tree is generated from Google's Discovery Service - every method nests by resource (<code>grr gmail users messages list</code>, <code>grr drive files get</code>) with typed flags per parameter. <code>grr api list</code> and <code>grr api describe</code> are the flat, id-based equivalents.</p>
 </div>

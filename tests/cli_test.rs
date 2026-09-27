@@ -1,8 +1,11 @@
 #![cfg(feature = "cli")]
-//! CLI integration tests: exercise the namespaced command surface.
+//! CLI integration tests: exercise the generated command surface.
 //!
 //! All tests use --help / clap failures only, so they need no config
-//! file, network, or credential.
+//! file, network, or credential — except the dry-run parity pair, which
+//! injects a dummy OAuth client via environment variables (the config
+//! loader merges `GRR_OAUTH__*` over any file) and never reaches the
+//! network because --dry-run returns before a token is requested.
 
 use assert_cmd::Command;
 use predicates::prelude::*;
@@ -11,148 +14,159 @@ fn grr() -> Command {
     Command::cargo_bin("grr").unwrap()
 }
 
+/// A command with a dummy OAuth client injected so config loading and
+/// auth-handle construction succeed without touching the network.
+///
+/// `GRR_CONFIG_PATH` points at a file that does not exist: the developer
+/// machine running these tests has a real `~/.grr/config.toml`, and
+/// figment rejects an env override landing on the same OAuth field the
+/// file already fills (two aliases of one serde field). The missing file
+/// is figment's "empty profile", so the test stays hermetic everywhere.
+fn configured_grr() -> Command {
+    let mut cmd = grr();
+    cmd.env("GRR_CONFIG_PATH", "no-such-config-for-tests.toml")
+        .env("GRR_OAUTH__CLIENT_ID", "test-id.apps.googleusercontent.com")
+        .env("GRR_OAUTH__CLIENT_SECRET", "test-secret");
+    cmd
+}
+
 #[test]
-fn top_level_help_lists_namespaces() {
+fn top_level_help_lists_static_commands_and_every_service() {
     grr()
         .arg("--help")
         .assert()
         .success()
         .stdout(predicate::str::contains("auth"))
+        .stdout(predicate::str::contains("api"))
+        .stdout(predicate::str::contains("schema"))
+        .stdout(predicate::str::contains("transport"))
         .stdout(predicate::str::contains("gmail"))
         .stdout(predicate::str::contains("calendar"))
         .stdout(predicate::str::contains("drive"))
-        .stdout(predicate::str::contains("contacts"))
+        .stdout(predicate::str::contains("people"))
         .stdout(predicate::str::contains("chat"))
         .stdout(predicate::str::contains("forms"))
-        .stdout(predicate::str::contains("transport"))
-        .stdout(predicate::str::contains("schema"));
+        .stdout(predicate::str::contains("tasks"))
+        .stdout(predicate::str::contains("docs"))
+        .stdout(predicate::str::contains("sheets"))
+        .stdout(predicate::str::contains("slides"));
 }
 
 #[test]
-fn gmail_help_lists_all_services() {
+fn gmail_help_shows_the_resource_tree() {
     grr()
         .arg("gmail")
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("message"))
-        .stdout(predicate::str::contains("label"))
-        .stdout(predicate::str::contains("draft"))
-        .stdout(predicate::str::contains("send"))
-        .stdout(predicate::str::contains("thread"))
-        .stdout(predicate::str::contains("history"))
-        .stdout(predicate::str::contains("send-as"))
-        .stdout(predicate::str::contains("profile"))
-        .stdout(predicate::str::contains("watch"))
-        .stdout(predicate::str::contains("import"))
-        .stdout(predicate::str::contains("msg"));
+        .stdout(predicate::str::contains("users"))
+        .stdout(predicate::str::contains("Gmail API operations"));
 }
 
 #[test]
-fn message_subcommands() {
+fn gmail_users_messages_lists_leaf_commands() {
     grr()
         .arg("gmail")
-        .arg("message")
+        .arg("users")
+        .arg("messages")
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("search"))
-        .stdout(predicate::str::contains("thread"))
-        .stdout(predicate::str::contains("get"))
-        .stdout(predicate::str::contains("batch-read"))
-        .stdout(predicate::str::contains("attachment"));
+        .stdout(predicate::str::contains("gmail.users.messages.list"))
+        .stdout(predicate::str::contains("gmail.users.messages.get"))
+        .stdout(predicate::str::contains("gmail.users.messages.send"));
 }
 
 #[test]
-fn msg_bulk_ops_expose_search_and_dry_run() {
+fn message_list_help_documents_typed_flags() {
     grr()
         .arg("gmail")
-        .arg("msg")
-        .arg("batch-label")
+        .arg("users")
+        .arg("messages")
+        .arg("list")
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("--search"))
+        .stdout(predicate::str::contains("--user-id <USER_ID>"))
+        .stdout(predicate::str::contains("--max-results <MAX_RESULTS>"))
+        .stdout(predicate::str::contains("--label-ids <LABEL_IDS>"))
+        .stdout(predicate::str::contains("--q <Q>"))
+        // required flags are promoted into the usage line by clap
+        .stdout(predicate::str::contains(
+            "gmail.users.messages.list [OPTIONS] --user-id <USER_ID>",
+        ))
+        // the escape hatches ride on every leaf
+        .stdout(predicate::str::contains("--params <JSON>"))
+        .stdout(predicate::str::contains("--body-file <PATH|->"))
+        .stdout(predicate::str::contains("--query <KEY=VALUE>"))
         .stdout(predicate::str::contains("--dry-run"))
-        .stdout(predicate::str::contains("--max"));
-
-    grr()
-        .arg("gmail")
-        .arg("msg")
-        .arg("batch-delete")
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("--search"))
-        .stdout(predicate::str::contains("--dry-run"));
+        .stdout(predicate::str::contains("-f, --format <FORMAT>"));
 }
 
 #[test]
-fn label_subcommands() {
+fn a_leaf_rejects_a_missing_required_flag() {
     grr()
         .arg("gmail")
-        .arg("label")
-        .arg("--help")
+        .arg("users")
+        .arg("messages")
+        .arg("list")
         .assert()
-        .success()
-        .stdout(predicate::str::contains("list"))
-        .stdout(predicate::str::contains("get"))
-        .stdout(predicate::str::contains("create"))
-        .stdout(predicate::str::contains("update"))
-        .stdout(predicate::str::contains("delete"));
+        .failure()
+        .stderr(predicate::str::contains("--user-id"));
 }
 
 #[test]
-fn draft_subcommands() {
+fn a_leaf_rejects_unknown_flags() {
     grr()
         .arg("gmail")
-        .arg("draft")
-        .arg("--help")
+        .arg("users")
+        .arg("messages")
+        .arg("list")
+        .arg("--user-id")
+        .arg("me")
+        .arg("--bogus")
         .assert()
-        .success()
-        .stdout(predicate::str::contains("create"))
-        .stdout(predicate::str::contains("list"))
-        .stdout(predicate::str::contains("get"))
-        .stdout(predicate::str::contains("update"))
-        .stdout(predicate::str::contains("delete"))
-        .stdout(predicate::str::contains("send"));
+        .failure()
+        .stderr(predicate::str::contains("unexpected argument"));
 }
 
 #[test]
-fn thread_subcommands() {
+fn format_rejection_is_a_clap_error() {
     grr()
         .arg("gmail")
-        .arg("thread")
-        .arg("--help")
+        .arg("users")
+        .arg("messages")
+        .arg("list")
+        .arg("--user-id")
+        .arg("me")
+        .arg("--format")
+        .arg("invalid")
         .assert()
-        .success()
-        .stdout(predicate::str::contains("label"))
-        .stdout(predicate::str::contains("trash"))
-        .stdout(predicate::str::contains("untrash"))
-        .stdout(predicate::str::contains("delete"));
+        .failure()
+        .stderr(predicate::str::contains("invalid value"));
 }
 
 #[test]
-fn send_as_subcommands() {
+fn enum_typed_flags_reject_values_outside_the_documented_set() {
     grr()
         .arg("gmail")
-        .arg("send-as")
-        .arg("--help")
+        .arg("users")
+        .arg("messages")
+        .arg("get")
+        .arg("--user-id")
+        .arg("me")
+        .arg("--id")
+        .arg("m1")
+        .arg("--param-format")
+        .arg("not-a-format")
         .assert()
-        .success()
-        .stdout(predicate::str::contains("list"));
+        .failure()
+        .stderr(predicate::str::contains("invalid value"));
 }
 
 #[test]
-fn watch_subcommands() {
-    grr()
-        .arg("gmail")
-        .arg("watch")
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("start"))
-        .stdout(predicate::str::contains("stop"));
+fn bare_gmail_without_subcommand_is_a_usage_error() {
+    grr().arg("gmail").assert().failure();
 }
 
 #[test]
@@ -164,6 +178,7 @@ fn auth_help_lists_login_and_status() {
         .success()
         .stdout(predicate::str::contains("login"))
         .stdout(predicate::str::contains("status"))
+        .stdout(predicate::str::contains("setup"))
         .stdout(predicate::str::contains("--device"));
 }
 
@@ -176,127 +191,8 @@ fn schema_dumps_json_without_config() {
         .success()
         .stdout(predicate::str::contains("\"name\":\"grr\""))
         .stdout(predicate::str::contains("\"subcommands\""))
-        .stdout(predicate::str::contains("batch-read"))
+        .stdout(predicate::str::contains("gmail.users.messages.list"))
         .stdout(predicate::str::contains("gmail"));
-}
-
-#[test]
-fn get_message_help_documents_body_flags() {
-    grr()
-        .arg("gmail")
-        .arg("message")
-        .arg("get")
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("--body"))
-        .stdout(predicate::str::contains("--max-length"));
-}
-
-#[test]
-fn format_rejection_is_a_clap_error() {
-    grr()
-        .arg("gmail")
-        .arg("message")
-        .arg("search")
-        .arg("--format")
-        .arg("invalid")
-        .arg("test")
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("invalid value"));
-}
-
-#[test]
-fn batch_label_ids_and_search_conflict() {
-    grr()
-        .arg("gmail")
-        .arg("msg")
-        .arg("batch-label")
-        .arg("--ids")
-        .arg("a,b")
-        .arg("--search")
-        .arg("in:inbox")
-        .arg("--remove")
-        .arg("INBOX")
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("cannot be used with"));
-}
-
-#[test]
-fn bare_gmail_without_subcommand_shows_help() {
-    grr().arg("gmail").assert().failure();
-}
-
-#[test]
-fn calendar_subcommands() {
-    grr()
-        .arg("calendar")
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("list"))
-        .stdout(predicate::str::contains("events"))
-        .stdout(predicate::str::contains("get"))
-        .stdout(predicate::str::contains("create"))
-        .stdout(predicate::str::contains("update"))
-        .stdout(predicate::str::contains("delete"))
-        .stdout(predicate::str::contains("free-busy"));
-}
-
-#[test]
-fn drive_subcommands() {
-    grr()
-        .arg("drive")
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("list"))
-        .stdout(predicate::str::contains("search"))
-        .stdout(predicate::str::contains("get"))
-        .stdout(predicate::str::contains("download"))
-        .stdout(predicate::str::contains("upload"))
-        .stdout(predicate::str::contains("rename"))
-        .stdout(predicate::str::contains("delete"))
-        .stdout(predicate::str::contains("quota"));
-}
-
-#[test]
-fn contacts_subcommands() {
-    grr()
-        .arg("contacts")
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("list"))
-        .stdout(predicate::str::contains("search"))
-        .stdout(predicate::str::contains("create"))
-        .stdout(predicate::str::contains("update"))
-        .stdout(predicate::str::contains("delete"));
-}
-
-#[test]
-fn chat_subcommands() {
-    grr()
-        .arg("chat")
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("spaces"))
-        .stdout(predicate::str::contains("messages"))
-        .stdout(predicate::str::contains("send"));
-}
-
-#[test]
-fn forms_subcommands() {
-    grr()
-        .arg("forms")
-        .arg("--help")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("get"))
-        .stdout(predicate::str::contains("responses"));
 }
 
 #[test]
@@ -308,9 +204,13 @@ fn schema_dumps_every_service() {
         .stdout(predicate::str::contains("gmail"))
         .stdout(predicate::str::contains("calendar"))
         .stdout(predicate::str::contains("drive"))
-        .stdout(predicate::str::contains("contacts"))
+        .stdout(predicate::str::contains("people"))
         .stdout(predicate::str::contains("chat"))
-        .stdout(predicate::str::contains("forms"));
+        .stdout(predicate::str::contains("forms"))
+        .stdout(predicate::str::contains("tasks"))
+        .stdout(predicate::str::contains("docs"))
+        .stdout(predicate::str::contains("sheets"))
+        .stdout(predicate::str::contains("slides"));
 }
 
 #[test]
@@ -328,4 +228,58 @@ fn schema_table_output_renders_field_value_table() {
         .stdout(predicate::str::contains("Value"))
         .stdout(predicate::str::contains("name"))
         .stdout(predicate::str::contains("subcommands"));
+}
+
+#[test]
+fn a_service_with_no_curated_history_is_reachable() {
+    // Tasks never had hand-written commands; the generated tree is its
+    // entire surface.
+    grr()
+        .arg("tasks")
+        .arg("tasklists")
+        .arg("list")
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("tasks.tasklists.list"));
+}
+
+#[test]
+fn the_generated_tree_and_api_call_print_identical_dry_runs() {
+    // End-to-end parity: the same method and parameters through the
+    // generated tree (typed flags) and through `grr api call` (--param)
+    // must produce byte-identical dry-run output. Both stop before any
+    // token use, so the dummy client is enough.
+    let tree = configured_grr()
+        .arg("gmail")
+        .arg("users")
+        .arg("messages")
+        .arg("list")
+        .arg("--user-id")
+        .arg("me")
+        .arg("--dry-run")
+        .assert()
+        .success();
+    let tree_output = String::from_utf8_lossy(&tree.get_output().stdout).into_owned();
+
+    let api = configured_grr()
+        .arg("api")
+        .arg("call")
+        .arg("gmail.users.messages.list")
+        .arg("--param")
+        .arg("userId=me")
+        .arg("--dry-run")
+        .assert()
+        .success();
+    let api_output = String::from_utf8_lossy(&api.get_output().stdout).into_owned();
+
+    assert_eq!(
+        tree_output, api_output,
+        "dry-run diverged between the generated tree and `grr api call`"
+    );
+    assert!(tree_output.contains("\"dryRun\":true"), "in: {tree_output}");
+    assert!(
+        tree_output.contains("https://gmail.googleapis.com/gmail/v1/users/me/messages"),
+        "in: {tree_output}"
+    );
 }

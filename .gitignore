@@ -31,12 +31,17 @@ coverage/
 # Environment files
 .env
 .env.local
+# .env.example is the documented template and IS tracked
+!.env.example
 
 # Temporary files
 *.tmp
 *.temp
 # Local gmail config (contains OAuth secrets)
 .config/
+
+# Node (root scripts toolchain: typescript, @types/node)
+/node_modules/
 
 /site/node_modules/
 /site/dist/

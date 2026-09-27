@@ -1,24 +1,32 @@
 //! grr — Google tools from the terminal, at maximum performance.
 //!
-//! One binary, one login, every service: commands are namespaced by
-//! service (`grr gmail ...`, `grr calendar ...`, `grr drive ...`,
-//! `grr contacts ...`, `grr chat ...`, `grr forms ...`). Account-level
-//! concerns (auth, transport, schema) stay top-level. Each service client
-//! is built lazily in its dispatch arm so running one service never
-//! probes another's endpoints.
+//! One binary, one login, every service. The command surface has two
+//! layers:
+//!
+//! * a thin, hand-written set of account-level commands — `auth`, `api`,
+//!   `schema`, `transport` — kept as clap derive types;
+//! * the ENTIRE service command tree (`gmail`, `calendar`, `drive`,
+//!   `people`, `chat`, `forms`, `tasks`, `docs`, `sheets`, `slides`),
+//!   generated at build time from the committed Discovery index into
+//!   `commands/generated.rs`, because the index is the single source of
+//!   truth for the CLI surface and it changes daily.
+//!
+//! Wiring: clap's derive cannot express a runtime-generated tree, and
+//! `external_subcommand` would forfeit typed flags and per-leaf `--help`.
+//! So [`root_command`] composes the derive's static commands with the
+//! generated service commands onto ONE `Command`, parses once with
+//! `get_matches()`, and dispatch matches the four static names first —
+//! everything else is a generated service and goes through
+//! `gen_dispatch::dispatch`, which shares the call path with `grr api`.
 
 use crate::core::prelude::*;
-use crate::gmail::prelude::*;
 use anyhow::Result;
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::commands;
-use crate::commands::{
-    auth, calendar, chat, contacts, drafts, drive, forms, history, import, labels, message_ops,
-    messages, profile, send, send_as, thread_ops, transport, watch,
-};
+use crate::commands::{api, auth, gen_dispatch, generated, transport};
 use crate::schema;
+use auth::AuthCommands;
 
 #[derive(Parser)]
 #[command(
@@ -28,42 +36,23 @@ use crate::schema;
 )]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: StaticCommands,
     // NOTE: no global --format flag on purpose. A global `format` collides
-    // by ID with per-command `format` fields of *different types*
-    // (e.g. message get's MessageFormat), which panics clap's downcast at
-    // runtime (0xC0000409). Every subcommand declares its own -f/--format.
+    // by ID with per-command `format` args of *different types*, which
+    // panics clap's downcast at runtime (0xC0000409). Every subcommand
+    // declares its own -f/--format.
 }
 
 #[derive(Subcommand)]
-enum Commands {
+enum StaticCommands {
     /// Google account authentication (PKCE browser flow; --device for headless)
     #[command(subcommand, subcommand_required = true)]
     Auth(auth::AuthCommands),
 
-    /// Gmail operations
+    /// Discovery-driven access to every Google Workspace method, including
+    /// the ones with no dedicated command. `grr api list` to browse.
     #[command(subcommand)]
-    Gmail(GmailCommands),
-
-    /// Calendar operations
-    #[command(subcommand)]
-    Calendar(calendar::CalendarCommands),
-
-    /// Google Drive operations
-    #[command(subcommand)]
-    Drive(drive::DriveCommands),
-
-    /// Contacts (Google People API) operations
-    #[command(subcommand)]
-    Contacts(contacts::ContactsCommands),
-
-    /// Google Chat operations
-    #[command(subcommand)]
-    Chat(chat::ChatCommands),
-
-    /// Google Forms operations
-    #[command(subcommand)]
-    Forms(forms::FormsCommands),
+    Api(api::ApiCommands),
 
     /// Show negotiated transport protocol and runtime features
     Transport(transport::TransportArgs),
@@ -72,44 +61,22 @@ enum Commands {
     Schema(schema::SchemaArgs),
 }
 
-#[derive(Subcommand)]
-enum GmailCommands {
-    /// Message operations
-    #[command(subcommand)]
-    Message(messages::MessageCommands),
-    /// Label operations
-    #[command(subcommand)]
-    Label(labels::LabelCommands),
-    /// Draft operations
-    #[command(subcommand)]
-    Draft(drafts::DraftCommands),
-    /// Send emails
-    #[command(subcommand)]
-    Send(send::SendCommands),
-    /// Thread operations
-    #[command(subcommand)]
-    Thread(thread_ops::ThreadCommands),
-    /// History operations
-    History(history::HistoryArgs),
-    /// Send-as alias operations
-    #[command(subcommand)]
-    SendAs(send_as::SendAsCommands),
-    /// Profile operations
-    Profile(profile::ProfileArgs),
-    /// Watch (push notifications) operations
-    #[command(subcommand)]
-    Watch(watch::WatchCommands),
-    /// Import RFC 822 message
-    Import(import::ImportArgs),
-    /// Message operations (label, trash, delete, batch)
-    #[command(subcommand)]
-    Msg(message_ops::MessageOpsCommands),
+/// The complete parse tree: the four static commands plus every generated
+/// service command. `grr --help` and `grr schema` both read this, so it
+/// is the single definition of the CLI surface.
+pub(crate) fn root_command() -> clap::Command {
+    Cli::command().subcommands(generated::tree::commands())
 }
 
 /// Build a fresh GoogleAuth from the loaded config. One credential backs
-/// every service; each client gets its own handle (the token store is
-/// shared, so this is a cheap read).
+/// every service; the token store is shared, so this is a cheap read.
 async fn build_auth(config: &GrrConfig) -> Result<GoogleAuth> {
+    // Fail here rather than letting an empty client_id reach Google's
+    // token endpoint and come back as an opaque 400.
+    if config.oauth.client_id.trim().is_empty() {
+        anyhow::bail!(crate::core::config::NO_CLIENT_HELP);
+    }
+
     Ok(AuthConfigBuilder::new()
         .client_id(config.oauth.client_id.clone())
         .client_secret(config.oauth.client_secret.clone())
@@ -129,114 +96,63 @@ pub async fn run() -> Result<()> {
         .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
         .init();
 
-    let cli = Cli::parse();
+    let matches = root_command().get_matches();
 
-    // The schema dump is pure clap introspection: it must answer with zero
-    // configuration, before any client (or OAuth) exists.
-    if let Commands::Schema(args) = &cli.command {
-        crate::schema::handle_schema_cmd(Cli::command(), args.clone())?;
-        return Ok(());
-    }
-
-    let config = ConfigLoader::load().await?;
-
-    // Gmail (also the auth/transport client) is built eagerly only for the
-    // commands that use it; service clients build lazily in their arms.
-    let needs_gmail = matches!(
-        cli.command,
-        Commands::Auth(_) | Commands::Gmail(_) | Commands::Transport(_)
-    );
-    let gmail_client = if needs_gmail {
-        let auth = build_auth(&config).await?;
-        Some(GmailClientBuilder::new().auth(auth).build().await?)
-    } else {
-        None
+    // Parse dispatch: the four static commands first (they are few and
+    // fixed); any other matched name is a generated service, which clap
+    // has already validated against the registered tree.
+    let Some((name, sub)) = matches.subcommand() else {
+        // clap enforces `subcommand_required`; this arm exists for the
+        // compiler, not for users.
+        anyhow::bail!("a subcommand is required; run `grr --help`");
     };
 
-    match cli.command {
-        // Schema was handled above, before client construction.
-        Commands::Schema(_) => unreachable!("schema handled before client construction"),
-        Commands::Auth(cmd) => {
-            let client = gmail_client.as_ref().expect("built for auth");
-            commands::auth::handle_auth_cmd(client, cmd).await?
+    match name {
+        // The schema dump is pure clap introspection: it must answer with
+        // zero configuration, before any client (or OAuth) exists.
+        "schema" => {
+            let args = schema::SchemaArgs::from_arg_matches(sub)?;
+            schema::handle_schema_cmd(root_command(), args)?;
         }
-        Commands::Gmail(cmd) => {
-            let client = gmail_client.as_ref().expect("built for gmail");
-            match cmd {
-                GmailCommands::Message(cmd) => {
-                    commands::messages::handle_message_cmd(client, cmd).await?
-                }
-                GmailCommands::Label(cmd) => {
-                    commands::labels::handle_label_cmd(client, cmd).await?
-                }
-                GmailCommands::Draft(cmd) => {
-                    commands::drafts::handle_draft_cmd(client, cmd).await?
-                }
-                GmailCommands::Send(cmd) => commands::send::handle_send_cmd(client, cmd).await?,
-                GmailCommands::Thread(cmd) => {
-                    commands::thread_ops::handle_thread_cmd(client, cmd).await?
-                }
-                GmailCommands::History(args) => {
-                    commands::history::handle_history_cmd(client, args).await?
-                }
-                GmailCommands::SendAs(cmd) => {
-                    commands::send_as::handle_send_as_cmd(client, cmd).await?
-                }
-                GmailCommands::Profile(args) => {
-                    commands::profile::handle_profile_cmd(client, args).await?
-                }
-                GmailCommands::Watch(cmd) => commands::watch::handle_watch_cmd(client, cmd).await?,
-                GmailCommands::Import(args) => {
-                    commands::import::handle_import_cmd(client, args).await?
-                }
-                GmailCommands::Msg(cmd) => {
-                    commands::message_ops::handle_message_ops_cmd(client, cmd).await?
-                }
+
+        // `auth setup` writes the OAuth client, so it too must run before
+        // the config is loaded — otherwise a user with no client could
+        // never run it.
+        "auth" => {
+            let cmd = AuthCommands::from_arg_matches(sub)?;
+            if let AuthCommands::Setup(args) = &cmd {
+                return crate::commands::setup::handle_setup(args.clone()).await;
             }
-        }
-        Commands::Calendar(cmd) => {
+            let config = ConfigLoader::load().await?;
             let auth = build_auth(&config).await?;
-            let client = crate::calendar::CalendarClientBuilder::new()
-                .auth(auth)
-                .build()
-                .await?;
-            commands::calendar::handle_calendar_cmd(&client, cmd).await?
+            auth::handle_auth_cmd(&auth, cmd).await?;
         }
-        Commands::Drive(cmd) => {
+
+        // The transport probe needs an auth handle (it issues a real
+        // authenticated request) but no typed service client.
+        "transport" => {
+            let config = ConfigLoader::load().await?;
             let auth = build_auth(&config).await?;
-            let client = crate::drive::DriveClientBuilder::new()
-                .auth(auth)
-                .build()
+            transport::handle_transport_cmd(auth, transport::TransportArgs::from_arg_matches(sub)?)
                 .await?;
-            commands::drive::handle_drive_cmd(&client, cmd).await?
         }
-        Commands::Contacts(cmd) => {
+
+        "api" => {
+            let cmd = api::ApiCommands::from_arg_matches(sub)?;
+            // Needs an auth handle but no typed service client: every URL
+            // comes from the Discovery index at call time.
+            let config = ConfigLoader::load().await?;
             let auth = build_auth(&config).await?;
-            let client = crate::people::PeopleClientBuilder::new()
-                .auth(auth)
-                .build()
-                .await?;
-            commands::contacts::handle_contacts_cmd(&client, cmd).await?
+            api::handle_api_cmd(&auth, cmd).await?;
         }
-        Commands::Chat(cmd) => {
+
+        // A generated service. Dispatch walks the matched chain itself
+        // (the deepest subcommand's name IS the full dotted method id),
+        // so it gets the full root matches.
+        _ => {
+            let config = ConfigLoader::load().await?;
             let auth = build_auth(&config).await?;
-            let client = crate::chat::ChatClientBuilder::new()
-                .auth(auth)
-                .build()
-                .await?;
-            commands::chat::handle_chat_cmd(&client, cmd).await?
-        }
-        Commands::Forms(cmd) => {
-            let auth = build_auth(&config).await?;
-            let client = crate::forms::FormsClientBuilder::new()
-                .auth(auth)
-                .build()
-                .await?;
-            commands::forms::handle_forms_cmd(&client, cmd).await?
-        }
-        Commands::Transport(args) => {
-            let client = gmail_client.as_ref().expect("built for transport");
-            commands::transport::handle_transport_cmd(client, args).await?
+            gen_dispatch::dispatch(&matches, &auth).await?;
         }
     }
 

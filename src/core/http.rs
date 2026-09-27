@@ -10,7 +10,6 @@ use std::time::Duration;
 
 use reqwest::Client as ReqwestClient;
 use reqwest::header::{ACCEPT_ENCODING, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
-use serde::de::DeserializeOwned;
 use tokio::sync::Semaphore;
 use tracing::{debug, info, warn};
 use url::Url;
@@ -39,48 +38,8 @@ const RETRY_BACKOFF_MS: u64 = 100;
 /// Never sleep longer than this honoring a 429 Retry-After mid-command.
 const MAX_RATE_LIMIT_WAIT: Duration = Duration::from_secs(30);
 
-#[derive(Default)]
-pub(crate) struct QueryParams {
-    values: Vec<(String, String)>,
-}
-
-impl QueryParams {
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-
-    pub(crate) fn add(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.values.push((key.into(), value.into()));
-        self
-    }
-
-    pub(crate) fn add_optional(
-        mut self,
-        key: impl Into<String>,
-        value: Option<impl Into<String>>,
-    ) -> Self {
-        if let Some(value) = value {
-            self.values.push((key.into(), value.into()));
-        }
-        self
-    }
-
-    pub(crate) fn add_page_token(self, token: Option<&str>) -> Self {
-        self.add_optional("pageToken", token)
-    }
-
-    pub(crate) fn apply(self, request: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-        request.query(&self.values)
-    }
-}
-
 pub(crate) fn parse_url(raw: &str, kind: &str) -> Result<Url> {
     Url::parse(raw).map_err(|error| GrrError::Config(format!("Invalid {kind} URL: {error}")))
-}
-
-pub(crate) fn join_url(base: &Url, path: &str, kind: &str) -> Result<Url> {
-    base.join(path)
-        .map_err(|error| GrrError::Config(format!("Invalid {kind} URL: {error}")))
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -372,14 +331,6 @@ impl HttpCore {
 
         Err(last_error.unwrap_or_else(|| GrrError::Internal("Max retries exceeded".into())))
     }
-
-    pub(crate) async fn execute_json<T>(&self, request: reqwest::RequestBuilder) -> Result<T>
-    where
-        T: DeserializeOwned,
-    {
-        let response = self.execute(request).await?;
-        Ok(response.json().await?)
-    }
 }
 
 /// Apply the transport-level HTTP version override for data-plane requests.
@@ -459,26 +410,4 @@ fn build_http_client_with_mode(mode: TransportMode) -> Result<ReqwestClient> {
         .default_headers(headers)
         .build()
         .map_err(|error| GrrError::Config(format!("Failed to build HTTP client: {error}")))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn query_params_collects_optional_values_and_page_tokens() -> Result<()> {
-        let request = QueryParams::new()
-            .add("q", "in:inbox")
-            .add_optional("labelId", Some("INBOX"))
-            .add_optional("timeMin", None::<&str>)
-            .add_page_token(Some("next"))
-            .apply(ReqwestClient::new().get("https://example.com/messages"))
-            .build()?;
-
-        assert_eq!(
-            request.url().query(),
-            Some("q=in%3Ainbox&labelId=INBOX&pageToken=next")
-        );
-        Ok(())
-    }
 }

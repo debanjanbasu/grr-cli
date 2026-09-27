@@ -32,7 +32,7 @@ pub(crate) const REDIRECT_URI: &str = "http://localhost:3434/oauth/callback";
 /// Union of every service's scopes (Gmail, Calendar, Drive, People, Chat,
 /// Forms). Least-privilege selection is deliberately not implemented:
 /// one credential, everything works, nothing to configure.
-pub(crate) const SCOPES: &[&str] = &[
+pub const SCOPES: &[&str] = &[
     // Gmail
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.compose",
@@ -95,6 +95,17 @@ impl GoogleAuth {
     /// Token storage backend in use (for logs and `auth login` output).
     pub fn token_backend(&self) -> &'static str {
         self.store.backend()
+    }
+
+    /// The shared HTTP client, which speaks HTTP/3 (QUIC) with an HTTP/2
+    /// fallback.
+    ///
+    /// Exposed for `grr api`, which issues requests to arbitrary
+    /// Discovery-derived URLs. Routing those through the same client is the
+    /// point: the dynamic surface gets the same transport as the curated
+    /// commands rather than quietly dropping to HTTP/1.1.
+    pub fn http(&self) -> &HttpClient {
+        &self.http_client
     }
 
     /// Construct an auth handle pre-loaded with an in-memory token.

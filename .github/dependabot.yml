@@ -43,6 +43,38 @@ updates:
         patterns:
           - "*"
 
+  # The root package.json is scripts-only (typescript, @types/node for the
+  # .ts tooling scripts). Same conventions as /site below: every version
+  # bump proposed, majors included, grouped to keep the PR count sane.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 20
+    versioning-strategy: increase
+    labels:
+      - dependencies
+      - npm
+    groups:
+      typescript-updates:
+        patterns:
+          - typescript
+      npm-majors:
+        patterns:
+          - "*"
+        update-types:
+          - major
+      npm-minors:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+      npm-patches:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+
   - package-ecosystem: npm
     directory: /site
     schedule:

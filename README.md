@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![crates.io](https://img.shields.io/crates/v/grr-cli.svg)](https://crates.io/crates/grr-cli)
 
-**Google tools from the terminal, at maximum performance.** `grr-cli` is one published Rust package with the `grr` command-line binary and the `grr_cli` library behind it. Gmail, Calendar, Drive, Contacts, Chat, and Forms share one OAuth login, while stdout stays clean and machine-readable.
+**Google tools from the terminal, at maximum performance.** `grr-cli` is one published Rust package built around the `grr` command-line binary. Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, and Slides share one OAuth login and one command tree — generated straight from Google's own Discovery Service — while stdout stays clean and machine-readable.
 
 Project site: [grr-cli.pages.dev](https://grr-cli.pages.dev/) · [Privacy](https://grr-cli.pages.dev/privacy/)
 
@@ -15,15 +15,18 @@ grr is an independent project and is not affiliated with or endorsed by Google.
 
 ```sh
 grr auth login
-grr gmail message search "in:inbox" --max 5
-grr gmail message get 191f8ab2 --body
+grr gmail users messages list --user-id me --q "in:inbox" --max-results 5
+grr drive files list --page-size 10
+grr api describe calendar.events.list
 grr schema
 ```
 
 ## Install
 
-**Prebuilt binaries** — Windows x64, Linux x64, macOS ARM:
+**Prebuilt binaries** — macOS arm64, Linux x86_64, Windows x86_64, and Windows on ARM (aarch64, Snapdragon X / Oryon):
 [GitHub Releases](https://github.com/debanjanbasu/grr-cli/releases)
+
+Release binaries are zero-config — an OAuth client is compiled in, so `grr auth login` works immediately. Archives are `.tar.zst` (zstd level 22) on unix and `.zip` on Windows; every binary is UPX-packed.
 
 **From source** (the default CLI build requires Rust nightly — see [Development](#development)):
 
@@ -39,104 +42,167 @@ cd grr-cli
 cargo install --path . --locked
 ```
 
+A source build has no OAuth client compiled in — see [Authentication and configuration](#authentication-and-configuration).
+
 **Package managers**:
 
 ```sh
-winget install debanjanbasu.grr       # Windows (0.2.0 live; 0.3.0 update PR pending)
-brew install debanjanbasu/tap/grr     # macOS + Linux (tap: debanjanbasu/homebrew-grr)
-cargo install grr-cli                 # crates.io (0.4.0 live)
+winget install debanjanbasu.grr       # Windows
+cargo install grr-cli                 # crates.io
 ```
 
-The crates.io CLI build needs nightly Rust and `RUSTFLAGS="--cfg reqwest_unstable"` for HTTP/3; the prebuilt releases avoid that source-build step. Library consumers pick services with cargo features; every build, library or CLI, requires Rust nightly (see [Library use](#library-use)).
+Homebrew (macOS + Linux), from the `debanjanbasu/homebrew` tap:
+
+```sh
+brew tap debanjanbasu/homebrew
+brew trust debanjanbasu/homebrew
+brew install grr
+```
+
+`brew trust` is required, not decorative: since Homebrew 4.4 third-party taps are untrusted by default, and `brew install` refuses to install a formula from an untrusted tap until you trust it once. Skipping that line is the most common first-run failure.
+
+The crates.io CLI build needs nightly Rust and `RUSTFLAGS="--cfg reqwest_unstable"` for HTTP/3; the prebuilt releases avoid that source-build step. `cargo install` also produces a binary with no embedded OAuth client, so budget five minutes for `grr auth setup` (or a `.env`) on that path.
 
 ## 60-second quickstart
 
-1. **One-time Google Cloud setup** (~5 min): create a Desktop OAuth client and copy its client ID.
-   Follow [docs/gcp-setup.md](docs/gcp-setup.md), or run [scripts/setup-gcp.ps1](scripts/setup-gcp.ps1) (Windows) / [scripts/setup-gcp.sh](scripts/setup-gcp.sh) (macOS/Linux) — they automate the gcloud parts and print the console links for the browser steps.
+```sh
+brew tap debanjanbasu/homebrew
+brew trust debanjanbasu/homebrew
+brew install grr
 
-2. **Configure** — `~/.grr/config.toml` (Windows: `%USERPROFILE%\.grr\config.toml`):
+grr auth login
+grr gmail users getProfile --user-id me
+```
 
-   ```toml
-   [oauth]
-   client_id = "123456789-abc.apps.googleusercontent.com"
-   # Optional — Google shows it next to the client ID. Sent at the token
-   # endpoint only when present; PKCE is always on.
-   # client_secret = "GOCSPX-..."
-   ```
+There is nothing to configure first: a release binary already carries an OAuth client, so `grr auth login` opens the browser, you consent, and every service works. Headless machine? `grr auth login --device` prints a URL + code instead of opening a browser.
 
-3. **Authenticate and verify**:
+Building from source instead of installing a release? Read [Authentication and configuration](#authentication-and-configuration) before your first `grr` invocation.
 
-   ```sh
-   grr auth login
-   grr gmail profile
-   ```
+## Authentication and configuration
 
-   The project/fork is **Google Rust Rewrite**; the Google consent-screen application is named **Rust Rewrite**. The consent screen is where that shorter name appears.
+**Release binaries are zero-config.** `build.rs` reads `GRR_CLIENT_ID` / `GRR_CLIENT_SECRET` from the build environment — GitHub Actions repo secrets for the official builds — and compiles them in, so GitHub Releases, Homebrew, and winget installs need no config file and no console visit.
 
-   **0.4 re-consent:** if you used a pre-0.4 token, run `grr auth login` again. The new service permissions include `chat.delete`, `chat.memberships`, `chat.messages.reactions`, and `contacts.other.readonly`; an existing grant does not pick them up automatically.
+**Source builds bring their own client.** `cargo install grr-cli` compiles the published sources with nothing in the build environment, so that binary has no embedded client. Any one of these fixes it:
 
-   Headless machine? `grr auth login --device` prints a URL + code instead of opening a browser.
+1. **A `.env` next to `Cargo.toml`** — copy [`.env.example`](.env.example) to `.env`, fill in both values, rebuild. `build.rs` reads the environment first and `.env` second, so every build after that is zero-config too. `.env` is gitignored; never commit it.
+2. **Environment variables for a single build** — `GRR_CLIENT_ID=… GRR_CLIENT_SECRET=… cargo build --release`.
+3. **`grr auth setup`** — no rebuild required, because it writes `~/.grr/config.toml` (Windows: `%USERPROFILE%\.grr\config.toml`) instead.
+
+### `grr auth setup`
+
+```text
+grr auth setup [OPTIONS]
+
+  --client-id <ID>          Google OAuth client id (…apps.googleusercontent.com); prompted when omitted
+  --client-secret <SECRET>  Google OAuth client secret; prompted when omitted
+  --print-only              print the instructions and the resolved path, write nothing
+  --force                   overwrite an existing ~/.grr/config.toml instead of refusing
+  --enable-apis             also run `gcloud services enable` for all ten APIs, when gcloud is on PATH
+  -f, --format <FORMAT>     json | jsonl | table | pretty (default json)
+```
+
+It checks the client-id shape before writing anything (must end in `.apps.googleusercontent.com`, and a truncated paste is rejected), rejects a truncated secret, writes the file mode `0600` on unix, and refuses to clobber an existing `config.toml` without `--force`. It prints the exact Cloud Console URLs and the `gcloud services enable` line covering all ten APIs — gmail, calendar-json, drive, people, chat, forms, tasks, docs, sheets, and slides `…googleapis.com` — and `--print-only` hands you that recipe without touching disk, which is the right first command when you have no client at all:
+
+```sh
+grr auth setup --print-only
+```
+
+Because it runs before any client is resolved, `grr auth setup` works even when nothing is configured yet: it is the escape hatch, not a last resort. Under a non-TTY stdin (CI, agents, pipes) it errors instead of hanging, so pass `--client-id` and `--client-secret` explicitly rather than relying on the prompts.
+
+**Resolution order at runtime:** `~/.grr/config.toml` → `GRR_OAUTH__CLIENT_ID` / `GRR_OAUTH__CLIENT_SECRET` → the client compiled into the binary. `GRR_CONFIG_PATH` moves the file; `RUST_LOG` sets the log level.
+
+Embedding a client secret is acceptable here because Google treats installed-app client secrets as non-confidential — the flow is protected by PKCE, which is always on. The secret lives in GitHub Actions repo secrets and is compiled in at release time; it must never enter the repository or a CI log.
+
+To create a client from scratch, follow [docs/gcp-setup.md](docs/gcp-setup.md) — you only need that if you are building from source or deliberately want your own client.
+
+The project/fork is **Google Rust Rewrite**; the Google consent-screen application is named **Rust Rewrite**. The consent screen is where that shorter name appears.
+
+**0.4 re-consent:** if you used a pre-0.4 token, run `grr auth login` again. The new service permissions include `chat.delete`, `chat.memberships`, `chat.messages.reactions`, and `contacts.other.readonly`; an existing grant does not pick them up automatically.
 
 ## Usage highlights
 
 ```sh
-grr gmail message search "from:github.com" --max 10
-grr gmail message get 191f8ab2 --body --max-length 2000
-grr gmail message batch-read --ids 191f8ab2,191f8cd4 --body
-grr gmail msg batch-label --search "from:linkedin.com" --remove INBOX --dry-run
-grr gmail msg batch-label --search "from:linkedin.com" --remove INBOX
-grr gmail send send you@example.com "Quick question" "Body text"
-grr gmail send send-attach you@example.com "Invoice" "See attached" --attachments invoice.pdf
+grr gmail users messages list --user-id me --q "from:github.com" --max-results 10
+grr gmail users messages get --user-id me --id 191f8ab2 --param-format metadata
+grr gmail users threads list --user-id me --max-results 10
+grr calendar events list --calendar-id primary --time-min 2026-10-01T00:00:00Z --max-results 10
+grr drive files list --q "name contains 'report'" --page-size 10
+grr drive files export --file-id <id> --mime-type application/pdf
+grr chat spaces messages create --parent spaces/AAAA --body-file ./message.json
+grr sheets spreadsheets values get --spreadsheet-id 1AbC… --range Sheet1!A1:B10
+grr tasks tasklists list
 grr transport
-grr schema --format pretty
+grr schema
 ```
 
-Every data command takes `-f/--format json|jsonl|table|pretty` (default `json`). For `gmail message get`, `--message-format` selects the stored Gmail MIME format (`full`, `metadata`, `minimal`, or `raw`) while `-f/--format` still selects the printed output format. Logs go to stderr, so stdout is always parseable:
+Every command takes `-f/--format json|jsonl|table|pretty` (default `json`). For `gmail users messages get`, the Gmail MIME parameter named `format` arrives as `--param-format full|metadata|minimal|raw` (see the collision rule below), while `-f/--format` still selects the printed output format. Logs go to stderr, so stdout is always parseable:
 
 ```sh
-grr gmail message search "in:inbox" --max 1 | jq -r '.[0].id'
+grr gmail users messages list --user-id me --q "in:inbox" --max-results 1 | jq -r '.[0].id'
 ```
 
 ### Command reference
 
-| Group | Commands |
-| --- | --- |
-| `grr auth` | `login [--device]`, `status` |
-| `grr gmail` | `message`, `label`, `draft`, `send`, `thread`, `history`, `send-as`, `profile`, `watch`, `import`, `msg` |
-| `grr gmail message` | `search <query>`, `get <id> [--message-format full\|metadata\|minimal\|raw] [--body] [--max-length N]`, `thread <id>`, `batch-read --ids a,b,c [--body] [--max-length N]`, `attachment <msg-id> <att-id> [-o FILE]` |
-| `grr gmail label` | `list`, `get <id>`, `create <name>`, `update <id>` (the CLI spelling for label updates; the library also exposes `GmailClient::patch_label`), `delete <id>` |
-| `grr gmail draft` | `create <to> <subject> <body>`, `list`, `get <id>`, `update <id> <to> <subject> <body>`, `delete <id>`, `send <id>` |
-| `grr gmail send` | `send <to> <subject> <body> [--cc] [--bcc]`, `send-attach <to> <subject> <body> --attachments f1,f2 [--thread-id] [--cc] [--bcc]` |
-| `grr gmail thread` | `list`, `label <id> --add/--remove ...`, `trash <id>`, `untrash <id>`, `delete <id>` |
-| `grr gmail history` | `<start-history-id> [--label-id] [--max N]`; the client follows Gmail history pages up to the limit |
-| `grr gmail send-as` | `list`, `get <email>`, `create <email>`, `update <email>`, `delete <email>`, `verify <email>` |
-| `grr gmail profile` | mailbox profile |
-| `grr gmail watch` | `start <topic>`, `stop` (push notifications) |
-| `grr gmail import` | `<rfc822-file> [--deleted]` |
-| `grr gmail msg` | `label`, `trash`, `untrash`, `delete`, `batch-label`, `batch-delete`, `filter-list`, `filter`, `filter-create`, `filter-delete`, `forwarding-list`, `forwarding-create`, `forwarding-delete`, `autoforwarding`, `autoforwarding-set`, `pop`, `pop-set`, `imap`, `imap-set` |
-| `grr calendar` | `list`, `events`, `get`, `new`, `create`, `update`, `delete`, `free-busy`, `set`, `instances`, `patch`, `move`, `watch`, `stop`, `colors`, `settings`, `share`, `shares`, `unshare` |
-| `grr drive` | `list [--trashed]`, `search`, `get`, `mkdir`, `trash`, `restore`, `copy`, `empty-trash`, `download`, `upload`, `rename`, `delete`, `export`, `share`, `shares`, `unshare`, `comments`, `comment`, `comment-add`, `comment-delete`, `revisions`, `revision`, `quota` |
-| `grr contacts` | `list`, `search`, `get`, `create`, `update`, `delete`, `groups`, `group`, `group-new`, `group-rename`, `group-delete`, `group-add`, `group-remove`, `get-batch`, `others`, `adopt`, `photos`, `photo-set`, `photo-remove` |
-| `grr chat` | `spaces`, `space`, `space-new`, `space-rename`, `space-delete`, `members`, `member`, `member-add`, `member-remove`, `messages`, `send`, `react`, `reactions`, `unreact` |
-| `grr forms` | `get`, `responses`, `new`, `update`, `watch`, `watches`, `watch-delete`, `watch-renew` |
-| `grr transport` | negotiated HTTP version + runtime features |
-| `grr schema` | the full command tree as JSON |
+The command tree is **generated** from the committed Discovery index at build time, so this table is deliberately coarse: **`grr --help` and `grr schema` are the source of truth**, and every one of the 308 methods is a real, typed command.
 
-Details worth knowing:
+| Group | What it covers | Methods |
+| --- | --- | --- |
+| `grr auth` | `login [--device]`, `status`, `setup [--client-id] [--client-secret] [--print-only] [--force] [--enable-apis]` | — |
+| `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 308 |
+| `grr schema` | the whole command tree as JSON | — |
+| `grr transport` | negotiated HTTP version + runtime features | — |
+| `grr gmail` | messages, threads, drafts, labels, history, attachments, filters, forwarding, POP/IMAP, send-as, CSE, delegates, watches | 79 |
+| `grr calendar` | calendars, events, instances, ACL, free/busy, colors, settings | 38 |
+| `grr drive` | files, permissions, comments, replies, revisions, changes, drives, apps, approvals | 64 |
+| `grr people` | contacts, connections, contact groups, other contacts, directory people | 24 |
+| `grr chat` | spaces, members, messages, reactions, media, custom emoji, read state | 54 |
+| `grr forms` | form bodies, responses, watches, publish settings | 10 |
+| `grr tasks` | tasklists and the tasks inside them | 14 |
+| `grr docs` | documents `get` / `create` / `batchUpdate` | 3 |
+| `grr sheets` | spreadsheets, values, batch operations, developer metadata | 17 |
+| `grr slides` | presentations, pages, thumbnails | 5 |
 
-- **`--body`** returns `{message, body}` where `body` is the decoded text (`text/plain` preferred, `text/html` fallback), truncated to `--max-length` (default 800) with a `...[truncated]` marker — sized for LLM context windows.
-- **Batch ops** accept `--ids a,b,c` or `--search "query"` (resolves IDs by running the query, capped by `--max`, default 10000), plus `--dry-run`. `batch-label`/`batch-delete` calls are chunked at 1000 IDs (Gmail's batchModify/batchDelete limit); `batch-read` fans its fetches out in parallel, preserving input order.
-- **`attachment`** prints base64 (URL-safe) to stdout when no `-o FILE` is given, so piping is always binary-safe.
-- **Gmail settings and routing** live under `grr gmail msg`: filters (`filter-list`, `filter`, `filter-create`, `filter-delete`), forwarding addresses, auto-forwarding, POP, and IMAP. `grr gmail thread list` lists threads, `grr gmail send-as verify <email>` verifies an alias, and `grr gmail history` follows Gmail's paginated history response.
-- **Label PATCH** is available to library users through `GmailClient::patch_label`; the CLI exposes label updates as `grr gmail label update <id>`.
+## The generated tree
+
+Every service command above is generated at build time — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~360 KiB across the 10 services) and emits the whole tree into `src/commands/generated.rs` — 308 leaves, 839 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates both the index and the tree, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
+
+The rules, so you can predict any command without memorizing it:
+
+- **The naming rule.** A leaf mirrors its Discovery method id: `gmail.users.messages.list` → `grr gmail users messages list`. Resources nest as subcommands; each leaf also carries its bare method name as a visible alias (`list`, `get` — camelCase methods keep their casing, e.g. `getProfile`).
+- **Typed flags per method.** Parameter names come from the same ids: `userId` → `--user-id`, `maxResults` → `--max-results`. Integers are parsed as `i64`, booleans are presence flags, repeated parameters repeat (`--label-ids a --label-ids b`), enum parameters validate their values, and required parameters are enforced by clap.
+- **The collision rule.** A parameter literally named `format` or `query` would collide with the shared escape hatches, so it is exposed as `--param-format` / `--param-query`.
+- **Untyped bodies.** Discovery's request schemas are not part of the index, so `POST`/`PATCH`/`PUT` bodies pass through `--params <JSON>` (merged; typed flags win) or `--body-file <PATH|->` verbatim.
+- **Every leaf also carries the escape hatches:** `--params <JSON>`, `--body-file`, repeatable `--query KEY=VALUE`, `--dry-run`, and `-f json|jsonl|table|pretty`.
+
+Dispatch resolves the leaf's id against the embedded index and funnels into **one shared call path** — the same engine `grr api call` uses. The two routes are interchangeable:
+
+```sh
+grr api call gmail.users.messages.list --param userId=me --dry-run
+grr gmail users messages list --user-id me --dry-run
+# byte-identical output
+```
+
+`grr api` stays as the flat escape hatch: `list [--service] [--filter] [--grouped]` to browse, `describe <id>` for parameters and scopes, `call <id>` to invoke, `refresh [--service]` to pull the index forward between releases. Because the index is embedded rather than fetched, both `grr api list` and `grr schema` work with no network at all.
+
+Authorisation is checked per method: `grr auth login` consents to a fixed set of scopes, and each call compares the method's least-privilege scope against that set instead of silently escalating — so a method needing something you never granted prints a note naming the scope and may fail with a spelled-out `403` rather than an opaque error. Docs, Sheets, and Slides work through the `drive` scope grr already holds; **Tasks needs the `tasks` scope, which this build does not request**, so a Tasks call prints a note naming the scope and can come back `403`. Their APIs (`tasks.googleapis.com`, `docs.googleapis.com`, `sheets.googleapis.com`, `slides.googleapis.com`) must be enabled on your Cloud project too — see [docs/gcp-setup.md](docs/gcp-setup.md).
 
 ## Design philosophy
 
-- **Zero-config.** `~/.grr/config.toml` holds exactly one thing: an OAuth client ID (and optionally a secret). Scopes, redirect URI, pool sizes, timeouts, and retry policy are compile-time constants tuned for Google's frontends ([src/core/http.rs](src/core/http.rs)). `GRR_CONFIG_PATH` overrides the file location, `RUST_LOG` the log level (`GRR_OAUTH__*` env vars exist for headless overrides) — nothing else is configurable, on purpose.
-- **Namespaced services.** Mail is `grr gmail ...`; Calendar, Drive, Contacts, Chat, and Forms live alongside it (`grr calendar ...`, `grr drive ...`, ...), and account-level concerns stay top-level (`grr auth`, `grr transport`, `grr schema`). One login covers every service; each service client builds lazily so running one never probes another's endpoints. (Keep has no consumer-facing API.)
+- **Zero-config.** Release binaries carry an OAuth client compiled in by `build.rs`, so a fresh install runs `grr auth login` with nothing to configure. `~/.grr/config.toml` is the override, not the prerequisite, and holds exactly one thing: an OAuth client ID (and optionally a secret). Scopes, redirect URI, pool sizes, timeouts, and retry policy are compile-time constants tuned for Google's frontends ([src/core/http.rs](src/core/http.rs)). `GRR_CONFIG_PATH` overrides the file location, `RUST_LOG` the log level (`GRR_OAUTH__*` env vars exist for headless overrides) — nothing else is configurable, on purpose.
+- **Generated, namespaced services.** The command tree is compiled from the Discovery index — the same machine-readable description Google publishes — so method additions land as a daily PR instead of a hand-written backlog. Mail is `grr gmail …`; Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, and Slides live alongside it, and account-level concerns stay top-level (`grr auth`, `grr api`, `grr transport`, `grr schema`). One login covers every service.
 - **stdout purity.** Logs go to stderr, results go to stdout, so `| jq` always works. `-f jsonl` streams arrays one object per line.
 - **Keyring-first token storage.** Tokens live in the OS keyring (Windows Credential Manager, macOS Keychain, Linux Secret Service via D-Bus), with automatic fallback to `<cache dir>/grr/token.json` on headless systems. A token found in the fallback file auto-imports into the keyring on first sight.
-- **Agent-first.** `grr schema` dumps the complete command tree as JSON with zero configuration — the machine-readable contract for AI agents, discoverable without touching a config file or scraping `--help`. One fast CLI replaces per-service MCP servers: no MCP setup, just `grr schema`.
+- **Agent-first.** `grr schema` dumps the complete command tree as JSON with zero configuration — the machine-readable contract for AI agents, discoverable without touching a config file or scraping `--help`. One fast CLI replaces per-service MCP servers: no MCP setup, just `grr schema`. There is also a packaged agent skill at [skills/grr/SKILL.md](skills/grr/SKILL.md) — see [Agent skills](#agent-skills).
+
+## Agent skills
+
+grr ships a packaged agent skill: [skills/grr/SKILL.md](skills/grr/SKILL.md) — the discovery-first discipline (`schema` → `api list` → `api describe` → `--dry-run`), the method-id naming rule, and the output contract in one file, written for any AI agent. Install it into a harness with:
+
+```sh
+npx skills add https://github.com/debanjanbasu/grr-cli
+```
+
+The site's [agents guide](https://grr-cli.pages.dev/docs/agents/) carries the same contract for humans and harness authors.
 
 ## Performance
 
@@ -144,12 +210,13 @@ Details worth knowing:
 - **Tokio multi-threaded runtime**, auto-sized to cores — no thread pool to tune.
 - **In-flight request valve** — a semaphore (not a thread pool) caps concurrent HTTP requests at 64, staying under Gmail's per-user rate limits so bursts don't self-DOS into 429s. 429s are retried honoring `Retry-After` (waits capped at 30s); whole-request timeout is 30s.
 - **Compression always on** — gzip, deflate, zstd, and brotli response decompression.
-- **Streaming uploads** — RFC 822 media upload streams 192 KiB chunks with incremental base64, so large attachments never sit fully in memory.
 - **io_uring file I/O** is a Linux-only target-specific dependency, auto-detected at runtime; it is not a Cargo feature.
+
+Measured startup, binary size, and request-latency numbers against the other Google Workspace CLIs live at [grr-cli.pages.dev/compare/](https://grr-cli.pages.dev/compare/), refreshed daily by an automated workflow.
 
 ## Architecture
 
-`grr-cli` is one published crate at the repository root. `src/lib.rs` builds the library target `grr_cli`; `src/main.rs` is a thin wrapper over `src/cli.rs`, and the binary is named `grr`. The `grr` binary declares `required-features = ["cli"]`.
+`grr-cli` is one published crate at the repository root. `src/lib.rs` builds the library target `grr_cli`; `src/main.rs` is a thin wrapper over `src/cli.rs`, and the binary is named `grr`.
 
 ```text
 .
@@ -157,13 +224,13 @@ Details worth knowing:
 │   ├── core/                 # auth/device/oauth/server/store, http.rs,
 │   │                         # config.rs, config_loader.rs, error.rs,
 │   │                         # fs_io.rs, runtime.rs
-│   ├── gmail/                # client/, models.rs, mod.rs
-│   ├── calendar/             # client.rs, models.rs, mod.rs
-│   ├── drive/                # client.rs, models.rs, mod.rs
-│   ├── people/               # client.rs, models.rs, mod.rs
-│   ├── chat/                 # client.rs, models.rs, mod.rs
-│   ├── forms/                # client.rs, models.rs, mod.rs
-│   ├── commands/             # one module per command group
+│   ├── commands/             # auth.rs, api.rs, setup.rs, transport.rs (the four
+│   │                         # static commands) + generated.rs (GENERATED — the
+│   │                         # whole service tree, ~379 KiB) and gen_dispatch.rs
+│   │                         # (resolves leaf ids, funnels into the shared path)
+│   ├── discovery.rs          # loader over the embedded index
+│   ├── discovery/             # generated *.json index (~360 KiB, committed,
+│   │                         # refreshed daily by workflow PR)
 │   ├── schema.rs
 │   ├── output.rs
 │   ├── cli.rs
@@ -172,31 +239,9 @@ Details worth knowing:
 └── tests/                    # 18 flattened integration test files
 ```
 
-The service modules sit behind one shared core rather than separate published crates. The repository also contains the `assets/`, `site/` (the Astro GitHub Pages site with base `/grr-cli`), `packaging/`, and `scripts/` material used for the project site and distribution.
+One shared core, no per-service client modules: the CLI speaks Discovery through a single call path (`src/commands/api.rs`), and the typed request/response models of the 0.3.x library era are gone. The repository also contains the `assets/`, `site/` (the Astro GitHub Pages site with base `/grr-cli`), `packaging/`, and `scripts/` material used for the project site and distribution.
 
-### Library use
-
-The package exposes the same clients through the `grr_cli` library. The `cli` feature enables all six service features and is required by the `grr` binary; individual services can be selected independently with `gmail`, `calendar`, `drive`, `people`, `chat`, and `forms`. The Cargo feature declarations are:
-
-```toml
-default = ["cli"]
-cli = ["gmail", "calendar", "drive", "people", "chat", "forms"]
-gmail = []
-calendar = []
-drive = []
-people = []
-chat = []
-forms = []
-```
-
-There is no `http3` feature: HTTP/3 (rustls + quinn, via reqwest's unstable http3 support) is **always compiled in**, and HTTP/2 exists only as a runtime fallback. A library dependency can select only the services it needs:
-
-```toml
-[dependencies]
-grr-cli = { version = "0.4.0", default-features = false, features = ["gmail"] }
-```
-
-Every build — CLI or library, any feature subset — requires Rust **nightly** and the `reqwest_unstable` cfg (`.cargo/config.toml` supplies it for in-repo builds; downstream users need `RUSTFLAGS="--cfg reqwest_unstable"`). There is deliberately no stable-Rust path. The old per-crate `io_uring` feature is gone: io_uring is a Linux-only target-specific dependency that is detected at runtime.
+Every build requires Rust **nightly** and the `reqwest_unstable` cfg (`.cargo/config.toml` supplies it for in-repo builds; downstream users need `RUSTFLAGS="--cfg reqwest_unstable"`). There is deliberately no stable-Rust path. HTTP/3 (rustls + quinn, via reqwest's unstable http3 support) is **always compiled in**, and HTTP/2 exists only as a runtime fallback; io_uring is a Linux-only target-specific dependency that is detected at runtime.
 
 ## Development
 
@@ -207,22 +252,30 @@ cargo build
 cargo test --locked
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all --check
-cargo run -- gmail profile
+cargo run -- api list
+
+node scripts/fetch-discovery.ts          # refresh the Discovery index
+node scripts/generate-commands.ts        # regenerate the service command tree
+node scripts/generate-changelog.ts       # regenerate CHANGELOG.md + site data
 ```
+
+Each generator takes `--check` and exits 1 when its output is stale — that is the CI gate. Change the index or the generator, never `src/commands/generated.rs` by hand.
 
 - Tests never touch real credentials — token paths are injected, and wiremock/mockito serve the API endpoints.
 - `RUST_LOG=debug` traces requests; quinn's harmless IPv6 warnings are muted by default.
+- A local build needs an OAuth client before a live call can work: copy `.env.example` to `.env` and fill it in (compiled in by `build.rs`), or run `grr auth setup` to write `~/.grr/config.toml`. See [CONTRIBUTING.md](CONTRIBUTING.md#local-oauth-defaults).
+- `cargo run -- api list` and `cargo run -- schema` need no client at all — the index is embedded.
 
 ## Packaging & status
 
 | Channel | Install | Status |
 | --- | --- | --- |
-| GitHub Releases | 3-platform binaries (Windows x64, Linux x64, macOS ARM) built on `v*` tags | **live — 0.4.0** — [releases](https://github.com/debanjanbasu/grr-cli/releases) |
-| crates.io | `cargo install grr-cli` (binary installs as `grr`; needs nightly + `RUSTFLAGS="--cfg reqwest_unstable"` for the default CLI HTTP/3 build) | **live — 0.4.0, one crate**; the 0.3.0 library crates are legacy/unpublished going forward. Trusted publishing uses OIDC (no stored API tokens) |
+| GitHub Releases | 4-platform binaries (macOS arm64, Linux x86_64, Windows x86_64, Windows on ARM) built on `v*` tags, UPX-packed, `.tar.zst` on unix and `.zip` on Windows | **live — 0.5.0** — [releases](https://github.com/debanjanbasu/grr-cli/releases) |
+| crates.io | `cargo install grr-cli` (binary installs as `grr`; needs nightly + `RUSTFLAGS="--cfg reqwest_unstable"` for the default CLI HTTP/3 build, and brings no embedded OAuth client) | **live — 0.5.0, one crate**. Trusted publishing uses OIDC (no stored API tokens) |
 | winget | `winget install debanjanbasu.grr` | live at 0.2.0; update PR pending Microsoft review |
-| Homebrew | `brew install debanjanbasu/tap/grr` (tap: [debanjanbasu/homebrew-grr](https://github.com/debanjanbasu/homebrew-grr)) | live (arm64 macOS + x86_64 Linux) |
+| Homebrew | `brew tap debanjanbasu/homebrew && brew trust debanjanbasu/homebrew && brew install grr` (tap: [debanjanbasu/homebrew](https://github.com/debanjanbasu/homebrew), formula `Formula/grr.rb`) | live (arm64 macOS + x86_64 Linux) |
 
-The project publishes one package, `grr-cli` (library `grr_cli` plus binary `grr`). `v*` tags trigger the release workflow, and crates.io publishing is handled through trusted publishing; the 0.3.0 service/core crates do not receive new releases.
+The project publishes one package, `grr-cli`, whose binary is `grr`. `v*` tags trigger the release workflow, and crates.io publishing is handled through trusted publishing.
 
 ## License
 

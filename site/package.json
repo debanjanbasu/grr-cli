@@ -10,10 +10,11 @@
     "check": "astro check",
     "lint": "astro check",
     "typecheck": "astro check",
-    "update-stats": "node scripts/update-stats.mjs"
+    "update-stats": "node scripts/update-stats.ts"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
+    "@types/node": "^24.19.0",
     "astro": "^7.3.5",
     "typescript": "^5.7.0"
   }
