@@ -1,12 +1,30 @@
 {
-  "generatedAt": "2026-09-27T08:27:07.816Z",
+  "generatedAt": "2026-09-27T21:10:31.282Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": []
+    },
+    {
+      "version": "0.5.0",
+      "date": "2026-09-28",
+      "unreleased": false,
       "sections": [
+        {
+          "key": "breaking",
+          "heading": "Breaking changes",
+          "items": [
+            {
+              "description": "the command tree is generated from Google's Discovery Service",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
         {
           "key": "added",
           "heading": "Added",

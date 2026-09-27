@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [0.5.0] - 2026-09-28
+
+### Breaking changes
+
+- the command tree is generated from Google's Discovery Service
+
 ### Added
 
 - **site:** round four - modern CSS/SVG cool pass + Rust Rewrite app-name signals
@@ -113,7 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.4.0...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/debanjanbasu/grr-cli/releases/tag/v0.2.0
