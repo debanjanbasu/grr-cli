@@ -16,6 +16,9 @@ rustflags = [
 build-std = ["std", "panic_abort", "core", "alloc"]
 panic-abort-tests = true
 profile-rustflags = true
+# Gates for `panic = "immediate-abort"` and `trim-paths` in Cargo.toml.
+panic-immediate-abort = true
+trim-paths = true
 
 # VFE (-Zvirtual-function-elimination) requires nightly + LTO + embed-bitcode=yes,
 # but the current nightly LLVM crashes with "Do not know how to promote this operator!"
@@ -44,9 +47,11 @@ rustflags = [
     "--cfg", "tokio_unstable",
 ]
 
-# Apple Silicon: native CPU detection for dev, apple-m1 baseline for release.
+# Apple Silicon: M1 is the oldest supported Mac, so apple-m1 is a
+# deterministic distribution baseline. (target-cpu=native would bake in
+# whatever CPU the release runner happens to have.)
 [target.aarch64-apple-darwin]
-rustflags = ["-C", "target-cpu=native", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
+rustflags = ["-C", "target-cpu=apple-m1", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
 
 # iOS Simulator
 [target.aarch64-apple-ios-sim]
@@ -76,6 +81,12 @@ linker = "aarch64-linux-gnu-gcc"
 # Windows x86_64: baseline x86-64-v3.
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "target-cpu=x86-64-v3", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
+
+# Windows on ARM: Snapdragon X Elite/Plus (Oryon). oryon-1 excludes the
+# pre-X Snapdragon 8cx devices (Surface Pro X and older), which are out of
+# support. Repeat the --cfg flags: a [target.*] table replaces [build].
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-cpu=oryon-1", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
 
 # musl targets for static linking
 [target.x86_64-unknown-linux-musl]

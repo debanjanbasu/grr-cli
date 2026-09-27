@@ -1,0 +1,424 @@
+{
+  "generatedAt": "2026-09-27T08:27:07.816Z",
+  "repository": "debanjanbasu/grr-cli",
+  "releases": [
+    {
+      "version": "Unreleased",
+      "date": null,
+      "unreleased": true,
+      "sections": [
+        {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "round four - modern CSS/SVG cool pass + Rust Rewrite app-name signals",
+              "scope": "site",
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "documentation",
+          "heading": "Documentation",
+          "items": [
+            {
+              "description": "0.4.0 is live - release stats + packaging status",
+              "scope": null,
+              "type": "docs",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.4.0",
+      "date": "2026-09-26",
+      "unreleased": false,
+      "sections": [
+        {
+          "key": "breaking",
+          "heading": "Breaking changes",
+          "items": [
+            {
+              "description": "http3 is now the default feature of every crate",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "0.4.0 - one crate, full API coverage, pixel-art site",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "0.4.0 hardening - http3 always-on, nightly-only, pixel 3D site",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "crates.io category slug is date-and-time",
+              "scope": "packaging",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "rewrite publish.yml byte-clean (BOM broke workflow parsing)",
+              "scope": "ci",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "checkout the repo root, not a nested site path",
+              "scope": "pages",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "crates.io allows at most 5 keywords",
+              "scope": "packaging",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "crates.io allows at most 5 categories",
+              "scope": "packaging",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "documentation",
+          "heading": "Documentation",
+          "items": [
+            {
+              "description": "crates.io is live — 0.3.0 published, trusted-publishing-only",
+              "scope": null,
+              "type": "docs",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "winget manifests for 0.3.0 (PR #439697 updated to 0.3.0)",
+              "scope": "packaging",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "real trusted-publishing workflow (crates-io-auth-action, OIDC)",
+              "scope": "publish",
+              "type": "ci",
+              "note": null
+            },
+            {
+              "description": "declare crates-io environment (matches trusted-publishing config)",
+              "scope": "publish",
+              "type": "ci",
+              "note": null
+            },
+            {
+              "description": "Google Search Console ownership file for grr-cli.pages.dev",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "verify grr-cli.pages.dev via Search Console meta tag",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.3.0",
+      "date": "2026-09-24",
+      "unreleased": false,
+      "sections": [
+        {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "v0.3.0 — one CLI, six services (Gmail, Calendar, Drive, Contacts, Chat, Forms)",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.2.0",
+      "date": "2026-09-23",
+      "unreleased": false,
+      "sections": [
+        {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "add TOML config file support with env var overrides",
+              "scope": "config",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "remove client-side throttling, improve 429 handling with Retry-After",
+              "scope": "error",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "add EmailMessage, ThreadMessage, AttachmentInfo, DraftInfo, LabelInfo, HistoryRecord, SendAsInfo",
+              "scope": "models",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "add all 30+ missing API methods (messages, drafts, labels, threads, history, send-as, watch, import)",
+              "scope": "client",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "fix h3/h2 prior-knowledge exclusion, add verified TransportInfo with h3 fallback",
+              "scope": "core",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "add fs\\_io abstraction — io\\_uring-backed file I/O on Linux, tokio elsewhere",
+              "scope": "core",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "single-allocation attachment decode + streamed disk writes",
+              "scope": "core",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "true streaming send/import via media-upload endpoints; incremental base64 MIME assembly",
+              "scope": "core",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "add transport introspection command",
+              "scope": "cli",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "rename to gmail-cli; auth rework, gzip decode, model fixes, release CI",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "grr v0.2.0 — zero-config rework, keyring auth, agent surface",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "changed",
+          "heading": "Changed",
+          "items": [
+            {
+              "description": "cleanup and optimize workspace",
+              "scope": null,
+              "type": "refactor",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "force per-request HTTP\\_3 version on probe and all data-plane requests when h3 effective",
+              "scope": "core",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "rejected refresh token returns Auth error instead of implicit OAuth flow",
+              "scope": null,
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "add token\\_path override hook so tests never touch real credentials",
+              "scope": "auth",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "preserve stored refresh token when grant response omits one",
+              "scope": "auth",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "fail fast with Auth error on 401 instead of futile stale-token retry",
+              "scope": "client",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "route send-with-attachments through legacy JSON path when --thread\\_id given",
+              "scope": "cli",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "report io\\_uring only when the io\\_uring feature is compiled in",
+              "scope": "io",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "accept snake\\_case OAuth keys for TypeScript-era config migration",
+              "scope": "config",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "drop stray aarch64 linker from x86\\_64-linux table; pass -D warnings after --",
+              "scope": "ci",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "clippy is\\_multiple\\_of + -p grr-cli package refs for release",
+              "scope": "ci",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "documentation",
+          "heading": "Documentation",
+          "items": [
+            {
+              "description": "add cleanup & optimization design spec",
+              "scope": null,
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "clarify zstd/brotli removal - payload compression stays via reqwest features",
+              "scope": null,
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "add performance-claims design spec (HTTP/3, streaming, io\\_uring file I/O)",
+              "scope": null,
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "add performance-claims implementation plan",
+              "scope": null,
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "commit spec media-upload amendment and config path fix",
+              "scope": null,
+              "type": "docs",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "truthful descriptions, drop simd vapor, track Cargo.lock",
+              "scope": null,
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "live e2e pipeline behind LIVE\\_E2E=1",
+              "scope": null,
+              "type": "test",
+              "note": null
+            },
+            {
+              "description": "rustfmt defaults repo-wide; drop stale rkyv/zero-copy doc comment",
+              "scope": null,
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "cleanup SDD planning artifacts; add root-level docs and CI workflows",
+              "scope": null,
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "cargo fmt",
+              "scope": null,
+              "type": "style",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming",
+              "scope": null,
+              "type": null,
+              "note": null
+            },
+            {
+              "description": "small fix wave partial",
+              "scope": null,
+              "type": null,
+              "note": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

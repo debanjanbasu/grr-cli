@@ -1,0 +1,55 @@
+{
+  "generatedAt": "2026-09-26T06:59:28.519Z",
+  "services": {
+    "gmail": {
+      "methods": 79,
+      "scopes": 14,
+      "revision": "20260921"
+    },
+    "calendar": {
+      "methods": 38,
+      "scopes": 17,
+      "revision": "20260826"
+    },
+    "drive": {
+      "methods": 64,
+      "scopes": 10,
+      "revision": "20260923"
+    },
+    "people": {
+      "methods": 24,
+      "scopes": 12,
+      "revision": "20260923"
+    },
+    "chat": {
+      "methods": 54,
+      "scopes": 41,
+      "revision": "20260922"
+    },
+    "forms": {
+      "methods": 10,
+      "scopes": 6,
+      "revision": "20260922"
+    },
+    "tasks": {
+      "methods": 14,
+      "scopes": 2,
+      "revision": "20260922"
+    },
+    "docs": {
+      "methods": 3,
+      "scopes": 5,
+      "revision": "20260921"
+    },
+    "sheets": {
+      "methods": 17,
+      "scopes": 5,
+      "revision": "20260921"
+    },
+    "slides": {
+      "methods": 5,
+      "scopes": 7,
+      "revision": "20260921"
+    }
+  }
+}

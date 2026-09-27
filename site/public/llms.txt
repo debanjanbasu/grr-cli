@@ -1,0 +1,23 @@
+# grr
+
+> grr is a zero-config Rust CLI for Google Workspace. One binary, one OAuth login, and a command tree generated from Google's Discovery Service: 308 methods across 10 APIs (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides) as namespaced subcommands — `grr gmail users messages list`, `grr calendar events list`, `grr drive files list` — with typed kebab-case flags per method, bodies via `--params`/`--body-file`, and `grr api list|describe|call|refresh` as the flat escape hatch. Results are JSON on stdout and logs on stderr, so `grr … | jq` works. Release binaries ship with an OAuth client compiled in; `grr auth login` is all that is needed.
+
+## Agent skill
+
+- [skills/grr/SKILL.md](https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md): The packaged agent skill — the discovery-first discipline (`grr schema` → `grr api list` → `grr api describe` → `--dry-run`), the method-id naming rule, the typed-flag rules, and the output contract. Install into any harness with `npx skills add https://github.com/debanjanbasu/grr-cli`.
+
+## Docs
+
+- [Docs](https://grr-cli.pages.dev/docs/): Documentation index. One generated command tree, the id-based `grr api` surface over the same index, and which to use.
+- [Getting started](https://grr-cli.pages.dev/docs/getting-started/): Install on macOS, Linux, or Windows (incl. the required Homebrew `trust` step and winget), `grr auth login`, first command, and verifying with `grr auth status` and `grr transport`.
+- [Commands](https://grr-cli.pages.dev/docs/commands/): The naming rule that predicts any command from its method id, the typed-flag rules, per-service examples for all ten services, and the four static commands.
+- [Discovery API](https://grr-cli.pages.dev/docs/discovery/): `grr api list` / `describe` / `call` / `refresh`, the 308-method coverage table across 10 APIs, `--dry-run`, per-method least-privilege scopes, and the Tasks scope caveat.
+- [Agents and harnesses](https://grr-cli.pages.dev/docs/agents/): The contract for AI agents and coding harnesses — parse stdout not stderr, discover with `grr schema` and `grr api list` rather than assuming, `--dry-run` before writes, and keyring token storage. Includes the packaged skill and a copy-pasteable agent quickstart.
+
+## Optional
+
+- [Overview](https://grr-cli.pages.dev/): What grr is, the ten services, the architecture, and answers to common questions.
+- [Compare](https://grr-cli.pages.dev/compare/): Measured startup, binary size, and request latency against the other Google Workspace CLIs, refreshed daily.
+- [Install](https://grr-cli.pages.dev/install/): Release channels, archive formats and sizes, crates.io and source builds, and OAuth setup.
+- [Privacy](https://grr-cli.pages.dev/privacy/): Credential and token storage, what the CLI sends, and what this static site does not do.
+- [Terms](https://grr-cli.pages.dev/terms/): Project terms, licensing, and the no-endorsement statement.

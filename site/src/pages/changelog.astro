@@ -1,0 +1,108 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import changelog from '../data/changelog.json';
+
+const REPO_URL = 'https://github.com/debanjanbasu/grr-cli';
+
+const { releases, generatedAt } = changelog;
+const newest = releases[0];
+
+// One flat list of everything, so a single <details> can summarise the whole
+// history and each release stays independently linkable.
+const totalChanges = releases.reduce(
+  (total, release) => total + release.sections.reduce((n, s) => n + s.items.length, 0),
+  0,
+);
+
+const dateFormatter = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+const formatDate = (iso: string | null) => (iso ? dateFormatter.format(new Date(`${iso}T00:00:00Z`)) : '');
+---
+
+<BaseLayout
+  title="Changelog"
+  description="Every release of grr, newest first: added commands, fixed bugs, performance work and breaking changes, generated from the commit history."
+>
+  <section class="section changelog-head">
+    <div class="container">
+      <span class="eyebrow">release history</span>
+      <h1>Changelog</h1>
+      <p class="changelog-lede">
+        Generated from the commit history and the release tags, so it cannot drift from what actually
+        shipped. {releases.length} releases, {totalChanges} recorded changes.
+      </p>
+      <p class="changelog-meta">
+        {
+          newest.unreleased
+            ? `Unreleased work is on <a href="${REPO_URL}/commits/main">main</a>. The newest tag is ${newest === releases[1] ? releases[1].version : 'none yet'}.`
+            : `Newest release: ${newest.version}, ${formatDate(newest.date)}.`
+        }
+        <a href={`${REPO_URL}/releases`}>GitHub releases</a> carry the binaries and checksums.
+      </p>
+    </div>
+  </section>
+
+  <section class="section changelog-body">
+    <div class="container">
+      <nav class="changelog-jump" aria-label="Jump to a release">
+        {
+          releases.map((release) => (
+            <a href={release.unreleased ? '#unreleased' : `#v${release.version.replace(/\./g, '-')}`}>
+              {release.unreleased ? 'Unreleased' : release.version}
+            </a>
+          ))
+        }
+      </nav>
+
+      {
+        releases.map((release) => (
+          <article
+            class="changelog-release"
+            id={release.unreleased ? 'unreleased' : `v${release.version.replace(/\./g, '-')}`}
+          >
+            <header class="changelog-release-head">
+              <h2>
+                {release.unreleased ? 'Unreleased' : release.version}
+                {release.unreleased && <span class="tag tag-accent">in progress</span>}
+              </h2>
+              {release.date && <time datetime={release.date}>{formatDate(release.date)}</time>}
+            </header>
+
+            {release.sections.length === 0 && <p class="changelog-empty">No user-visible changes yet.</p>}
+
+            {release.sections.map((section) => (
+              <section class={`changelog-section${section.key === 'breaking' ? ' is-breaking' : ''}`}>
+                <h3>{section.heading}</h3>
+                <ul>
+                  {section.items.map((item) => (
+                    <li>
+                      {item.scope && <span class="changelog-scope">{item.scope}</span>}
+                      <span>{item.description}</span>
+                      {item.note && <span class="changelog-note">{item.note}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </article>
+        ))
+      }
+
+      <footer class="changelog-foot">
+        <p>
+          Generated <time datetime={generatedAt}>{new Date(generatedAt).toISOString().slice(0, 10)}</time>
+          by <code>scripts/generate-changelog.mjs</code> and refreshed automatically.
+        </p>
+        <p>
+          Looking for setup instructions instead? <a href="/docs/getting-started/">Start here</a>, or see
+          <a href="/docs/">all documentation</a>.
+        </p>
+      </footer>
+    </div>
+  </section>
+</BaseLayout>

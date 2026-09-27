@@ -1,10 +1,24 @@
-# Google Cloud setup for grr
+# Google Cloud setup for grr — optional
 
-One-time setup, about 5 minutes. You need three things: the Google Cloud CLI, a Google Cloud project with the Gmail API enabled, and a Desktop OAuth client ID.
+**You probably do not need this page.** Official release binaries (GitHub Releases, Homebrew, winget) ship with an OAuth client already compiled in, so `grr auth login` works the moment you install. Read [Authentication and configuration](../README.md#authentication-and-configuration) first.
 
-Shortcut: [scripts/setup-gcp.ps1](../scripts/setup-gcp.ps1) (Windows) and [scripts/setup-gcp.sh](../scripts/setup-gcp.sh) (macOS/Linux) automate sign-in, project selection, and enabling the Gmail API, then print the console links for steps 5–6.
+This walkthrough is for two cases only:
+
+- **You are building grr from source** (`cargo install`, or a local `cargo build`) — the compiled binary has no client, so you need one of your own.
+- **You want your own client anyway** — your own Cloud project, your own quota, your own consent screen.
+
+Either way the work splits in two halves, and only the first one needs this page:
+
+| Half | Who does it |
+| --- | --- |
+| Create the project, enable the APIs, create the OAuth client | You, in the Cloud console (steps 1–6 below). `grr` cannot create Google Cloud projects. |
+| Write the client into `~/.grr/config.toml` | [`grr auth setup`](#7-write-the-config) — one command, no file editing |
+
+Budget about five minutes.
 
 ## 1. Install the Google Cloud CLI
+
+Only needed for the project and API steps; `grr auth setup` works without it (it just prints the `gcloud services enable` line for you to run).
 
 Windows (PowerShell):
 
@@ -26,6 +40,8 @@ Linux (apt/dnf/etc.): follow the official instructions at <https://cloud.google.
 gcloud auth login
 ```
 
+This signs **gcloud** in, not grr — grr has its own consent flow (`grr auth login`). You need it only to run the `gcloud projects` and `gcloud services` commands below.
+
 ## 3. Pick (or create) a project
 
 List what you have and select one:
@@ -42,11 +58,11 @@ gcloud projects create YOUR_PROJECT_ID
 gcloud config set project YOUR_PROJECT_ID
 ```
 
-A personal project on the free tier comfortably covers Gmail API usage for your own mailbox.
+A personal project on the free tier comfortably covers grr's usage of these APIs for your own account.
 
 ## 4. Enable the APIs
 
-Gmail is required; enable the rest as you need them (Calendar, Drive, Contacts, Chat, Forms are all live `grr` services):
+Gmail is required; enable the rest as you need them (Calendar, Drive, Contacts, Chat, and Forms are all live `grr` services):
 
 ```sh
 gcloud services enable gmail.googleapis.com
@@ -55,7 +71,13 @@ gcloud services enable gmail.googleapis.com
 gcloud services enable calendar-json.googleapis.com drive.googleapis.com people.googleapis.com chat.googleapis.com forms.googleapis.com
 ```
 
-The setup scripts enable only `gmail.googleapis.com`; run the command above manually to enable the rest.
+`grr auth setup --enable-apis` runs exactly that first command for you, for all six, when `gcloud` is on `PATH`.
+
+**If you use `grr api`**, four more APIs open up — Tasks, Docs, Sheets, and Slides have no dedicated `grr` command and are reachable only through [`grr api`](../README.md#every-method-not-just-the-curated-ones):
+
+```sh
+gcloud services enable tasks.googleapis.com docs.googleapis.com sheets.googleapis.com slides.googleapis.com
+```
 
 Note: Google Keep's API is Workspace-enterprise-only (no consumer API), so Keep will never appear as a `grr` service.
 
@@ -74,15 +96,25 @@ Open <https://console.cloud.google.com/apis/credentials/consent>:
 
 One login covers every `grr` service, so the consent screen will ask for all of them — Gmail (read/compose/modify/labels), Calendar, Drive, Contacts, Chat (messages/spaces/memberships/reactions), and Forms (body/responses) — even if you only plan to use one. Enable the matching APIs (step 4) for the services you use.
 
-## 6. Create the OAuth client ID
+While the consent screen is in **Testing** mode, Google expires refresh tokens after about 7 days — rerun `grr auth login` when that happens. The 0.4 release also adds `chat.delete`, `chat.memberships`, `chat.messages.reactions`, and `contacts.other.readonly`; existing users must run `grr auth login` again to grant those scopes. Publishing the app avoids the testing-mode expiry, but is unnecessary for personal use.
+
+## 6. Create the OAuth client
 
 Open <https://console.cloud.google.com/apis/credentials>:
 
 1. **Create credentials → OAuth client ID**
 2. Application type: **Desktop app** (name it anything, e.g. `grr`)
-3. Copy the **client ID** (ends in `.apps.googleusercontent.com`) and the **client secret** shown next to it
+3. Copy the **Client ID** (ends in `.apps.googleusercontent.com`) and the **client secret** shown next to it
 
-Put both in `~/.grr/config.toml` (Windows: `%USERPROFILE%\.grr\config.toml`):
+## 7. Write the config
+
+Let `grr` do it:
+
+```sh
+grr auth setup --client-id 123456789-abc.apps.googleusercontent.com --client-secret GOCSPX-...
+```
+
+It validates the client-id shape (a truncated paste is the most common mistake, so it is rejected up front), writes `~/.grr/config.toml` mode `0600` on unix, and refuses to overwrite an existing file without `--force`. Run `grr auth setup` with no flags to be prompted instead, or `--print-only` to get the recipe without writing anything. Both key spellings are accepted:
 
 ```toml
 [oauth]
@@ -90,9 +122,11 @@ client_id = "123456789-abc.apps.googleusercontent.com"
 client_secret = "GOCSPX-..."
 ```
 
-Google shows a client secret even for Desktop clients. `grr` sends it at the token endpoint only when present — PKCE is always on either way. To set the secret without echoing it into shell history, use [scripts/set-client-secret.ps1](../scripts/set-client-secret.ps1) (hidden prompt).
+See [`config.toml.example`](../config.toml.example) for the annotated template. `GRR_CONFIG_PATH` moves the file elsewhere.
 
-## 7. Log in with grr
+Google shows a client secret even for Desktop clients. `grr` sends it at the token endpoint only when present — PKCE is always on either way. It is not a confidential value in Google's model (which is why release binaries may carry one), but keep it out of version control and out of CI logs all the same.
+
+## 8. Log in with grr
 
 ```sh
 grr auth login
@@ -104,8 +138,6 @@ Your browser opens, you consent, done. On a headless machine use `grr auth login
 grr auth status
 grr gmail profile
 ```
-
-While the consent screen is in **Testing** mode, Google expires refresh tokens after about 7 days — rerun `grr auth login` when that happens. The 0.4 release also adds `chat.delete`, `chat.memberships`, `chat.messages.reactions`, and `contacts.other.readonly`; existing users must run `grr auth login` again to grant those scopes. Publishing the app avoids the testing-mode expiry, but is unnecessary for personal use.
 
 ## Agent environments: no MCP setup
 

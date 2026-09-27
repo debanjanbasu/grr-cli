@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import CodeBlock from '../components/CodeBlock.astro';
+import DownloadSizes from '../components/DownloadSizes.astro';
 import SectionIntro from '../components/SectionIntro.astro';
 
 const base = import.meta.env.BASE_URL;
@@ -13,7 +14,7 @@ cargo build --release --locked
 
 <BaseLayout
   title="Install grr"
-  description="Install grr on macOS, Linux, Windows, from crates.io, or build the Rust CLI from source."
+  description="Install grr on macOS, Linux, and Windows (x64 and ARM) with Homebrew, winget, or crates.io, or build from source. Release binaries are zero-config."
 >
   <section class="page-hero section">
     <div class="container page-hero-grid">
@@ -22,19 +23,23 @@ cargo build --release --locked
         <h1>Pick the shortest path to your shell.</h1>
         <p>Prebuilt binaries are the easy default. If you want a package manager, a crates.io install, or a local build, the project documents each route below.</p>
       </div>
-      <div class="page-hero-aside reveal">one binary · one OAuth login · six services</div>
+      <div class="page-hero-aside reveal">6 services with dedicated commands · 308 methods via <code>grr api</code> · 10 APIs</div>
     </div>
   </section>
 
   <div class="command-marquee" aria-label="Install commands">
     <div class="command-marquee-track">
       <div class="command-marquee-group">
-        <span>brew install debanjanbasu/tap/grr</span>
+        <span>brew tap debanjanbasu/homebrew</span>
+        <span>brew trust debanjanbasu/homebrew</span>
+        <span>brew install grr</span>
         <span>winget install debanjanbasu.grr</span>
         <span>cargo install grr-cli --locked</span>
       </div>
       <div class="command-marquee-group" aria-hidden="true">
-        <span>brew install debanjanbasu/tap/grr</span>
+        <span>brew tap debanjanbasu/homebrew</span>
+        <span>brew trust debanjanbasu/homebrew</span>
+        <span>brew install grr</span>
         <span>winget install debanjanbasu.grr</span>
         <span>cargo install grr-cli --locked</span>
       </div>
@@ -47,17 +52,19 @@ cargo build --release --locked
       <div class="install-grid">
         <article class="install-card install-card-wide">
           <h2>Prebuilt binaries</h2>
-          <p>Download the archive for your platform from GitHub Releases. The release workflow publishes Windows x64, Linux x64, and macOS ARM binaries with checksums.</p>
+          <p>Download the archive for your platform from GitHub Releases. The release workflow publishes Windows x64, Windows on ARM, Linux x64, and macOS ARM binaries with checksums. Every build is UPX-packed, so the archives stay small.</p>
+          <DownloadSizes note="Compressed release archives for the current GitHub release. A dash means that platform is not published yet." />
           <a class="button button-primary" href={releaseUrl} target="_blank" rel="noreferrer">Open GitHub Releases <span aria-hidden="true">↗</span></a>
         </article>
         <article class="install-card">
           <h2>macOS + Linux</h2>
-          <p>The repository’s Homebrew tap serves arm64 macOS and x86_64 Linux builds.</p>
-          <CodeBlock code="brew install debanjanbasu/tap/grr" label="homebrew" />
+          <p>The repository’s Homebrew tap serves arm64 macOS and x86_64 Linux builds. Tap it, trust it, then install by formula name.</p>
+          <p class="install-note">Since Homebrew 4.4, third-party taps are untrusted by default, so <code>brew trust</code> is required before Homebrew will install a formula from the tap.</p>
+          <CodeBlock code={'brew tap debanjanbasu/homebrew\nbrew trust debanjanbasu/homebrew\nbrew install grr'} label="homebrew" />
         </article>
         <article class="install-card">
           <h2>Windows</h2>
-          <p>The Windows package is available through winget. The repository currently notes 0.2.0 as live while the 0.3.0 update is pending review; 0.4.0 is in preparation.</p>
+          <p>The Windows package is available through winget, for both x64 and ARM64 machines. The published manifest is 0.4.0, matching the current GitHub release; 0.5.0 is in preparation and will land in the repository when its manifest review clears.</p>
           <CodeBlock code="winget install debanjanbasu.grr" label="winget" />
         </article>
         <article class="install-card">
@@ -68,7 +75,7 @@ cargo build --release --locked
         </article>
         <article class="install-card">
           <h2>OAuth setup</h2>
-          <p>After installing, create a Google Cloud Desktop OAuth client, put its client ID in <code>~/.grr/config.toml</code>, and authenticate locally.</p>
+          <p>Release binaries are zero-config: the OAuth client is compiled in at build time, so <code>grr auth login</code> works with no setup. Building from source? Run <code>grr auth setup</code> to create and store your own client, then log in.</p>
           <CodeBlock code={`grr auth login\ngrr gmail profile`} label="first run" />
         </article>
       </div>
@@ -91,8 +98,8 @@ cargo build --release --locked
   <section class="split-section section" aria-labelledby="next-title">
     <div class="container prose">
       <span class="eyebrow">next step</span>
-      <h2 id="next-title">One-time Google Cloud setup.</h2>
-      <p>Create a Google Cloud project, enable the APIs you need, and create a Desktop OAuth client. The repository’s setup guide walks through the consent screen, client ID, and headless login flow.</p>
+      <h2 id="next-title">Bring your own client, only if you build.</h2>
+      <p>Release binaries need none of this — just run <code>grr auth login</code>. If you build from source, <code>grr auth setup</code> creates a Google Cloud project, enables the APIs, makes a Desktop OAuth client, and stores the client ID for you.</p>
       <ul>
         <li><a href="https://github.com/debanjanbasu/grr-cli/blob/main/docs/gcp-setup.md" target="_blank" rel="noreferrer">Google Cloud setup guide ↗</a></li>
         <li><a href="https://github.com/debanjanbasu/grr-cli#60-second-quickstart" target="_blank" rel="noreferrer">60-second quickstart ↗</a></li>

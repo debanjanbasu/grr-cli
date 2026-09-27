@@ -1,6 +1,7 @@
 ﻿---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ArchitectureCards from '../components/ArchitectureCards.astro';
+import ApiSurface from '../components/ApiSurface.astro';
 import CodeBlock from '../components/CodeBlock.astro';
 import CommandInventory from '../components/CommandInventory.astro';
 import FeatureRow from '../components/FeatureRow.astro';
@@ -111,27 +112,43 @@ const services = [
 const commandSurfaces = [
   {
     name: 'Gmail',
-    commands: 'message, label, draft, send, thread, history, send-as, profile, watch, import, msg; msg: label, trash, untrash, delete, batch-label, batch-delete, filter-list, filter, filter-create, filter-delete, forwarding-list, forwarding-create, forwarding-delete, autoforwarding, autoforwarding-set, pop, pop-set, imap, imap-set; thread: list, label, trash, untrash, delete; send-as: list, get, create, update, delete, verify',
+    commands: 'users: messages, threads, drafts, labels, history, settings (filters, forwarding, sendAs, CSE), watch · 79 methods',
   },
   {
     name: 'Calendar',
-    commands: 'list, events, get, new, create, update, delete, free-busy, set, instances, patch, move, watch, stop, colors, settings, share, shares, unshare',
+    commands: 'calendars, events, calendarList, freebusy, acl, colors, settings, channels · 38 methods',
   },
   {
     name: 'Drive',
-    commands: 'list, search, get, mkdir, trash, restore, copy, empty-trash, download, upload, rename, delete, export, share, shares, unshare, comments, comment, comment-add, comment-delete, revisions, revision, quota',
+    commands: 'files, permissions, comments, replies, revisions, changes, drives, accessproposals, approvals, teamdrives · 64 methods',
   },
   {
-    name: 'Contacts',
-    commands: 'list, search, get, create, update, delete, groups, group, group-new, group-rename, group-delete, group-add, group-remove, get-batch, others, adopt, photos, photo-set, photo-remove',
+    name: 'People',
+    commands: 'people, contactGroups, otherContacts · 24 methods',
   },
   {
     name: 'Chat',
-    commands: 'spaces, space, space-new, space-rename, space-delete, members, member, member-add, member-remove, messages, send, react, reactions, unreact',
+    commands: 'spaces, messages, members, reactions, spaceEvents, customEmojis, media, availability · 54 methods',
   },
   {
     name: 'Forms',
-    commands: 'get, responses, new, update, watch, watches, watch-delete, watch-renew',
+    commands: 'forms, responses, watches · 10 methods',
+  },
+  {
+    name: 'Tasks',
+    commands: 'tasklists, tasks · 14 methods',
+  },
+  {
+    name: 'Docs',
+    commands: 'documents · 3 methods',
+  },
+  {
+    name: 'Sheets',
+    commands: 'spreadsheets, values, sheets, developerMetadata · 17 methods',
+  },
+  {
+    name: 'Slides',
+    commands: 'presentations, pages · 5 methods',
   },
 ];
 const architecture = [
@@ -174,15 +191,15 @@ grr-cli = { version = "0.4.0", default-features = false, features = ["gmail"] }`
 const faqs = [
   {
     question: 'What is grr?',
-    answer: 'grr is a Rust CLI for Google services from the terminal. It combines Gmail, Calendar, Drive, Contacts, Chat, and Forms in one namespaced binary with machine-readable output and a single OAuth login.',
+    answer: 'grr is a Rust CLI for Google services from the terminal. One generated command tree covers 308 methods across 10 Google APIs — Gmail, Calendar, Drive, Contacts, Chat, Forms, Tasks, Docs, Sheets and Slides — in one namespaced binary with machine-readable output and a single OAuth login.',
   },
   {
     question: 'How does OAuth work?',
-    answer: 'You create a Google Cloud Desktop OAuth client, put its client ID in ~/.grr/config.toml, and run grr auth login. PKCE is always enabled; tokens are kept in the operating system keyring, with a local file fallback for headless systems. grr auth login --device prints a URL and code for machines without a browser.',
+    answer: 'Release builds need no setup at all: a Google OAuth client is compiled into the binary, so `grr auth login` just works. Building from source? Run `grr auth setup`, which creates ~/.grr/config.toml for you, or bring your own client. PKCE is always enabled and tokens are kept in the operating system keyring, with a local file fallback for headless systems. `grr auth login --device` prints a URL and code for machines without a browser.',
   },
   {
-    question: 'Do I need to log in again for 0.4?',
-    answer: 'Yes. Version 0.4 adds chat.delete, chat.memberships, chat.messages.reactions, and contacts.other.readonly scopes. Run grr auth login again to grant the expanded permissions; device flow is available for headless machines.',
+    question: 'Do I need to log in again for 0.5?',
+    answer: 'No. 0.5 does not add scopes, so an existing login keeps working. Version 0.4 did add chat.delete, chat.memberships, chat.messages.reactions and contacts.other.readonly, which needed a fresh `grr auth login`.',
   },
   {
     question: 'Is grr affiliated with Google?',
@@ -190,11 +207,19 @@ const faqs = [
   },
   {
     question: 'How do I install it?',
-    answer: 'Use a prebuilt GitHub Release, the documented Homebrew or winget package, or cargo install grr-cli from crates.io. The install page has the exact commands, including the nightly Rust setup needed by the CLI HTTP/3 build.',
+    answer: 'Use a prebuilt GitHub Release, the documented Homebrew or winget package, or cargo install grr-cli from crates.io. The install page has the exact commands for macOS, Linux, Windows x86_64 and Windows on ARM, plus the nightly Rust setup a source build needs.',
   },
   {
     question: 'Why does it need nightly Rust?',
     answer: 'The CLI enables HTTP/3 through reqwest and QUIC support, which is gated behind Rust nightly and the reqwest_unstable cfg. The repo pins the required toolchain and sets the cfg for in-repo builds; the CLI falls back to HTTP/2 at runtime if QUIC is unavailable.',
+  },
+  {
+    question: 'What is `grr api`?',
+    answer: 'A generic escape hatch generated from Google\'s own Discovery Service, embedded in the binary so it works offline. `grr api list` browses every method, `grr api describe` shows its parameters and scopes, and `grr api call` invokes it. It is how you reach Tasks, Docs, Sheets, Slides, and the long tail of Gmail and Drive methods that have no dedicated command. Use --dry-run to see the exact request first.',
+  },
+  {
+    question: 'Can an AI agent use it?',
+    answer: 'Yes, and the docs are written for that. Output is JSON on stdout with logs on stderr, so `grr ... | jq` and agent tool calls both get predictable data. An agent can discover capabilities with `grr api list` instead of assuming them, inspect any call with --dry-run, and authorise only the scopes the method it is calling actually needs. See the docs page for agents.',
   },
 ];
 const storySteps = [
@@ -222,8 +247,8 @@ const storySteps = [
 ---
 
 <BaseLayout
-  title="Google tools from the terminal"
-  description="grr is a zero-config Rust CLI for Gmail, Calendar, Drive, Contacts, Chat, and Forms, with clean machine-readable output and HTTP/3 when available."
+  title="grr"
+  description="grr is a zero-config Rust CLI for Google Workspace: 6 services with dedicated commands, 308 methods via grr api across 10 APIs, and clean JSON output."
 >
   <section class="hero section" aria-labelledby="hero-title">
     <div class="container hero-grid">
@@ -238,7 +263,7 @@ const storySteps = [
           <a class="button button-primary" href={releaseUrl} target="_blank" rel="noreferrer">GitHub releases <span aria-hidden="true">↗</span></a>
           <a class="button button-secondary" href={`${base}install/`}>Install grr <span aria-hidden="true">→</span></a>
         </div>
-        <p class="hero-note hero-fade">Configure one OAuth client ID. The CLI handles the rest.</p>
+        <p class="hero-note hero-fade">Release binaries ship with the OAuth client built in — <code>grr auth login</code> and you are in.</p>
       </div>
       <div class="hero-visual">
         <div class="hero-stage">
@@ -258,12 +283,16 @@ const storySteps = [
   <div class="command-marquee" aria-label="Install commands">
     <div class="command-marquee-track">
       <div class="command-marquee-group">
-        <span>brew install debanjanbasu/tap/grr</span>
+        <span>brew tap debanjanbasu/homebrew</span>
+        <span>brew trust debanjanbasu/homebrew</span>
+        <span>brew install grr</span>
         <span>winget install debanjanbasu.grr</span>
         <span>cargo install grr-cli --locked</span>
       </div>
       <div class="command-marquee-group" aria-hidden="true">
-        <span>brew install debanjanbasu/tap/grr</span>
+        <span>brew tap debanjanbasu/homebrew</span>
+        <span>brew trust debanjanbasu/homebrew</span>
+        <span>brew install grr</span>
         <span>winget install debanjanbasu.grr</span>
         <span>cargo install grr-cli --locked</span>
       </div>
@@ -284,6 +313,7 @@ const storySteps = [
         {services.map((service, index) => <FeatureRow service={service} reverse={index % 2 === 1} />)}
       </div>
       <CommandInventory surfaces={commandSurfaces} />
+      <ApiSurface />
     </div>
   </section>
 

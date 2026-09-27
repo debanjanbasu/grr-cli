@@ -1,0 +1,207 @@
+name: Changelog
+
+# CHANGELOG.md is generated from the commit history by
+# scripts/generate-changelog.ts. It cannot be hand-maintained without drifting
+# from the tags, so the only job here is to keep the committed copy equal to
+# what the generator produces.
+#
+# Why a pull request and not a direct commit to main:
+#   - Generated content still deserves a reviewable diff. `git log` is the
+#     source of truth, so the interesting question is not "is this text right"
+#     but "did the generator mis-group something", and a PR is where that gets
+#     noticed.
+#   - A direct push to main is not available if the branch is protected, and
+#     adding a bypass to work around that would be worse than a PR.
+#   - peter-evans/create-pull-request pushes a throwaway branch and force-pushes
+#     *that* branch (never main), which is the safe way to keep a generated file
+#     current. This is the same mechanism .github/workflows/discovery.yml
+#     already uses for the generated Discovery index, so there is one pattern in
+#     this repository rather than two.
+#   - Consequence: main is never force-pushed, and no job here needs
+#     --force-with-lease at all.
+#
+# The script is pure and idempotent: the same history always renders the same
+# bytes, so a run that finds no change opens no PR and this workflow stays
+# quiet.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Generate and show the diff, but do not open a pull request"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  # One regeneration at a time: two runs racing on the same throwaway branch
+  # would fight over the same PR.
+  group: changelog-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    name: regenerate changelog
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Push the regeneration branch; never main.
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        timeout-minutes: 5
+        with:
+          # The generator diffs consecutive tags, so it needs the full history
+          # and every tag. A shallow clone would silently render "no changes"
+          # for older releases.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@v5
+        timeout-minutes: 5
+        with:
+          # Matches the Node version the other script-running workflow uses.
+          node-version: "24"
+
+      - name: Generate CHANGELOG.md
+        id: gen
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          # pipefail so a non-zero exit from the generator (for example the
+          # refuse-to-overwrite-a-hand-written-changelog guard) fails this step
+          # instead of being swallowed by `tee`.
+          node scripts/generate-changelog.ts | tee changelog-gen.log
+
+          # The script prints machine-readable `key=value` lines; reuse them
+          # instead of re-deriving the newest tag in shell.
+          TAG=$(grep -m1 '^changelog:newest-tag=' changelog-gen.log | cut -d= -f2- || true)
+          echo "newest_tag=${TAG:-unreleased}" >> "$GITHUB_OUTPUT"
+
+          # Heredoc form: a single-line `echo` cannot carry a multi-line value.
+          {
+            echo 'summary<<CHANGELOG_GEN_EOF'
+            cat changelog-gen.log
+            echo 'CHANGELOG_GEN_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+          # `git status --porcelain` rather than `git diff --quiet`, so a
+          # first-time generated file (untracked) counts as a change too.
+          if [ -z "$(git status --porcelain -- CHANGELOG.md)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "CHANGELOG.md is already in sync."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "CHANGELOG.md is out of date:"
+            git --no-pager diff --stat -- CHANGELOG.md
+          fi
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Changelog generator"
+            echo
+            echo '```'
+            cat changelog-gen.log 2>/dev/null || echo "(generator produced no log)"
+            echo '```'
+            if [ "${{ steps.gen.outputs.changed }}" = "true" ]; then
+              echo
+              echo "#### Diff"
+              echo
+              echo '```diff'
+              git --no-pager diff -- CHANGELOG.md
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report (dry run)
+        if: steps.gen.outputs.changed == 'true' && inputs.dry_run == true
+        run: |
+          echo "::notice title=Dry run::CHANGELOG.md is out of date but no pull"
+          echo "::notice::request was opened, because dry_run was set."
+          git --no-pager diff -- CHANGELOG.md
+          exit 1
+
+      - name: Open a pull request
+        if: steps.gen.outputs.changed == 'true' && inputs.dry_run != true
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/changelog-regenerate
+          title: "docs(changelog): regenerate for ${{ steps.gen.outputs.newest_tag }}"
+          commit-message: "docs(changelog): regenerate for ${{ steps.gen.outputs.newest_tag }}"
+          add-paths: CHANGELOG.md
+          body: |
+            Automated regeneration of `CHANGELOG.md` by
+            `.github/workflows/changelog.yml`, run after
+            `${{ github.event_name }}`.
+
+            The file is derived entirely from the git tags and the commits
+            between them, so this PR is not asking for a wording review — it is
+            asking for a sanity check that commits landed in the right section.
+            A commit that is missing from the changelog entirely means its
+            subject did not parse as a Conventional Commit and it was filed
+            under **Other**.
+
+            Re-running the workflow without new commits produces no diff and
+            opens no PR.
+
+            <details>
+            <summary>Generator output</summary>
+
+            ```
+            ${{ steps.gen.outputs.summary }}
+            ```
+
+            </details>
+
+  verify:
+    name: verify changelog is in sync
+    # Release-only, on purpose. On a `main` push the generator legitimately
+    # wants to add the new commits to `## [Unreleased]`, so a sync check there
+    # would fail on every push and train everyone to ignore it. A published
+    # release is the moment where "the changelog must describe this version" is
+    # a real invariant.
+    #
+    # Note for whoever sees this go red on a release: the section for the tag
+    # that was just published cannot be in the commit that tag points at (the
+    # tag did not exist when that commit was made). The fix is to merge the
+    # regeneration PR above, or to regenerate in the release PR itself.
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # Read-only: this job verifies, it never writes.
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        timeout-minutes: 5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@v5
+        timeout-minutes: 5
+        with:
+          node-version: "24"
+
+      - name: Check CHANGELOG.md matches the generator output
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          if node scripts/generate-changelog.ts --check; then
+            echo "CHANGELOG.md is in sync with the commit history."
+          else
+            echo "::error title=CHANGELOG.md is stale::Run"
+            echo "::error::'node scripts/generate-changelog.ts' and merge the"
+            echo "::error::result. The changelog is generated, so it must never"
+            echo "::error::be edited by hand."
+            exit 1
+          fi

@@ -1,0 +1,128 @@
+name: Refresh discovery index
+
+# Google's Discovery documents change whenever they add a method. The index
+# in src/discovery/ is committed so builds stay hermetic and `grr api list`
+# works offline, which means something has to notice upstream drift.
+#
+# This workflow is that something: a daily (and manual) run that refetches
+# the documents, and opens a pull request when the distilled index differs.
+# Same shape as the Dependabot automations: the repository never edits
+# itself, a human (or auto-merge) reviews the diff.
+
+on:
+  schedule:
+    # 04:17 UTC. Off the hour on purpose — every scheduled workflow in the
+    # world fires at :00 and GitHub queues them.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Open a PR even if the index is unchanged"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discovery-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    name: refresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        timeout-minutes: 2
+
+      - uses: actions/setup-node@v5
+        timeout-minutes: 5
+        with:
+          node-version: "24"
+
+      - name: Refetch, distil, and regenerate the command tree
+        id: refresh
+        timeout-minutes: 5
+        run: |
+          node scripts/fetch-discovery.ts
+          # The CLI command tree is generated from the index, so an index
+          # change must carry its regenerated tree in the same PR.
+          node scripts/generate-commands.ts
+          if git diff --quiet -- src/discovery src/commands/generated.rs; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Discovery index is already current."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git --no-pager diff --stat -- src/discovery src/commands/generated.rs
+          fi
+
+      - uses: dtolnay/rust-toolchain@nightly
+        if: steps.refresh.outputs.changed == 'true'
+        timeout-minutes: 5
+        with:
+          components: rust-src
+
+      - uses: Swatinem/rust-cache@v2
+        if: steps.refresh.outputs.changed == 'true'
+        timeout-minutes: 5
+
+      - name: Verify the Rust side still builds against the new index
+        if: steps.refresh.outputs.changed == 'true'
+        timeout-minutes: 10
+        run: cargo test --lib
+
+      - name: Summarise the delta for the PR body
+        if: steps.refresh.outputs.changed == 'true'
+        id: summary
+        timeout-minutes: 2
+        run: |
+          TABLE=$(node -e "
+            const fs=require('fs');
+            const cur=JSON.parse(fs.readFileSync('src/discovery/manifest.json','utf8'));
+            const rows=Object.entries(cur.services)
+              .map(([n,i]) => '| '+n+' | '+i.methods+' | '+i.scopes+' | '+i.revision+' |');
+            console.log(rows.join('\n'));
+          ")
+          {
+            echo "summary<<EOF"
+            echo "$TABLE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo '### Discovery index after refresh'
+            echo
+            echo '| service | methods | scopes | revision |'
+            echo '|---|---|---|---|'
+            echo "$TABLE"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open a pull request
+        if: steps.refresh.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        timeout-minutes: 5
+        with:
+          branch: chore/discovery-refresh
+          title: "chore(discovery): refresh Google Discovery index"
+          commit-message: "chore(discovery): refresh Google Discovery index"
+          labels: dependencies
+          body: |
+            Automated refresh of `src/discovery/` from Google's Discovery
+            Service, run by `.github/workflows/discovery.yml`. The
+            regenerated command tree (`src/commands/generated.rs`) rides
+            along, so the PR always contains index and tree in lockstep.
+
+            The Rust tests ran against this index, so a method whose shape
+            changed incompatibly would have failed the build rather than
+            shipping.
+
+            | service | methods | scopes | discovery revision |
+            |---|---|---|---|
+            ${{ steps.summary.outputs.summary }}
+
+            Review the diff for surprising removals — a method disappearing
+            usually means Google renamed it upstream.

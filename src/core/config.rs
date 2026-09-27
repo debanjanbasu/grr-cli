@@ -35,6 +35,49 @@ pub struct OAuthConfig {
     pub client_secret: Option<String>,
 }
 
+/// OAuth client compiled into the binary at build time, if any.
+///
+/// `build.rs` reads `GRR_CLIENT_ID` / `GRR_CLIENT_SECRET` from the build
+/// environment (or a repo-root `.env`) and re-exports them via
+/// `cargo:rustc-env`, which is what `option_env!` reads here. Release
+/// binaries are built in CI with both set, so end users need no OAuth
+/// client of their own; source builds fall back to `~/.grr/config.toml`.
+///
+/// A half-populated pair is treated as absent: Google rejects a token
+/// exchange that carries an id without its secret, so falling through to
+/// the actionable "no client configured" error beats a confusing 400
+/// from the token endpoint.
+pub(crate) fn embedded_oauth_client() -> Option<(&'static str, &'static str)> {
+    let id = option_env!("GRR_CLIENT_ID")?.trim();
+    let secret = option_env!("GRR_CLIENT_SECRET")?.trim();
+    if id.is_empty() || secret.is_empty() {
+        return None;
+    }
+    Some((id, secret))
+}
+
+/// Explain how to supply an OAuth client, for when none could be resolved.
+///
+/// Release binaries carry a compiled-in client, so this only fires for
+/// source builds (`cargo install`, or a local `cargo build` with no
+/// `.env`). It is written for someone who has never used Google Cloud
+/// before: name all three routes and let them pick.
+pub const NO_CLIENT_HELP: &str = "\
+no OAuth client is configured.
+
+Pick whichever fits:
+
+  1. Download a release build — it ships with a client already compiled in,
+     so `grr auth login` just works:
+       https://grr-cli.pages.dev/install/
+
+  2. Building from source? Put your client in a .env file next to
+     Cargo.toml (see .env.example), then rebuild.
+
+  3. Or create your own OAuth client and run `grr auth setup`, which walks
+     you through it and writes ~/.grr/config.toml for you. Takes about
+     five minutes: https://grr-cli.pages.dev/install/";
+
 #[cfg(test)]
 mod config_compat_tests {
     use super::*;

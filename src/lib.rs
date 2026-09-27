@@ -1,21 +1,10 @@
-#[cfg(feature = "calendar")]
-pub mod calendar;
-#[cfg(feature = "chat")]
-pub mod chat;
 #[cfg(feature = "cli")]
 pub mod cli;
 #[cfg(feature = "cli")]
 pub mod commands;
 pub mod core;
-#[cfg(feature = "drive")]
-pub mod drive;
-#[cfg(feature = "forms")]
-pub mod forms;
-#[cfg(feature = "gmail")]
-pub mod gmail;
+pub mod discovery;
 pub mod output;
-#[cfg(feature = "people")]
-pub mod people;
 #[cfg(feature = "cli")]
 pub mod schema;
 

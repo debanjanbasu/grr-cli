@@ -1,0 +1,284 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import SectionIntro from '../../components/SectionIntro.astro';
+import { discoveryMethodTotal, discoveryServices } from '../../data/discovery-coverage';
+
+const base = import.meta.env.BASE_URL;
+
+const intro = `$ grr api list
+308 methods                                  # to stderr
+[{"id":"calendar.acl.delete","http":"DELETE","summary":"Deletes an access control rule."}, ...]
+
+$ grr api list --service sheets
+$ grr api list --filter list --grouped
+$ grr api list --service gmail --filter "batch"`;
+const describe = `$ grr api describe gmail.users.messages.list
+{
+  "id": "gmail.users.messages.list",
+  "service": "gmail",
+  "apiVersion": "v1",
+  "discoveryRevision": "20260921",
+  "httpMethod": "GET",
+  "path": "gmail/v1/users/{userId}/messages",
+  "urlTemplate": "https://gmail.googleapis.com/gmail/v1/users/{userId}/messages",
+  "description": "Lists the messages in the user's mailbox.",
+  "scopes": ["https://mail.google.com/", "..."],
+  "leastPrivilegeScope": "https://www.googleapis.com/auth/gmail.readonly",
+  "parameters": [
+    {"name":"userId","type":"string","required":true,"repeated":false,...},
+    {"name":"q","type":"string","required":false,"repeated":false,...},
+    {"name":"maxResults","type":"integer","required":false,...}
+  ],
+  "hint": "grr api call gmail.users.messages.list --params '{\\"userId\\": "..."}'"
+}`;
+const calling = `# Path parameters are substituted into the URL; the rest become
+# query parameters (GET) or the request body (POST/PATCH/PUT).
+$ grr api call gmail.users.messages.list --param userId=me --param 'q=is:unread' --param maxResults=5
+$ grr api call drive.files.list --params '{"pageSize": 10, "q": "name contains \\'report\\'"}'
+
+# Values are coerced to real JSON types, so numbers and booleans need no quoting.
+$ grr api call sheets.spreadsheets.values.get \\
+    --param spreadsheetId=1a2b3c --param range=A1:D10
+
+# A body from a file ("-" reads stdin), sent verbatim.
+$ grr api call chat.spaces.messages.create \\
+    --param parent=spaces/AAAA --body-file ./message.json
+
+# Endpoints whose parameters Discovery does not describe take raw query pairs.
+$ grr api call drive.files.list --query alt=json --query fields=files(id,name)
+
+# Override the verb when the Discovery document is behind the live API.
+$ grr api call tasks.tasks.list --method-override GET`;
+const dryRun = `$ grr api call calendar.events.insert \\
+    --param calendarId=primary \\
+    --params '{"summary":"Standup","start":{"dateTime":"2026-10-05T09:30:00Z"},"end":{"dateTime":"2026-10-05T09:45:00Z"}}' \\
+    --dry-run
+{
+  "method": "POST",
+  "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events?summary=Standup",
+  "body": {"summary":"Standup","start":{...},"end":{...}},
+  "scopesRequested": ["https://www.googleapis.com/auth/calendar", "..."],
+  "leastPrivilegeScope": "https://www.googleapis.com/auth/calendar.events.owned",
+  "dryRun": true
+}
+
+# With --body-file the body is sent verbatim and the URL stays clean:
+$ grr api call calendar.events.insert --param calendarId=primary \\
+    --body-file ./event.json --dry-run
+
+# Every generated leaf has the same --dry-run, so the same inspection works
+# without composing the id by hand:
+$ grr calendar events insert --calendar-id primary --dry-run`;
+const sheets = `# Sheets: read a range, write a range, append a row.
+$ grr sheets spreadsheets values get --spreadsheet-id 1a2b3c --range Sheet1!A1:D10
+$ grr sheets spreadsheets values update --spreadsheet-id 1a2b3c --range Sheet1!A1 \\
+    --body-file ./values.json
+$ grr sheets spreadsheets values append --spreadsheet-id 1a2b3c --range Sheet1!A:A \\
+    --value-input-option USER_ENTERED
+
+# Docs: create, read, and batch-update.
+$ grr docs documents get --document-id 1a2b3c
+$ grr docs documents create --body-file ./new-doc.json
+$ grr docs documents batchUpdate --document-id 1a2b3c --body-file ./requests.json
+
+# Slides: presentations, pages, and thumbnails.
+$ grr slides presentations get --presentation-id 1a2b3c
+$ grr slides presentations pages getThumbnail \\
+    --presentation-id 1a2b3c --page-object-id g1`;
+const tasks = `$ grr api list --service tasks
+14 methods
+
+$ grr api describe tasks.tasks.list
+# leastPrivilegeScope: https://www.googleapis.com/auth/tasks.readonly
+#   -> outside the scopes this build consented to
+
+$ grr tasks tasks list --tasklist @default
+note: tasks.tasks.list wants 'https://www.googleapis.com/auth/tasks.readonly',
+      which is outside the scopes this build consented to. Attempting anyway;
+      if Google answers 403, re-run 'grr auth login' after extending the scope
+      set.
+... HTTP 403 ...`;
+const idForms = `# Canonical: <service>.<resource>.<method>
+$ grr api call drive.files.list
+
+# Slashes work too, and a leading dot is tolerated.
+$ grr api call gmail/users/messages/list
+$ grr api call .gmail.users.messages.list
+
+# A typo gets ranked suggestions rather than a bare "not found".
+$ grr api call gmail.users.messages.lst
+unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
+---
+
+<BaseLayout
+  title="Discovery API"
+  description="One Discovery index embedded in the grr binary drives the entire generated command tree and the flat grr api surface: list, describe, call, dry runs, and per-method scopes across 308 methods in 10 APIs."
+>
+  <section class="page-hero section">
+    <div class="container page-hero-grid">
+      <div class="reveal">
+        <span class="eyebrow">discovery</span>
+        <h1>The index behind the whole tree.</h1>
+        <p>Every service command grr runs is generated from a machine-readable description of Google&rsquo;s APIs, distilled into an index and compiled into the binary. <code>grr api</code> is the same index read flat, by method id.</p>
+      </div>
+      <div class="page-hero-aside reveal">{discoveryMethodTotal} methods · 10 APIs · works offline</div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="why-title">
+    <div class="container prose reveal">
+      <h2 id="why-title">Why this exists</h2>
+      <p class="lead">A hand-written command tree can never keep up with a Google Workspace API. There are 308 methods across ten services, and Google adds more without asking.</p>
+      <p>So grr does not hand-write one. The committed Discovery index is the single source of truth for the entire surface: a build-time generator compiles it into the namespaced command tree (<code>grr gmail users messages list</code> &mdash; see <a href={`${base}docs/commands/`}>Commands</a>), and <code>grr api</code> reads the same index flat by method id. A method released after this build of grr existed reaches the tree through the daily refresh PR &mdash; no code change, no new release, no upgrade step.</p>
+      <p>Two properties make this more than a thin passthrough:</p>
+      <ul>
+        <li><strong>It works offline.</strong> The index is compiled in, not fetched at runtime. <code>grr api list</code> and <code>grr api describe</code> need no network, no cache directory, and no API key, so an agent can discover what is available before it has a credential.</li>
+        <li><strong>It is per-method authorized.</strong> Each method carries its own scope list, and grr asks for what the requested method needs. Requesting the union of every Workspace scope up front would exceed the ceiling Google applies to unverified apps and fail at the consent screen.</li>
+      </ul>
+      <p>The distilled index is about 360 KiB across eleven files, against several megabytes for the raw documents &mdash; a meaningful difference in a binary whose size is a selling point.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="browse-title">
+    <div class="container">
+      <SectionIntro
+        id="browse-title"
+        eyebrow="browse"
+        title="list, describe, refresh."
+        copy="Two read-only commands that need neither a network connection nor a login — and one that pulls the index forward."
+      />
+      <div class="container prose reveal">
+        <p><code>grr api list</code> prints an array of <code>&#123; id, http, summary &#125;</code>. The count goes to <strong>stderr</strong> and the array to stdout, so <code>grr api list | jq</code> stays valid JSON. <code>--service</code> narrows to one service, <code>--filter</code> is a case-insensitive substring match over both method ids and descriptions, and <code>--grouped</code> nests the methods under their service with a per-service count.</p>
+        <CodeBlock code={intro} label="grr api list" />
+        <p><code>grr api describe</code> takes one method id and returns everything needed to call it: the HTTP verb, the raw path template, the full scope list, the narrowest scope, and every parameter with its type, required flag, repetition, and enum values. The <code>hint</code> field is a ready-made invocation using the method&rsquo;s first parameter.</p>
+        <CodeBlock code={describe} label="grr api describe" />
+        <p><code>grr api refresh [--service X]</code> fetches fresh Discovery documents into the local cache between releases, for the rare method you need before the next daily PR lands. The embedded index keeps working offline regardless.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="coverage-title">
+    <div class="container">
+      <SectionIntro
+        id="coverage-title"
+        eyebrow="coverage"
+        title={`${discoveryMethodTotal} methods, ten services.`}
+        copy="Counts are what grr api list reports at runtime. Revisions come from the committed index at src/discovery/manifest.json."
+      />
+      <div class="install-grid">
+        {discoveryServices.map((service) => (
+          <article class="install-card">
+            <h2>{service.label}</h2>
+            <p>{service.note}</p>
+            <p class="install-note">
+              {service.methods} methods · {service.version} · revision {service.revision}
+            </p>
+            <p class="install-note">
+              <code>grr {service.name}</code>
+            </p>
+          </article>
+        ))}
+      </div>
+      <div class="container prose reveal">
+        <p>Every service in the index has a full generated command namespace now &mdash; the cards above are the namespaces. <code>grr api</code> is not the only way into any of them; it is the flat alternative when you would rather compose an id than walk a path.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="call-title">
+    <div class="container">
+      <SectionIntro
+        id="call-title"
+        eyebrow="call"
+        title="How parameters become a request."
+        copy="One rule covers every method: path placeholders are substituted into the URL, and everything else becomes a query parameter or the request body."
+      />
+      <div class="container prose reveal">
+        <p>A missing required parameter is caught before anything is sent, and the error names the parameter and lists the rest, rather than letting Google answer with a 404 or a confusing 400.</p>
+        <ul>
+          <li><code>--params JSON</code> takes a whole object. Must be a JSON object; an array or a bare value is rejected with a message saying so.</li>
+          <li><code>--param KEY=VALUE</code> is repeatable and wins over <code>--params</code>, so you can override one field of a large blob. Values are coerced to real JSON types: <code>--param pageSize=10</code> is a number, not the string <code>"10"</code>.</li>
+          <li>Only the first <code>=</code> splits, so <code>--param 'q=name=a.pdf'</code> and Gmail search strings survive intact.</li>
+          <li><code>--body-file PATH</code> reads the body verbatim from a file, or from stdin with <code>-</code>, and wins over anything <code>--params</code> would have synthesised. This is the path for nested bodies.</li>
+          <li><code>--query KEY=VALUE</code> appends raw query pairs for parameters Discovery does not describe, such as <code>alt=json</code> or <code>fields</code>.</li>
+          <li><code>--method-override VERB</code> replaces the verb from the Discovery document, for the rare endpoint where the published method is behind the live API.</li>
+        </ul>
+        <p>For <code>POST</code>, <code>PATCH</code>, and <code>PUT</code> without <code>--body-file</code>, the non-path parameters are collected into a JSON body automatically &mdash; and they are also appended as query pairs, which the dry-run output above shows honestly. For read verbs no body is sent at all. Path values are percent-encoded, so Drive ids and Gmail labels containing spaces or slashes are safe.</p>
+        <CodeBlock code={calling} label="grr api call" />
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="dryrun-title">
+    <div class="container prose reveal">
+      <h2 id="dryrun-title">Inspect before you send</h2>
+      <p class="lead"><code>--dry-run</code> prints the request that would be sent and sends nothing. It is the cheapest way to find out whether a call is shaped correctly.</p>
+      <p>The output includes the resolved <code>method</code>, the fully built <code>url</code>, the <code>body</code> that would be serialised, the scopes the method declares, the narrowest of them, and <code>dryRun: true</code>. Because URL construction and parameter validation both happen before the dry-run branch, a dry run surfaces exactly the errors a real call would.</p>
+      <CodeBlock code={dryRun} label="--dry-run · both routes" />
+      <p>The flag exists on every generated leaf as well as on <code>grr api call</code>, and both print JSON &mdash; so a <code>jq -e '.url'</code> assertion works on either.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="ids-title">
+    <div class="container prose reveal">
+      <h2 id="ids-title">Method ids and typo handling</h2>
+      <p>A method id is the dotted <code>service.resource.method</code> path, taken verbatim from the Discovery document &mdash; resource segments included, so <code>gmail.users.messages.list</code> is the id, not <code>gmail.messages.list</code>. The service prefix is the same key <code>--service</code> takes, and slashes are accepted in place of dots. The same id, with dots as spaces, is the generated command; the tree and <code>grr api</code> are two views of one index.</p>
+      <CodeBlock code={idForms} label="method ids" />
+      <p>An unknown service lists the ten known keys. An unknown method is matched against the real ids and returns ranked suggestions, preferring candidates that share the most of the resource path &mdash; which is what tells <code>users.messages.list</code> apart from <code>users.drafts.list</code> when both are one typo away.</p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="smallservices-title">
+    <div class="container">
+      <SectionIntro
+        id="smallservices-title"
+        eyebrow="docs · sheets · slides"
+        title="The small services, in practice."
+        copy="Three APIs that no CLI used to wrap. Generated from the same index, they now have full command paths."
+      />
+      <div class="container prose reveal">
+        <CodeBlock code={sheets} label="docs · sheets · slides" />
+        <p>Note the colon-verb path templates &mdash; <code>values/&#123;range&#125;:append</code>, <code>documents/&#123;documentId&#125;:batchUpdate</code>. The braces are path placeholders, so <code>--range Sheet1!A1:D10</code> substitutes into the URL and is percent-encoded for you, colons and all.</p>
+        <p>Sheets and Slides writes need the request body as a nested structure, which is what <code>--body-file</code> is for. Generating that JSON in a heredoc and piping it through stdin (<code>--body-file -</code>) keeps it out of shell-quoting hell. And camelCase methods keep their casing as leaf aliases: <code>getThumbnail</code>, not <code>get-thumbnail</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="scopes-title">
+    <div class="container">
+      <SectionIntro
+        id="scopes-title"
+        eyebrow="authorization"
+        title="Per-method scopes, and one honest caveat."
+        copy="grr consents to sixteen scopes. Most of the index falls inside that set; a small tail does not."
+      />
+      <div class="container prose reveal">
+        <p>Discovery lists each method&rsquo;s accepted scopes from broadest to narrowest, usually with <code>https://mail.google.com/</code> or <code>.../auth/drive</code> first. <code>grr api describe</code> reports the narrowest entry as <code>leastPrivilegeScope</code>, which is the right thing to show a human deciding what a call touches.</p>
+        <p>Before sending, grr compares that narrowest scope against the consented set. When it is not there, it prints a note to stderr and <strong>attempts the call anyway</strong>, because the narrow scope is often a sibling of a broader one the build does hold &mdash; <code>drive.readonly</code> and <code>drive.file</code> are both satisfied by the consented <code>auth/drive</code>. A note on stderr is a heads-up, not a failure. Treat the exit status as the answer.</p>
+        <p>Where a method genuinely needs a scope nobody consented to, grr names it. A 403 comes back with the specific scope and the file to edit, rather than a bare permission error:</p>
+        <CodeBlock code={tasks} label="tasks · the scope boundary" />
+        <p><strong>Tasks is the one service that does not work out of the box.</strong> Its fourteen methods need <code>.../auth/tasks</code> or <code>.../auth/tasks.readonly</code>, and neither is in the sixteen consented scopes, nor is any broader scope that would cover them. They list and describe correctly, and <code>--dry-run</code> is accurate, but a live call returns 403 until the scope set in <code>src/core/auth/mod.rs</code> is extended and <code>grr auth login</code> is re-run.</p>
+        <p>A smaller tail behaves the same way for narrower reasons: Gmail CSE keypairs and S/MIME settings need <code>gmail.settings.*</code> scopes, directory people need <code>directory.readonly</code>, and most of the Chat admin surface (custom emoji, space import) needs scopes outside the consented set. Docs, Sheets, and Slides all work, because their methods accept the Drive scope the build already holds.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="fresh-title">
+    <div class="container prose reveal">
+      <h2 id="fresh-title">How the index stays current</h2>
+      <p>The index is committed at <code>src/discovery/*.json</code> so builds stay hermetic and <code>grr api list</code> works offline. Something has to notice upstream drift, and that is a scheduled workflow: a daily run refetches the ten Discovery documents, distils them with <code>scripts/fetch-discovery.ts</code>, regenerates the command tree with <code>scripts/generate-commands.ts</code>, and opens a pull request when either differs. An unchanged upstream produces an empty diff and no PR.</p>
+      <p>Both outputs are deterministic (sorted keys) precisely so that comparison is meaningful. When the index does change, the workflow runs the Rust test suite against the new data before proposing the change, so a method whose shape broke incompatibly fails the build instead of shipping. The tree and the index move in the same PR, so the commands and the index can never drift apart.</p>
+      <p class="legal-note">
+        Treat the counts on this page as a snapshot of the embedded index, not a promise about what Google publishes tomorrow.
+        <code>grr api list</code> is always the live answer.
+      </p>
+      <ul>
+        <li><a href={`${base}docs/agents/`}>Agents and harnesses — how to drive grr programmatically</a></li>
+        <li><a href={`${base}docs/commands/`}>Commands — the generated tree the index produces</a></li>
+        <li><a href="https://github.com/debanjanbasu/grr-cli/blob/main/scripts/fetch-discovery.ts" target="_blank" rel="noreferrer">fetch-discovery.ts — the distiller ↗</a></li>
+        <li><a href="https://github.com/debanjanbasu/grr-cli/blob/main/scripts/generate-commands.ts" target="_blank" rel="noreferrer">generate-commands.ts — the tree generator ↗</a></li>
+      </ul>
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,210 @@
+name: Daily benchmark
+
+# site/src/data/benchmarks.json feeds the /compare/ page. It is generated, so
+# the only honest way to keep it current is to measure — but measuring means
+# a full build-std release build of grr plus competitor installs, which is
+# real runner time. The version gate keeps that cost honest in both
+# directions:
+#
+#   - Daily cron: a cheap first step (scripts/benchmark.ts --gate) fetches
+#     the latest release tags of grr, gog and gws and compares them with the
+#     `versions` block recorded in the committed snapshot, plus the version
+#     in Cargo.toml. If nothing moved, the expensive suite is skipped
+#     entirely and the workflow exits as a quiet no-op day.
+#   - Any version change (ours or a competitor's), a manual dispatch, or a
+#     published grr release: the full suite runs.
+#   - The script itself is idempotent within a documented noise band
+#     (max(15 ms, 6%) per median), so even a full run rewrites nothing and
+#     opens no PR unless a measurement actually moved.
+#   - Competitor installation is best-effort on purpose (continue-on-error):
+#     a tool that cannot be obtained is recorded as unavailable with the
+#     reason on the page, never estimated. A missing competitor must never
+#     fail the run.
+
+on:
+  schedule:
+    # 03:23 UTC. Off the hour on purpose — every scheduled workflow in the
+    # world fires at :00 and GitHub queues them (same reasoning as
+    # discovery.yml's 17 4).
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Run the full suite even if the version gate would skip it"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Run the benchmark and print the diff, but do not open a pull request"
+        type: boolean
+        default: false
+  release:
+    # Our own new version: always worth a fresh measurement.
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: measure and refresh snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      # Push the benchmark branch; never main.
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        timeout-minutes: 5
+
+      - uses: actions/setup-node@v5
+        timeout-minutes: 5
+        with:
+          # Matches the Node version the other script-running workflows use.
+          node-version: "24"
+
+      # The gate. Only the cron can be skipped: a manual dispatch or one of
+      # our own releases always runs the full suite (hence the event_name
+      # check; `force` is the documented override for anything that ever
+      # reuses this path). `--gate` never exits non-zero and prints
+      # GitHub-output pairs (skip=, reason=); any fetch failure fails OPEN
+      # (skip=false) so a flaky GitHub API can never hide a release.
+      - name: Version gate (cron only)
+        id: gate
+        if: github.event_name == 'schedule' && inputs.force != true
+        timeout-minutes: 3
+        run: |
+          node scripts/benchmark.ts --gate >> "$GITHUB_OUTPUT" || echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Quiet no-op day
+        if: steps.gate.outputs.skip == 'true'
+        timeout-minutes: 2
+        env:
+          REASON: ${{ steps.gate.outputs.reason }}
+        run: |
+          echo "No version of grr, gog or gws changed since the last measured snapshot — skipping the expensive suite."
+          {
+            echo "### Benchmark: quiet day"
+            echo
+            echo "${REASON}. Nothing was rebuilt; the committed snapshot is still current."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: dtolnay/rust-toolchain@nightly
+        if: steps.gate.outputs.skip != 'true'
+        timeout-minutes: 10
+        with:
+          # The crate requires nightly + build-std; rust-src is the piece
+          # build-std needs (same as ci.yml).
+          components: rust-src
+
+      - uses: Swatinem/rust-cache@v2
+        if: steps.gate.outputs.skip != 'true'
+        timeout-minutes: 5
+        with:
+          cache-bin: true
+
+      # THE expensive step: a full build-std release build of grr. Everything
+      # after it is seconds. A warm rust-cache takes a large bite out of this
+      # on most days; the timeout exists so a pathological day fails loudly
+      # instead of burning the whole job budget.
+      - name: Build grr (release)
+        if: steps.gate.outputs.skip != 'true'
+        timeout-minutes: 25
+        run: cargo build --release --locked
+
+      - name: Obtain gog (best effort)
+        if: steps.gate.outputs.skip != 'true'
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/gog"
+          mkdir -p "$dir"
+          url=$(curl -fsSL -H 'Accept: application/vnd.github+json' \
+            'https://api.github.com/repos/steipete/gogcli/releases/latest' \
+            | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{
+                 const assets=(JSON.parse(d).assets)||[];
+                 const a=assets.find(x=>/_linux_amd64\.tar\.gz$/.test(x.name));
+                 if(!a) process.exit(1);
+                 console.log(a.browser_download_url);
+               })')
+          curl -fsSL "$url" | tar -xz -C "$dir"
+          echo "$dir" >> "$GITHUB_PATH"
+
+      - name: Obtain gws (best effort)
+        if: steps.gate.outputs.skip != 'true'
+        continue-on-error: true
+        timeout-minutes: 5
+        # The npm package is a thin downloader that fetches the official
+        # release binary for this platform onto PATH.
+        run: npm install -g @googleworkspace/cli
+
+      - name: Run the benchmark
+        id: bench
+        if: steps.gate.outputs.skip != 'true'
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          node scripts/benchmark.ts | tee benchmark.log
+
+          # `git status --porcelain` rather than `git diff --quiet`, so a
+          # first-time generated file (untracked) counts as a change too.
+          if [ -z "$(git status --porcelain -- site/src/data/benchmarks.json)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "benchmark snapshot is already current."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git --no-pager diff --stat -- site/src/data/benchmarks.json || true
+          fi
+
+          {
+            echo "### Benchmark run"
+            echo
+            echo '```'
+            cat benchmark.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report (dry run)
+        if: steps.bench.outputs.changed == 'true' && inputs.dry_run == true
+        timeout-minutes: 2
+        run: |
+          echo "::notice title=Dry run::the benchmark snapshot is out of date"
+          echo "::notice::but no pull request was opened, because dry_run was set."
+          # Intent-to-add so the diff of a not-yet-tracked file is printable.
+          git add --intent-to-add -- site/src/data/benchmarks.json
+          git --no-pager diff -- site/src/data/benchmarks.json
+
+      - name: Open a pull request
+        if: steps.bench.outputs.changed == 'true' && inputs.dry_run != true
+        timeout-minutes: 5
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/benchmark-refresh
+          title: "bench(compare): refresh daily benchmark snapshot"
+          commit-message: "bench(compare): refresh daily benchmark snapshot"
+          add-paths: site/src/data/benchmarks.json
+          body: |
+            Automated run of `.github/workflows/benchmark.yml`: rebuild grr in
+            release mode, re-measure the credential-free metrics, and try to
+            obtain `gog` and `gws` to run the identical startup protocol.
+
+            What can move in this diff:
+
+            - grr startup / `schema` / `api list` timings and binary size (new
+              build, or different runner hardware),
+            - competitor timings (their new release, or a tool that could
+              suddenly be obtained / could no longer be obtained — each change
+              is recorded with its reason, never estimated),
+            - the `versions` block (a new release tag of grr, gog or gws),
+            - the environment block (runner platform, Node, grr version).
+
+            Re-runs whose medians land inside the documented noise band
+            (max(15 ms, 6%) per metric) rewrite nothing and open no PR, so a
+            diff here means something actually moved.
+
+            The full measurement log is in the workflow's step summary.

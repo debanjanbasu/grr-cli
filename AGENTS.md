@@ -1,0 +1,117 @@
+# grr — Agent Execution Ruleset
+
+`grr` is a Rust CLI for Google Workspace: one binary (`grr`), one crate (`grr-cli`), a generated command tree covering **308 methods across 10 Google APIs** (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides) — compiled from the committed Discovery index, never hand-written — plus the id-based `grr api` escape hatch and account-level commands (`auth`, `transport`, `schema`). HTTP/3 (QUIC) is always on. Requires **Rust nightly**.
+
+Use this file as the execution ruleset. Deep detail lives in the files linked from it.
+
+## Task Routing Matrix (read before editing)
+
+| If your task touches... | Read first |
+|---|---|
+| The service command tree (`grr gmail ...`, all 10 services) | `scripts/generate-commands.ts` + `src/commands/generated.rs` (GENERATED — never edit by hand) + `src/commands/gen_dispatch.rs` (dispatch) |
+| OAuth client, config resolution, `.env`, `auth setup` | `build.rs`, `src/core/config.rs`, `src/core/config_loader.rs`, `.env.example` |
+| `grr api` / discovery (methods, scopes, URLs) | `src/discovery.rs`, `src/discovery/*.json`, `scripts/fetch-discovery.ts` |
+| Release binaries, UPX, archives, targets | `.github/workflows/release.yml`, `.cargo/config.toml`, `Cargo.toml [profile.*]` |
+| The website | `site/README.md` if present, else `site/astro.config.mjs` + `site/src/pages/` |
+| Docs / changelog automation | `scripts/generate-changelog.ts`, `.github/workflows/changelog.yml`, `.github/workflows/discovery.yml` |
+| The agent skill (`skills/grr/SKILL.md`) | Keep it in lockstep with the output contract and naming rules in `gen_dispatch.rs` and `generated.rs` |
+| Crates.io publishing | `.github/workflows/publish.yml` (read the comment block first) |
+
+## Key commands
+
+```sh
+cargo build --release --locked          # release build (nightly required)
+cargo test --locked                     # full suite
+cargo clippy --all-targets -- -D warnings   # enforced: zero warnings
+cargo fmt --all -- --check
+cargo package --allow-dirty             # must succeed with NO env set
+
+node scripts/fetch-discovery.ts        # refresh discovery index
+node scripts/fetch-discovery.ts --check    # exit 1 if stale (CI gate)
+node scripts/generate-commands.ts      # regenerate the service command tree
+node scripts/generate-commands.ts --check   # exit 1 if stale (CI gate)
+node scripts/generate-changelog.ts     # regenerate CHANGELOG.md + site data
+node scripts/generate-changelog.ts --check # idempotency gate
+
+grr schema                                  # the full command tree as JSON — the contract
+grr api list [--service X] [--filter SUBSTR] # the 308 methods, offline, no login
+```
+
+## Architecture
+
+| Layer | Files | What lives there |
+|---|---|---|
+| CLI | `src/cli.rs`, `src/commands/*.rs` | Static commands (auth, api, schema, transport) as derive types; the entire service tree is `src/commands/generated.rs` (compiled from the index by the generator, dispatched by `gen_dispatch.rs` through the shared call path in `api.rs`). `auth setup` and `schema` run before config load (they must work with zero configuration). |
+| Discovery | `src/discovery.rs` | The embedded index + `grr api` resolution: method ids, path templates, scopes, params. Parsed once into a `OnceLock`. This index is the single source of truth for BOTH surfaces — the generated tree is compiled from it. |
+| Core | `src/core/` | Auth (OAuth+PKCE, keyring), HTTP (HTTP/3), config, errors, pagination. |
+| Build | `build.rs`, `.cargo/config.toml` | Nightly guard + compile-time OAuth client injection; build-std + per-target rustflags. |
+| Site | `site/` | Astro static site: docs, changelog, llms.txt. |
+| Skills | `skills/grr/SKILL.md` | The packaged agent skill — discovery-first discipline, naming rule, output contract. |
+
+### Invariants worth knowing before you change something
+
+1. **A `[target.*]` rustflags table REPLACES `[build]` rustflags** — cargo does not merge them. The three `--cfg` flags (`reqwest_unstable`, `hyper_unstable_ffi`, `tokio_unstable`) must be repeated in every target table, or crates gating on them fail to compile on that target.
+2. **The discovery index is committed on purpose** (`src/discovery/*.json`, ~360 KiB). Do not move it to runtime-only fetch: that breaks offline use, adds first-run latency, and sacrifices determinism. Refresh via the script; the daily workflow opens a PR.
+3. **The command tree is generated** — never hand-edit `src/commands/generated.rs`. Change the generator (`scripts/generate-commands.ts`) or the index (`scripts/fetch-discovery.ts`), then regenerate; CI gates both with `--check`. The daily discovery PR regenerates the tree in the same commit as the index, so the two can never drift.
+4. **Method ids include resource names**: `users.messages.list`, not `messages.list`. The distiller walks `Object.entries(doc.resources)` and passes the name as the path prefix — and the CLI command mirrors the id verbatim (`grr gmail users messages list`), resource segments included.
+5. **`basePath` is inconsistent across Google's docs** (`gmail/v1/` vs `/drive/v3/`). `Service::base()` strips the leading slash — `rootUrl` always ends in `/`, so a naive concat yields `//` and a 404.
+6. **Per-method scope escalation is the design**: 105 unique scopes across the 10 services vs Google's ~25-scope cap on unverified apps means "request everything" fails at consent. A method needing a scope outside the consented set gets a stderr note, not a silent escalation; a resulting 403 names the scope.
+7. **The OAuth client must never enter the repo** — not in source, tests, CI logs, or the `.crate` tarball. `build.rs` reads `GRR_CLIENT_ID`/`GRR_CLIENT_SECRET` from the environment (falling back to a repo-root `.env`) and re-exports via `cargo:rustc-env`. Release binaries embed them (Google treats installed-app secrets as non-confidential; PKCE protects the flow); source builds fall through to `grr auth setup`.
+8. **`panic = "immediate-abort"`** in `[profile.release]` (gated by `panic-immediate-abort` in `.cargo/config.toml [unstable]`, paired with `build-std`). Panic messages become context-free; do not write tests that assert on panic text.
+9. **stdout is machine output, stderr is logs** — `grr gmail users messages list --user-id me | jq` must never receive log lines. The known plain-text stdout exceptions are `grr transport` and the pre-JSON device-login line; note any new one in docs when you add it.
+
+## Rust coding standards
+
+- Conventional commits (`feat:`, `fix:`, `perf:`, `feat!:` for breaking). The changelog generator parses them — a malformed subject lands under "Other" instead of its proper section.
+- Comments explain **why**, not what. Every non-obvious invariant gets one.
+- `thiserror` for typed domain errors, `anyhow` at command boundaries.
+- Tests never need real credentials: use dummy strings (`test-id.apps.googleusercontent.com`), runtime-env injection, or `#[cfg(test)]` seams. `GoogleAuth::with_token` is the test hook that skips OAuth entirely.
+- `cli` is the only cargo feature; `--features cli` (and the default build) must compile warning-free. The per-service features of the 0.3.x library era are gone.
+- No `#[allow(dead_code)]` — wire it up or delete it.
+
+## Verification gate (all must pass before you claim done)
+
+```sh
+cargo build
+cargo test --locked
+cargo clippy --all-targets -- -D warnings
+cargo fmt --all -- --check
+cargo package --allow-dirty      # with NO GRR_* env and no .env present
+node scripts/generate-commands.ts --check   # generated tree in sync with the index
+```
+
+For site changes: `npm run build`, `npm run lint`, `npm run typecheck` in `site/`, plus a Lighthouse pass for anything user-facing. The hard-preserve strings in `site/src/layouts/BaseLayout.astro` (title pattern, JSON-LD name/alternateName, `og:site_name`, the `google-site-verification` meta) must survive any edit verbatim.
+
+## Automation
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ci.yml` | PR + push | nextest/clippy/fmt, tests on ubuntu+windows, weekly rustsec audit |
+| `release.yml` | tag `v*` | 4 targets (linux x86_64, macOS arm64, Windows x86_64 **and Windows on ARM** via a native ARM runner), UPX `--best`, zstd-22 `.tar.zst` + max-deflate `.zip`, SHA256SUMS, GitHub Release |
+| `publish.yml` | release/manual | `cargo publish --locked --no-verify` (crate is source-only — read its comment) |
+| `discovery.yml` | daily 04:17 UTC | refetches discovery docs, regenerates the index AND the generated command tree, opens a PR when either differs, runs the Rust tests against the new data first |
+| `changelog.yml` | push to main + release | regenerates `CHANGELOG.md` + `site/src/data/changelog.json`, opens a PR |
+| `dependabot.yml` | weekly | cargo / github-actions / npm, all version types, grouped |
+
+## Windows PowerShell quirks (for agents on this machine)
+
+These have each caused a real bug in this repo. Do not rediscover them:
+
+- **`Set-Content` / `Out-File -Encoding utf8` mangle non-ASCII** (em-dashes → `â€"`) and add a BOM. Use the editor tools or `[IO.File]::WriteAllText` (UTF-8 without BOM). Verify with a strict UTF-8 decode after any scripted write.
+- **`cd` does not persist for .NET APIs**: `[IO.File]::ReadAllText('relative\path')` resolves against the process start directory, not the shell's location. Use absolute paths.
+- **`gh --jq '<expr with spaces>'` mangles** into multiple args. Use simple jq (`.full_name`), `ConvertFrom-Json`, or `--input` with a JSON file.
+- **PowerShell 5.1 has no `&&`, no ternary `? :`** — use `if ($?) { }` and `if/else`.
+- **GitHub Releases REST assets expose size in `asset.size`**, not `size_in_bytes` (that field is null).
+- `gh api -f key=value` does not apply to repo renames — use `gh repo rename <name> -R owner/repo -y`.
+
+## Documentation sync policy
+
+Treat a commit as incomplete if docs are stale. What triggers a doc update:
+
+- Adding/removing/renaming a command or flag → `README.md` command table, `site/src/pages/docs/commands.astro`, `skills/grr/SKILL.md`, `AGENTS.md` key commands
+- Changing auth/config behavior → `README.md`, `docs/gcp-setup.md`, `.env.example`, `config.toml.example`, the FAQ in `site/src/pages/index.astro`
+- Changing packaging/archives → `README.md` packaging table, `site/src/pages/install.astro`
+- Adding a service or changing discovery → `src/discovery/` (via the script, never by hand), `site/src/data/discovery-coverage.ts` (regenerate), the docs discovery page, `site/public/llms.txt`
+- Changing the agent contract (output, discovery discipline, naming rules) → `skills/grr/SKILL.md`, `site/src/pages/docs/agents.astro`, `site/public/llms.txt`
+
+Generated files (`CHANGELOG.md`, `src/discovery/*.json`, `src/commands/generated.rs`, `site/src/data/changelog.json`) are never hand-edited; rerun the generator.
