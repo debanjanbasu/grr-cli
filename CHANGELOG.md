@@ -22,13 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- restore the linux io\_uring deps the transport probe still needs
-
-### Documentation
-
-- 0.5.0 changelog + refreshed stats
+_No changes yet._
 
 ## [0.5.0] - 2026-09-28
 
@@ -40,9 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **site:** round four - modern CSS/SVG cool pass + Rust Rewrite app-name signals
 
+### Fixed
+
+- restore the linux io\_uring deps the transport probe still needs
+- **release:** UPX windows step - drop disabled add-path, fix GITHUB\_ENV format
+
 ### Documentation
 
 - 0.4.0 is live - release stats + packaging status
+- 0.5.0 changelog + refreshed stats
 
 ## [0.4.0] - 2026-09-26
 
