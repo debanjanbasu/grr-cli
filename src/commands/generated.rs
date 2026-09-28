@@ -7,7 +7,7 @@
 //! regenerate with `node scripts/generate-commands.mjs` (or run it
 //! with `--check`, which exits 1 when this file is stale).
 //!
-//! Generated at: 2026-09-26T06:59:28.519Z — the index manifest's own timestamp,
+//! Generated at: 2026-09-28T12:50:51.129Z — the index manifest's own timestamp,
 //! so regeneration is byte-identical until the index actually changes.
 //!
 //! Shape:
@@ -29,11 +29,11 @@
 //! schemas are not part of the distilled index, so POST/PATCH/PUT
 //! bodies pass through `--params` / `--body-file` verbatim.
 //!
-//! Numbers: 10 services, 308 methods, 308 leaves, 71 resource groups, 839 typed flags.
+//! Numbers: 14 services, 401 methods, 401 leaves, 96 resource groups, 994 typed flags.
 
 /// When the generator last ran, taken from the Discovery index
 /// manifest's own timestamp so it only moves when the index moves.
-pub const GENERATED_AT: &str = "2026-09-26T06:59:28.519Z";
+pub const GENERATED_AT: &str = "2026-09-28T12:50:51.129Z";
 
 #[rustfmt::skip] // mechanical output; formatting it would churn every diff
 pub mod tree {
@@ -60,6 +60,8 @@ pub mod tree {
     /// The ten service commands, in `discovery::services()` order.
     pub fn commands() -> Vec<Command> {
         vec![
+            service_analyticsadmin(),
+            service_analyticsdata(),
             service_calendar(),
             service_chat(),
             service_docs(),
@@ -67,10 +69,941 @@ pub mod tree {
             service_forms(),
             service_gmail(),
             service_people(),
+            service_script(),
+            service_searchconsole(),
             service_sheets(),
             service_slides(),
             service_tasks(),
         ]
+    }
+
+    // analyticsadmin.accounts.delete
+    fn leaf_analyticsadmin_accounts_delete() -> Command {
+        Command::new("analyticsadmin.accounts.delete")
+            .visible_alias("delete")
+            .about("Marks target Account as soft-deleted (ie: \"trashed\") and returns it. This API does not have a...")
+            .long_about("Marks target Account as soft-deleted (ie: \"trashed\") and returns it. This API does not have a method to restore soft-deleted accounts. However, they can be restored using the Trash Can UI. If the accounts are not restored before the expiration time, the account and all child resources (eg: Propertie")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the Account to soft-delete. Format: accounts/{account} Example: \"accounts/100\""))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.accounts.get
+    fn leaf_analyticsadmin_accounts_get() -> Command {
+        Command::new("analyticsadmin.accounts.get")
+            .visible_alias("get")
+            .about("Lookup for a single Account.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the account to lookup. Format: accounts/{account} Example: \"accounts/100\""))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.accounts.getDataSharingSettings
+    fn leaf_analyticsadmin_accounts_get_data_sharing_settings() -> Command {
+        Command::new("analyticsadmin.accounts.getDataSharingSettings")
+            .visible_alias("getDataSharingSettings")
+            .about("Get data sharing settings on an account. Data sharing settings are singletons.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the settings to lookup. Format: accounts/{account}/dataSharingSettings Example: `accounts/1000/dataSharingSettings`"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.accounts.list
+    fn leaf_analyticsadmin_accounts_list() -> Command {
+        Command::new("analyticsadmin.accounts.list")
+            .visible_alias("list")
+            .about("Returns all accounts accessible by the caller. Note that these accounts might not currently have GA...")
+            .long_about("Returns all accounts accessible by the caller. Note that these accounts might not currently have GA properties. Soft-deleted (ie: \"trashed\") accounts are excluded by default. Returns an empty list if no relevant accounts are found. Note: The easiest way to retrieve a list of all properties you have")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of resources to return. The service may return fewer than this value, even if there are additional pages. If unspecified, at most 5"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListAccounts` call. Provide this to retrieve the subsequent page. When paginating, all other parameters provid"))
+            .arg(Arg::new("show-deleted").long("show-deleted").action(ArgAction::SetTrue)
+                .help("Whether to include soft-deleted (ie: \"trashed\") Accounts in the results. Accounts can be inspected to determine whether they are deleted or not."))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.accounts.patch
+    fn leaf_analyticsadmin_accounts_patch() -> Command {
+        Command::new("analyticsadmin.accounts.patch")
+            .visible_alias("patch")
+            .about("Updates an account.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Identifier. Resource name of this account. Format: accounts/{account} Example: \"accounts/100\""))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The list of fields to be updated. Field names must be in snake case (for example, \"field_to_update\"). Omitted fields will not be updated. To replace t"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.accounts.provisionAccountTicket
+    fn leaf_analyticsadmin_accounts_provision_account_ticket() -> Command {
+        Command::new("analyticsadmin.accounts.provisionAccountTicket")
+            .visible_alias("provisionAccountTicket")
+            .about("Requests a ticket for creating an account.")
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.accounts.runAccessReport
+    fn leaf_analyticsadmin_accounts_run_access_report() -> Command {
+        Command::new("analyticsadmin.accounts.runAccessReport")
+            .visible_alias("runAccessReport")
+            .about("Returns a customized report of data access records. The report provides records of each time a user...")
+            .long_about("Returns a customized report of data access records. The report provides records of each time a user reads Google Analytics reporting data. Access records are retained for up to 2 years. Data Access Reports can be requested for a property. Reports may be requested for any property, but dimensions tha")
+            .arg(Arg::new("entity").long("entity").value_name("ENTITY").required(true)
+                .help("The Data Access Report supports requesting at the property level or account level. If requested at the account level, Data Access Reports include all access for"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.accounts.searchChangeHistoryEvents
+    fn leaf_analyticsadmin_accounts_search_change_history_events() -> Command {
+        Command::new("analyticsadmin.accounts.searchChangeHistoryEvents")
+            .visible_alias("searchChangeHistoryEvents")
+            .about("Searches through all changes to an account or its children given the specified set of filters. Only...")
+            .long_about("Searches through all changes to an account or its children given the specified set of filters. Only returns the subset of changes supported by the API. The UI may return additional changes.")
+            .arg(Arg::new("account").long("account").value_name("ACCOUNT").required(true)
+                .help("Required. The account resource for which to return change history resources. Format: accounts/{account} Example: `accounts/100`"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.accounts
+    fn group_analyticsadmin_accounts() -> Command {
+        Command::new("accounts")
+            .about("Methods under analyticsadmin.accounts")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_accounts_delete())
+            .subcommand(leaf_analyticsadmin_accounts_get())
+            .subcommand(leaf_analyticsadmin_accounts_get_data_sharing_settings())
+            .subcommand(leaf_analyticsadmin_accounts_list())
+            .subcommand(leaf_analyticsadmin_accounts_patch())
+            .subcommand(leaf_analyticsadmin_accounts_provision_account_ticket())
+            .subcommand(leaf_analyticsadmin_accounts_run_access_report())
+            .subcommand(leaf_analyticsadmin_accounts_search_change_history_events())
+    }
+
+    // analyticsadmin.accountSummaries.list
+    fn leaf_analyticsadmin_account_summaries_list() -> Command {
+        Command::new("analyticsadmin.accountSummaries.list")
+            .visible_alias("list")
+            .about("Returns summaries of all accounts accessible by the caller.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of AccountSummary resources to return. The service may return fewer than this value, even if there are additional pages. If unspeci"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListAccountSummaries` call. Provide this to retrieve the subsequent page. When paginating, all other parameter"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.accountSummaries
+    fn group_analyticsadmin_account_summaries() -> Command {
+        Command::new("accountSummaries")
+            .about("Methods under analyticsadmin.accountSummaries")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_account_summaries_list())
+    }
+
+    // analyticsadmin.properties.acknowledgeUserDataCollection
+    fn leaf_analyticsadmin_properties_acknowledge_user_data_collection() -> Command {
+        Command::new("analyticsadmin.properties.acknowledgeUserDataCollection")
+            .visible_alias("acknowledgeUserDataCollection")
+            .about("Acknowledges the terms of user data collection for the specified property. This acknowledgement...")
+            .long_about("Acknowledges the terms of user data collection for the specified property. This acknowledgement must be completed (either in the Google Analytics UI or through this API) before MeasurementProtocolSecret resources may be created.")
+            .arg(Arg::new("property").long("property").value_name("PROPERTY").required(true)
+                .help("Required. The property for which to acknowledge user data collection."))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.conversionEvents.create
+    fn leaf_analyticsadmin_properties_conversion_events_create() -> Command {
+        Command::new("analyticsadmin.properties.conversionEvents.create")
+            .visible_alias("create")
+            .about("Deprecated: Use `CreateKeyEvent` instead. Creates a conversion event with the specified attributes.")
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. The resource name of the parent property where this conversion event will be created. Format: properties/123"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.conversionEvents.delete
+    fn leaf_analyticsadmin_properties_conversion_events_delete() -> Command {
+        Command::new("analyticsadmin.properties.conversionEvents.delete")
+            .visible_alias("delete")
+            .about("Deprecated: Use `DeleteKeyEvent` instead. Deletes a conversion event in a property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The resource name of the conversion event to delete. Format: properties/{property}/conversionEvents/{conversion_event} Example: \"properties/123/conver"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.conversionEvents.get
+    fn leaf_analyticsadmin_properties_conversion_events_get() -> Command {
+        Command::new("analyticsadmin.properties.conversionEvents.get")
+            .visible_alias("get")
+            .about("Deprecated: Use `GetKeyEvent` instead. Retrieve a single conversion event.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The resource name of the conversion event to retrieve. Format: properties/{property}/conversionEvents/{conversion_event} Example: \"properties/123/conv"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.conversionEvents.list
+    fn leaf_analyticsadmin_properties_conversion_events_list() -> Command {
+        Command::new("analyticsadmin.properties.conversionEvents.list")
+            .visible_alias("list")
+            .about("Deprecated: Use `ListKeyEvents` instead. Returns a list of conversion events in the specified...")
+            .long_about("Deprecated: Use `ListKeyEvents` instead. Returns a list of conversion events in the specified parent property. Returns an empty list if no conversion events are found.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of resources to return. If unspecified, at most 50 resources will be returned. The maximum value is 200; (higher values will be coe"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListConversionEvents` call. Provide this to retrieve the subsequent page. When paginating, all other parameter"))
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. The resource name of the parent property. Example: 'properties/123'"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.conversionEvents.patch
+    fn leaf_analyticsadmin_properties_conversion_events_patch() -> Command {
+        Command::new("analyticsadmin.properties.conversionEvents.patch")
+            .visible_alias("patch")
+            .about("Deprecated: Use `UpdateKeyEvent` instead. Updates a conversion event with the specified attributes.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Identifier. Resource name of this conversion event. Format: properties/{property}/conversionEvents/{conversion_event}"))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The list of fields to be updated. Field names must be in snake case (e.g., \"field_to_update\"). Omitted fields will not be updated. To replace the enti"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.conversionEvents
+    fn group_analyticsadmin_properties_conversion_events() -> Command {
+        Command::new("conversionEvents")
+            .about("Methods under analyticsadmin.properties.conversionEvents")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_properties_conversion_events_create())
+            .subcommand(leaf_analyticsadmin_properties_conversion_events_delete())
+            .subcommand(leaf_analyticsadmin_properties_conversion_events_get())
+            .subcommand(leaf_analyticsadmin_properties_conversion_events_list())
+            .subcommand(leaf_analyticsadmin_properties_conversion_events_patch())
+    }
+
+    // analyticsadmin.properties.create
+    fn leaf_analyticsadmin_properties_create() -> Command {
+        Command::new("analyticsadmin.properties.create")
+            .visible_alias("create")
+            .about("Creates a Google Analytics property with the specified location and attributes.")
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customDimensions.archive
+    fn leaf_analyticsadmin_properties_custom_dimensions_archive() -> Command {
+        Command::new("analyticsadmin.properties.customDimensions.archive")
+            .visible_alias("archive")
+            .about("Archives a CustomDimension on a property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the CustomDimension to archive. Example format: properties/1234/customDimensions/5678"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customDimensions.create
+    fn leaf_analyticsadmin_properties_custom_dimensions_create() -> Command {
+        Command::new("analyticsadmin.properties.customDimensions.create")
+            .visible_alias("create")
+            .about("Creates a CustomDimension. Warning: It's not permissible to use this method to collect data on...")
+            .long_about("Creates a CustomDimension. Warning: It's not permissible to use this method to collect data on individual users. In particular, sending user IDs in custom dimensions violates the Google Analytics Terms of Service.")
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. Example format: properties/1234"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customDimensions.get
+    fn leaf_analyticsadmin_properties_custom_dimensions_get() -> Command {
+        Command::new("analyticsadmin.properties.customDimensions.get")
+            .visible_alias("get")
+            .about("Lookup for a single CustomDimension.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the CustomDimension to get. Example format: properties/1234/customDimensions/5678"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customDimensions.list
+    fn leaf_analyticsadmin_properties_custom_dimensions_list() -> Command {
+        Command::new("analyticsadmin.properties.customDimensions.list")
+            .visible_alias("list")
+            .about("Lists CustomDimensions on a property.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of resources to return. If unspecified, at most 50 resources will be returned. The maximum value is 200 (higher values will be coer"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListCustomDimensions` call. Provide this to retrieve the subsequent page. When paginating, all other parameter"))
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. Example format: properties/1234"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customDimensions.patch
+    fn leaf_analyticsadmin_properties_custom_dimensions_patch() -> Command {
+        Command::new("analyticsadmin.properties.customDimensions.patch")
+            .visible_alias("patch")
+            .about("Updates a CustomDimension on a property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Identifier. Resource name for this CustomDimension resource. Format: properties/{property}/customDimensions/{customDimension}"))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The list of fields to be updated. Omitted fields will not be updated. To replace the entire entity, use one path with the string \"*\" to match all fiel"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customDimensions
+    fn group_analyticsadmin_properties_custom_dimensions() -> Command {
+        Command::new("customDimensions")
+            .about("Methods under analyticsadmin.properties.customDimensions")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_properties_custom_dimensions_archive())
+            .subcommand(leaf_analyticsadmin_properties_custom_dimensions_create())
+            .subcommand(leaf_analyticsadmin_properties_custom_dimensions_get())
+            .subcommand(leaf_analyticsadmin_properties_custom_dimensions_list())
+            .subcommand(leaf_analyticsadmin_properties_custom_dimensions_patch())
+    }
+
+    // analyticsadmin.properties.customMetrics.archive
+    fn leaf_analyticsadmin_properties_custom_metrics_archive() -> Command {
+        Command::new("analyticsadmin.properties.customMetrics.archive")
+            .visible_alias("archive")
+            .about("Archives a CustomMetric on a property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the CustomMetric to archive. Example format: properties/1234/customMetrics/5678"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customMetrics.create
+    fn leaf_analyticsadmin_properties_custom_metrics_create() -> Command {
+        Command::new("analyticsadmin.properties.customMetrics.create")
+            .visible_alias("create")
+            .about("Creates a CustomMetric.")
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. Example format: properties/1234"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customMetrics.get
+    fn leaf_analyticsadmin_properties_custom_metrics_get() -> Command {
+        Command::new("analyticsadmin.properties.customMetrics.get")
+            .visible_alias("get")
+            .about("Lookup for a single CustomMetric.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the CustomMetric to get. Example format: properties/1234/customMetrics/5678"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customMetrics.list
+    fn leaf_analyticsadmin_properties_custom_metrics_list() -> Command {
+        Command::new("analyticsadmin.properties.customMetrics.list")
+            .visible_alias("list")
+            .about("Lists CustomMetrics on a property.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("The maximum number of resources to return. If unspecified, at most 50 resources will be returned. The maximum value is 200 (higher values will be coerced to the"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("A page token, received from a previous `ListCustomMetrics` call. Provide this to retrieve the subsequent page. When paginating, all other parameters provided to"))
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. Example format: properties/1234"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customMetrics.patch
+    fn leaf_analyticsadmin_properties_custom_metrics_patch() -> Command {
+        Command::new("analyticsadmin.properties.customMetrics.patch")
+            .visible_alias("patch")
+            .about("Updates a CustomMetric on a property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Identifier. Resource name for this CustomMetric resource. Format: properties/{property}/customMetrics/{customMetric}"))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The list of fields to be updated. Omitted fields will not be updated. To replace the entire entity, use one path with the string \"*\" to match all fiel"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.customMetrics
+    fn group_analyticsadmin_properties_custom_metrics() -> Command {
+        Command::new("customMetrics")
+            .about("Methods under analyticsadmin.properties.customMetrics")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_properties_custom_metrics_archive())
+            .subcommand(leaf_analyticsadmin_properties_custom_metrics_create())
+            .subcommand(leaf_analyticsadmin_properties_custom_metrics_get())
+            .subcommand(leaf_analyticsadmin_properties_custom_metrics_list())
+            .subcommand(leaf_analyticsadmin_properties_custom_metrics_patch())
+    }
+
+    // analyticsadmin.properties.dataStreams.create
+    fn leaf_analyticsadmin_properties_data_streams_create() -> Command {
+        Command::new("analyticsadmin.properties.dataStreams.create")
+            .visible_alias("create")
+            .about("Creates a DataStream.")
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. Example format: properties/1234"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.dataStreams.delete
+    fn leaf_analyticsadmin_properties_data_streams_delete() -> Command {
+        Command::new("analyticsadmin.properties.dataStreams.delete")
+            .visible_alias("delete")
+            .about("Deletes a DataStream on a property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the DataStream to delete. Example format: properties/1234/dataStreams/5678"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.dataStreams.get
+    fn leaf_analyticsadmin_properties_data_streams_get() -> Command {
+        Command::new("analyticsadmin.properties.dataStreams.get")
+            .visible_alias("get")
+            .about("Lookup for a single DataStream.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the DataStream to get. Example format: properties/1234/dataStreams/5678"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.dataStreams.list
+    fn leaf_analyticsadmin_properties_data_streams_list() -> Command {
+        Command::new("analyticsadmin.properties.dataStreams.list")
+            .visible_alias("list")
+            .about("Lists DataStreams on a property.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("The maximum number of resources to return. If unspecified, at most 50 resources will be returned. The maximum value is 200 (higher values will be coerced to the"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("A page token, received from a previous `ListDataStreams` call. Provide this to retrieve the subsequent page. When paginating, all other parameters provided to `"))
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. Example format: properties/1234"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.dataStreams.measurementProtocolSecrets.create
+    fn leaf_analyticsadmin_properties_data_streams_measurement_protocol_secrets_create() -> Command {
+        Command::new("analyticsadmin.properties.dataStreams.measurementProtocolSecrets.create")
+            .visible_alias("create")
+            .about("Creates a measurement protocol secret.")
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. The parent resource where this secret will be created. Format: properties/{property}/dataStreams/{dataStream}"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.dataStreams.measurementProtocolSecrets.delete
+    fn leaf_analyticsadmin_properties_data_streams_measurement_protocol_secrets_delete() -> Command {
+        Command::new("analyticsadmin.properties.dataStreams.measurementProtocolSecrets.delete")
+            .visible_alias("delete")
+            .about("Deletes target MeasurementProtocolSecret.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the MeasurementProtocolSecret to delete. Format: properties/{property}/dataStreams/{dataStream}/measurementProtocolSecrets/{measurementPro"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.dataStreams.measurementProtocolSecrets.get
+    fn leaf_analyticsadmin_properties_data_streams_measurement_protocol_secrets_get() -> Command {
+        Command::new("analyticsadmin.properties.dataStreams.measurementProtocolSecrets.get")
+            .visible_alias("get")
+            .about("Lookup for a single MeasurementProtocolSecret.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the measurement protocol secret to lookup. Format: properties/{property}/dataStreams/{dataStream}/measurementProtocolSecrets/{measurementP"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.dataStreams.measurementProtocolSecrets.list
+    fn leaf_analyticsadmin_properties_data_streams_measurement_protocol_secrets_list() -> Command {
+        Command::new("analyticsadmin.properties.dataStreams.measurementProtocolSecrets.list")
+            .visible_alias("list")
+            .about("Returns child MeasurementProtocolSecrets under the specified parent Property.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of resources to return. If unspecified, at most 10 resources will be returned. The maximum value is 10. Higher values will be coerc"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListMeasurementProtocolSecrets` call. Provide this to retrieve the subsequent page. When paginating, all other"))
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. The resource name of the parent stream. Format: properties/{property}/dataStreams/{dataStream}/measurementProtocolSecrets"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.dataStreams.measurementProtocolSecrets.patch
+    fn leaf_analyticsadmin_properties_data_streams_measurement_protocol_secrets_patch() -> Command {
+        Command::new("analyticsadmin.properties.dataStreams.measurementProtocolSecrets.patch")
+            .visible_alias("patch")
+            .about("Updates a measurement protocol secret.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Identifier. Resource name of this secret. This secret may be a child of any type of stream. Format: properties/{property}/dataStreams/{dataStream}/measurementPr"))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The list of fields to be updated. Omitted fields will not be updated."))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.dataStreams.measurementProtocolSecrets
+    fn group_analyticsadmin_properties_data_streams_measurement_protocol_secrets() -> Command {
+        Command::new("measurementProtocolSecrets")
+            .about("Methods under analyticsadmin.properties.dataStreams.measurementProtocolSecrets")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_properties_data_streams_measurement_protocol_secrets_create())
+            .subcommand(leaf_analyticsadmin_properties_data_streams_measurement_protocol_secrets_delete())
+            .subcommand(leaf_analyticsadmin_properties_data_streams_measurement_protocol_secrets_get())
+            .subcommand(leaf_analyticsadmin_properties_data_streams_measurement_protocol_secrets_list())
+            .subcommand(leaf_analyticsadmin_properties_data_streams_measurement_protocol_secrets_patch())
+    }
+
+    // analyticsadmin.properties.dataStreams.patch
+    fn leaf_analyticsadmin_properties_data_streams_patch() -> Command {
+        Command::new("analyticsadmin.properties.dataStreams.patch")
+            .visible_alias("patch")
+            .about("Updates a DataStream on a property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Identifier. Resource name of this Data Stream. Format: properties/{property_id}/dataStreams/{stream_id} Example: \"properties/1000/dataStreams/2000\""))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The list of fields to be updated. Omitted fields will not be updated. To replace the entire entity, use one path with the string \"*\" to match all fiel"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.dataStreams
+    fn group_analyticsadmin_properties_data_streams() -> Command {
+        Command::new("dataStreams")
+            .about("Methods under analyticsadmin.properties.dataStreams")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_properties_data_streams_create())
+            .subcommand(leaf_analyticsadmin_properties_data_streams_delete())
+            .subcommand(leaf_analyticsadmin_properties_data_streams_get())
+            .subcommand(leaf_analyticsadmin_properties_data_streams_list())
+            .subcommand(group_analyticsadmin_properties_data_streams_measurement_protocol_secrets())
+            .subcommand(leaf_analyticsadmin_properties_data_streams_patch())
+    }
+
+    // analyticsadmin.properties.delete
+    fn leaf_analyticsadmin_properties_delete() -> Command {
+        Command::new("analyticsadmin.properties.delete")
+            .visible_alias("delete")
+            .about("Marks target Property as soft-deleted (ie: \"trashed\") and returns it. This API does not have a...")
+            .long_about("Marks target Property as soft-deleted (ie: \"trashed\") and returns it. This API does not have a method to restore soft-deleted properties. However, they can be restored using the Trash Can UI. If the properties are not restored before the expiration time, the Property and all child resources (eg: Goo")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the Property to soft-delete. Format: properties/{property_id} Example: \"properties/1000\""))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.firebaseLinks.create
+    fn leaf_analyticsadmin_properties_firebase_links_create() -> Command {
+        Command::new("analyticsadmin.properties.firebaseLinks.create")
+            .visible_alias("create")
+            .about("Creates a FirebaseLink. Properties can have at most one FirebaseLink.")
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. Format: properties/{property_id} Example: `properties/1234`"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.firebaseLinks.delete
+    fn leaf_analyticsadmin_properties_firebase_links_delete() -> Command {
+        Command::new("analyticsadmin.properties.firebaseLinks.delete")
+            .visible_alias("delete")
+            .about("Deletes a FirebaseLink on a property")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. Format: properties/{property_id}/firebaseLinks/{firebase_link_id} Example: `properties/1234/firebaseLinks/5678`"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.firebaseLinks.list
+    fn leaf_analyticsadmin_properties_firebase_links_list() -> Command {
+        Command::new("analyticsadmin.properties.firebaseLinks.list")
+            .visible_alias("list")
+            .about("Lists FirebaseLinks on a property. Properties can have at most one FirebaseLink.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of resources to return. The service may return fewer than this value, even if there are additional pages. If unspecified, at most 5"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListFirebaseLinks` call. Provide this to retrieve the subsequent page. When paginating, all other parameters p"))
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. Format: properties/{property_id} Example: `properties/1234`"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.firebaseLinks
+    fn group_analyticsadmin_properties_firebase_links() -> Command {
+        Command::new("firebaseLinks")
+            .about("Methods under analyticsadmin.properties.firebaseLinks")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_properties_firebase_links_create())
+            .subcommand(leaf_analyticsadmin_properties_firebase_links_delete())
+            .subcommand(leaf_analyticsadmin_properties_firebase_links_list())
+    }
+
+    // analyticsadmin.properties.get
+    fn leaf_analyticsadmin_properties_get() -> Command {
+        Command::new("analyticsadmin.properties.get")
+            .visible_alias("get")
+            .about("Lookup for a single GA Property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the property to lookup. Format: properties/{property_id} Example: \"properties/1000\""))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.getDataRetentionSettings
+    fn leaf_analyticsadmin_properties_get_data_retention_settings() -> Command {
+        Command::new("analyticsadmin.properties.getDataRetentionSettings")
+            .visible_alias("getDataRetentionSettings")
+            .about("Returns the singleton data retention settings for this property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the settings to lookup. Format: properties/{property}/dataRetentionSettings Example: \"properties/1000/dataRetentionSettings\""))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.googleAdsLinks.create
+    fn leaf_analyticsadmin_properties_google_ads_links_create() -> Command {
+        Command::new("analyticsadmin.properties.googleAdsLinks.create")
+            .visible_alias("create")
+            .about("Creates a GoogleAdsLink.")
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. Example format: properties/1234"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.googleAdsLinks.delete
+    fn leaf_analyticsadmin_properties_google_ads_links_delete() -> Command {
+        Command::new("analyticsadmin.properties.googleAdsLinks.delete")
+            .visible_alias("delete")
+            .about("Deletes a GoogleAdsLink on a property")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. Example format: properties/1234/googleAdsLinks/5678"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.googleAdsLinks.list
+    fn leaf_analyticsadmin_properties_google_ads_links_list() -> Command {
+        Command::new("analyticsadmin.properties.googleAdsLinks.list")
+            .visible_alias("list")
+            .about("Lists GoogleAdsLinks on a property.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of resources to return. If unspecified, at most 50 resources will be returned. The maximum value is 200 (higher values will be coer"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListGoogleAdsLinks` call. Provide this to retrieve the subsequent page. When paginating, all other parameters"))
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. Example format: properties/1234"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.googleAdsLinks.patch
+    fn leaf_analyticsadmin_properties_google_ads_links_patch() -> Command {
+        Command::new("analyticsadmin.properties.googleAdsLinks.patch")
+            .visible_alias("patch")
+            .about("Updates a GoogleAdsLink on a property")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Identifier. Format: properties/{propertyId}/googleAdsLinks/{googleAdsLinkId} Note: googleAdsLinkId is not the Google Ads customer ID."))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The list of fields to be updated. Field names must be in snake case (e.g., \"field_to_update\"). Omitted fields will not be updated. To replace the enti"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.googleAdsLinks
+    fn group_analyticsadmin_properties_google_ads_links() -> Command {
+        Command::new("googleAdsLinks")
+            .about("Methods under analyticsadmin.properties.googleAdsLinks")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_properties_google_ads_links_create())
+            .subcommand(leaf_analyticsadmin_properties_google_ads_links_delete())
+            .subcommand(leaf_analyticsadmin_properties_google_ads_links_list())
+            .subcommand(leaf_analyticsadmin_properties_google_ads_links_patch())
+    }
+
+    // analyticsadmin.properties.keyEvents.create
+    fn leaf_analyticsadmin_properties_key_events_create() -> Command {
+        Command::new("analyticsadmin.properties.keyEvents.create")
+            .visible_alias("create")
+            .about("Creates a Key Event.")
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. The resource name of the parent property where this Key Event will be created. Format: properties/123"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.keyEvents.delete
+    fn leaf_analyticsadmin_properties_key_events_delete() -> Command {
+        Command::new("analyticsadmin.properties.keyEvents.delete")
+            .visible_alias("delete")
+            .about("Deletes a Key Event.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The resource name of the Key Event to delete. Format: properties/{property}/keyEvents/{key_event} Example: \"properties/123/keyEvents/456\""))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.keyEvents.get
+    fn leaf_analyticsadmin_properties_key_events_get() -> Command {
+        Command::new("analyticsadmin.properties.keyEvents.get")
+            .visible_alias("get")
+            .about("Retrieves a single Key Event.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The resource name of the Key Event to retrieve. Format: properties/{property}/keyEvents/{key_event} Example: \"properties/123/keyEvents/456\""))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.keyEvents.list
+    fn leaf_analyticsadmin_properties_key_events_list() -> Command {
+        Command::new("analyticsadmin.properties.keyEvents.list")
+            .visible_alias("list")
+            .about("Returns a list of Key Events in the specified parent property. Returns an empty list if no Key...")
+            .long_about("Returns a list of Key Events in the specified parent property. Returns an empty list if no Key Events are found.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of resources to return. If unspecified, at most 50 resources will be returned. The maximum value is 200; (higher values will be coe"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListKeyEvents` call. Provide this to retrieve the subsequent page. When paginating, all other parameters provi"))
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. The resource name of the parent property. Example: 'properties/123'"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.keyEvents.patch
+    fn leaf_analyticsadmin_properties_key_events_patch() -> Command {
+        Command::new("analyticsadmin.properties.keyEvents.patch")
+            .visible_alias("patch")
+            .about("Updates a Key Event.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Output only. Resource name of this key event. Format: properties/{property}/keyEvents/{key_event}"))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The list of fields to be updated. Field names must be in snake case (e.g., \"field_to_update\"). Omitted fields will not be updated. To replace the enti"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.keyEvents
+    fn group_analyticsadmin_properties_key_events() -> Command {
+        Command::new("keyEvents")
+            .about("Methods under analyticsadmin.properties.keyEvents")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_properties_key_events_create())
+            .subcommand(leaf_analyticsadmin_properties_key_events_delete())
+            .subcommand(leaf_analyticsadmin_properties_key_events_get())
+            .subcommand(leaf_analyticsadmin_properties_key_events_list())
+            .subcommand(leaf_analyticsadmin_properties_key_events_patch())
+    }
+
+    // analyticsadmin.properties.list
+    fn leaf_analyticsadmin_properties_list() -> Command {
+        Command::new("analyticsadmin.properties.list")
+            .visible_alias("list")
+            .about("Returns child Properties under the specified parent Account. Properties will be excluded if the...")
+            .long_about("Returns child Properties under the specified parent Account. Properties will be excluded if the caller does not have access. Soft-deleted (ie: \"trashed\") properties are excluded by default. Returns an empty list if no relevant properties are found.")
+            .arg(Arg::new("filter").long("filter").value_name("FILTER")
+                .help("Required. An expression for filtering the results of the request. Fields eligible for filtering are: `parent:`(The resource name of the parent account/property)"))
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of resources to return. The service may return fewer than this value, even if there are additional pages. If unspecified, at most 5"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListProperties` call. Provide this to retrieve the subsequent page. When paginating, all other parameters prov"))
+            .arg(Arg::new("show-deleted").long("show-deleted").action(ArgAction::SetTrue)
+                .help("Whether to include soft-deleted (ie: \"trashed\") Properties in the results. Properties can be inspected to determine whether they are deleted or not."))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.patch
+    fn leaf_analyticsadmin_properties_patch() -> Command {
+        Command::new("analyticsadmin.properties.patch")
+            .visible_alias("patch")
+            .about("Updates a property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Identifier. Resource name of this property. Format: properties/{property_id} Example: \"properties/1000\""))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The list of fields to be updated. Field names must be in snake case (e.g., \"field_to_update\"). Omitted fields will not be updated. To replace the enti"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.runAccessReport
+    fn leaf_analyticsadmin_properties_run_access_report() -> Command {
+        Command::new("analyticsadmin.properties.runAccessReport")
+            .visible_alias("runAccessReport")
+            .about("Returns a customized report of data access records. The report provides records of each time a user...")
+            .long_about("Returns a customized report of data access records. The report provides records of each time a user reads Google Analytics reporting data. Access records are retained for up to 2 years. Data Access Reports can be requested for a property. Reports may be requested for any property, but dimensions tha")
+            .arg(Arg::new("entity").long("entity").value_name("ENTITY").required(true)
+                .help("The Data Access Report supports requesting at the property level or account level. If requested at the account level, Data Access Reports include all access for"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties.updateDataRetentionSettings
+    fn leaf_analyticsadmin_properties_update_data_retention_settings() -> Command {
+        Command::new("analyticsadmin.properties.updateDataRetentionSettings")
+            .visible_alias("updateDataRetentionSettings")
+            .about("Updates the singleton data retention settings for this property.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Identifier. Resource name for this DataRetentionSetting resource. Format: properties/{property}/dataRetentionSettings"))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The list of fields to be updated. Field names must be in snake case (e.g., \"field_to_update\"). Omitted fields will not be updated. To replace the enti"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.properties
+    fn group_analyticsadmin_properties() -> Command {
+        Command::new("properties")
+            .about("Methods under analyticsadmin.properties")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_properties_acknowledge_user_data_collection())
+            .subcommand(group_analyticsadmin_properties_conversion_events())
+            .subcommand(leaf_analyticsadmin_properties_create())
+            .subcommand(group_analyticsadmin_properties_custom_dimensions())
+            .subcommand(group_analyticsadmin_properties_custom_metrics())
+            .subcommand(group_analyticsadmin_properties_data_streams())
+            .subcommand(leaf_analyticsadmin_properties_delete())
+            .subcommand(group_analyticsadmin_properties_firebase_links())
+            .subcommand(leaf_analyticsadmin_properties_get())
+            .subcommand(leaf_analyticsadmin_properties_get_data_retention_settings())
+            .subcommand(group_analyticsadmin_properties_google_ads_links())
+            .subcommand(group_analyticsadmin_properties_key_events())
+            .subcommand(leaf_analyticsadmin_properties_list())
+            .subcommand(leaf_analyticsadmin_properties_patch())
+            .subcommand(leaf_analyticsadmin_properties_run_access_report())
+            .subcommand(leaf_analyticsadmin_properties_update_data_retention_settings())
+    }
+
+    // analyticsadmin
+    fn service_analyticsadmin() -> Command {
+        Command::new("analyticsadmin")
+            .about("Google Analytics Admin API operations (v1beta, 55 methods)")
+            .subcommand_required(true)
+            .subcommand(group_analyticsadmin_accounts())
+            .subcommand(group_analyticsadmin_account_summaries())
+            .subcommand(group_analyticsadmin_properties())
+    }
+
+    // analyticsdata.properties.audienceExports.create
+    fn leaf_analyticsdata_properties_audience_exports_create() -> Command {
+        Command::new("analyticsdata.properties.audienceExports.create")
+            .visible_alias("create")
+            .about("Creates an audience export for later retrieval. This method quickly returns the audience export's...")
+            .long_about("Creates an audience export for later retrieval. This method quickly returns the audience export's resource name and initiates a long running asynchronous request to form an audience export. To export the users in an audience export, first create the audience export through this method and then send")
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. The parent resource where this audience export will be created. Format: `properties/{property}`"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties.audienceExports.get
+    fn leaf_analyticsdata_properties_audience_exports_get() -> Command {
+        Command::new("analyticsdata.properties.audienceExports.get")
+            .visible_alias("get")
+            .about("Gets configuration metadata about a specific audience export. This method can be used to understand...")
+            .long_about("Gets configuration metadata about a specific audience export. This method can be used to understand an audience export after it has been created. See Creating an Audience Export for an introduction to Audienc")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The audience export resource name. Format: `properties/{property}/audienceExports/{audience_export}`"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties.audienceExports.list
+    fn leaf_analyticsdata_properties_audience_exports_list() -> Command {
+        Command::new("analyticsdata.properties.audienceExports.list")
+            .visible_alias("list")
+            .about("Lists all audience exports for a property. This method can be used for you to find and reuse...")
+            .long_about("Lists all audience exports for a property. This method can be used for you to find and reuse existing audience exports rather than creating unnecessary new audience exports. The same audience can have multiple audience exports that represent the export of users that were in an audience on different")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of audience exports to return. The service may return fewer than this value. If unspecified, at most 200 audience exports will be r"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListAudienceExports` call. Provide this to retrieve the subsequent page. When paginating, all other parameters"))
+            .arg(Arg::new("parent").long("parent").value_name("PARENT").required(true)
+                .help("Required. All audience exports for this property will be listed in the response. Format: `properties/{property}`"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties.audienceExports.query
+    fn leaf_analyticsdata_properties_audience_exports_query() -> Command {
+        Command::new("analyticsdata.properties.audienceExports.query")
+            .visible_alias("query")
+            .about("Retrieves an audience export of users. After creating an audience, the users are not immediately...")
+            .long_about("Retrieves an audience export of users. After creating an audience, the users are not immediately available for exporting. First, a request to `CreateAudienceExport` is necessary to create an audience export of users, and then second, this method is used to retrieve the users in the audience export.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The name of the audience export to retrieve users from. Format: `properties/{property}/audienceExports/{audience_export}`"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties.audienceExports
+    fn group_analyticsdata_properties_audience_exports() -> Command {
+        Command::new("audienceExports")
+            .about("Methods under analyticsdata.properties.audienceExports")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsdata_properties_audience_exports_create())
+            .subcommand(leaf_analyticsdata_properties_audience_exports_get())
+            .subcommand(leaf_analyticsdata_properties_audience_exports_list())
+            .subcommand(leaf_analyticsdata_properties_audience_exports_query())
+    }
+
+    // analyticsdata.properties.batchRunPivotReports
+    fn leaf_analyticsdata_properties_batch_run_pivot_reports() -> Command {
+        Command::new("analyticsdata.properties.batchRunPivotReports")
+            .visible_alias("batchRunPivotReports")
+            .about("Returns multiple pivot reports in a batch. All reports must be for the same Google Analytics...")
+            .long_about("Returns multiple pivot reports in a batch. All reports must be for the same Google Analytics property.")
+            .arg(Arg::new("property").long("property").value_name("PROPERTY").required(true)
+                .help("A Google Analytics property identifier whose events are tracked. Specified in the URL path and not the body. To learn more, see [where to find your Property ID]"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties.batchRunReports
+    fn leaf_analyticsdata_properties_batch_run_reports() -> Command {
+        Command::new("analyticsdata.properties.batchRunReports")
+            .visible_alias("batchRunReports")
+            .about("Returns multiple reports in a batch. All reports must be for the same Google Analytics property.")
+            .arg(Arg::new("property").long("property").value_name("PROPERTY").required(true)
+                .help("A Google Analytics property identifier whose events are tracked. Specified in the URL path and not the body. To learn more, see [where to find your Property ID]"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties.checkCompatibility
+    fn leaf_analyticsdata_properties_check_compatibility() -> Command {
+        Command::new("analyticsdata.properties.checkCompatibility")
+            .visible_alias("checkCompatibility")
+            .about("This compatibility method lists dimensions and metrics that can be added to a report request and...")
+            .long_about("This compatibility method lists dimensions and metrics that can be added to a report request and maintain compatibility. This method fails if the request's dimensions and metrics are incompatible. In Google Analytics, reports fail if they request incompatible dimensions and/or metrics; in that case,")
+            .arg(Arg::new("property").long("property").value_name("PROPERTY").required(true)
+                .help("A Google Analytics property identifier whose events are tracked. To learn more, see [where to find your Property ID](https://developers.google.com/analytics/dev"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties.getMetadata
+    fn leaf_analyticsdata_properties_get_metadata() -> Command {
+        Command::new("analyticsdata.properties.getMetadata")
+            .visible_alias("getMetadata")
+            .about("Returns metadata for dimensions and metrics available in reporting methods. Used to explore the...")
+            .long_about("Returns metadata for dimensions and metrics available in reporting methods. Used to explore the dimensions and metrics. In this method, a Google Analytics property identifier is specified in the request, and the metadata response includes Custom dimensions and metrics as well as Universal metadata.")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The resource name of the metadata to retrieve. This name field is specified in the URL path and not URL parameters. Property is a numeric Google Analy"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties.runPivotReport
+    fn leaf_analyticsdata_properties_run_pivot_report() -> Command {
+        Command::new("analyticsdata.properties.runPivotReport")
+            .visible_alias("runPivotReport")
+            .about("Returns a customized pivot report of your Google Analytics event data. Pivot reports are more...")
+            .long_about("Returns a customized pivot report of your Google Analytics event data. Pivot reports are more advanced and expressive formats than regular reports. In a pivot report, dimensions are only visible if they are included in a pivot. Multiple pivots can be specified to further dissect your data.")
+            .arg(Arg::new("property").long("property").value_name("PROPERTY").required(true)
+                .help("A Google Analytics property identifier whose events are tracked. Specified in the URL path and not the body. To learn more, see [where to find your Property ID]"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties.runRealtimeReport
+    fn leaf_analyticsdata_properties_run_realtime_report() -> Command {
+        Command::new("analyticsdata.properties.runRealtimeReport")
+            .visible_alias("runRealtimeReport")
+            .about("Returns a customized report of realtime event data for your property. Events appear in realtime...")
+            .long_about("Returns a customized report of realtime event data for your property. Events appear in realtime reports seconds after they have been sent to the Google Analytics. Realtime reports show events and usage data for the periods of time ranging from the present moment to 30 minutes ago (up to 60 minutes f")
+            .arg(Arg::new("property").long("property").value_name("PROPERTY").required(true)
+                .help("A Google Analytics property identifier whose events are tracked. Specified in the URL path and not the body. To learn more, see [where to find your Property ID]"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties.runReport
+    fn leaf_analyticsdata_properties_run_report() -> Command {
+        Command::new("analyticsdata.properties.runReport")
+            .visible_alias("runReport")
+            .about("Returns a customized report of your Google Analytics event data. Reports contain statistics derived...")
+            .long_about("Returns a customized report of your Google Analytics event data. Reports contain statistics derived from data collected by the Google Analytics tracking code. The data returned from the API is as a table with columns for the requested dimensions and metrics. Metrics are individual measurements of us")
+            .arg(Arg::new("property").long("property").value_name("PROPERTY").required(true)
+                .help("A Google Analytics property identifier whose events are tracked. Specified in the URL path and not the body. To learn more, see [where to find your Property ID]"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsdata.properties
+    fn group_analyticsdata_properties() -> Command {
+        Command::new("properties")
+            .about("Methods under analyticsdata.properties")
+            .subcommand_required(true)
+            .subcommand(group_analyticsdata_properties_audience_exports())
+            .subcommand(leaf_analyticsdata_properties_batch_run_pivot_reports())
+            .subcommand(leaf_analyticsdata_properties_batch_run_reports())
+            .subcommand(leaf_analyticsdata_properties_check_compatibility())
+            .subcommand(leaf_analyticsdata_properties_get_metadata())
+            .subcommand(leaf_analyticsdata_properties_run_pivot_report())
+            .subcommand(leaf_analyticsdata_properties_run_realtime_report())
+            .subcommand(leaf_analyticsdata_properties_run_report())
+    }
+
+    // analyticsdata
+    fn service_analyticsdata() -> Command {
+        Command::new("analyticsdata")
+            .about("Google Analytics Data API operations (v1beta, 11 methods)")
+            .subcommand_required(true)
+            .subcommand(group_analyticsdata_properties())
     }
 
     // calendar.acl.delete
@@ -4753,6 +5686,478 @@ pub mod tree {
             .subcommand(group_people_contact_groups())
             .subcommand(group_people_other_contacts())
             .subcommand(group_people_people())
+    }
+
+    // script.processes.list
+    fn leaf_script_processes_list() -> Command {
+        Command::new("script.processes.list")
+            .visible_alias("list")
+            .about("List information about processes made by or on behalf of a user, such as process type and current...")
+            .long_about("List information about processes made by or on behalf of a user, such as process type and current status.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("The maximum number of returned processes per page of results. Defaults to 50."))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("The token for continuing a previous list request on the next page. This should be set to the value of `nextPageToken` from a previous response."))
+            .arg(Arg::new("user-process-filter-deployment-id").long("user-process-filter-deployment-id").value_name("USER_PROCESS_FILTER_DEPLOYMENT_ID")
+                .help("Optional field used to limit returned processes to those originating from projects with a specific deployment ID."))
+            .arg(Arg::new("user-process-filter-end-time").long("user-process-filter-end-time").value_name("USER_PROCESS_FILTER_END_TIME")
+                .help("Optional field used to limit returned processes to those that completed on or before the given timestamp."))
+            .arg(Arg::new("user-process-filter-function-name").long("user-process-filter-function-name").value_name("USER_PROCESS_FILTER_FUNCTION_NAME")
+                .help("Optional field used to limit returned processes to those originating from a script function with the given function name."))
+            .arg(Arg::new("user-process-filter-project-name").long("user-process-filter-project-name").value_name("USER_PROCESS_FILTER_PROJECT_NAME")
+                .help("Optional field used to limit returned processes to those originating from projects with project names containing a specific string."))
+            .arg(Arg::new("user-process-filter-script-id").long("user-process-filter-script-id").value_name("USER_PROCESS_FILTER_SCRIPT_ID")
+                .help("Optional field used to limit returned processes to those originating from projects with a specific script ID."))
+            .arg(Arg::new("user-process-filter-start-time").long("user-process-filter-start-time").value_name("USER_PROCESS_FILTER_START_TIME")
+                .help("Optional field used to limit returned processes to those that were started on or after the given timestamp."))
+            .arg(Arg::new("user-process-filter-statuses").long("user-process-filter-statuses").value_name("USER_PROCESS_FILTER_STATUSES").action(ArgAction::Append)
+                .help("Optional field used to limit returned processes to those having one of the specified process statuses."))
+            .arg(Arg::new("user-process-filter-types").long("user-process-filter-types").value_name("USER_PROCESS_FILTER_TYPES").action(ArgAction::Append)
+                .help("Optional field used to limit returned processes to those having one of the specified process types."))
+            .arg(Arg::new("user-process-filter-user-access-levels").long("user-process-filter-user-access-levels").value_name("USER_PROCESS_FILTER_USER_ACCESS_LEVELS").action(ArgAction::Append)
+                .help("Optional field used to limit returned processes to those having one of the specified user access levels."))
+            .args(escape_hatch_args())
+    }
+
+    // script.processes.listScriptProcesses
+    fn leaf_script_processes_list_script_processes() -> Command {
+        Command::new("script.processes.listScriptProcesses")
+            .visible_alias("listScriptProcesses")
+            .about("List information about a script's executed processes, such as process type and current status.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("The maximum number of returned processes per page of results. Defaults to 50."))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("The token for continuing a previous list request on the next page. This should be set to the value of `nextPageToken` from a previous response."))
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID")
+                .help("The script ID of the project whose processes are listed."))
+            .arg(Arg::new("script-process-filter-deployment-id").long("script-process-filter-deployment-id").value_name("SCRIPT_PROCESS_FILTER_DEPLOYMENT_ID")
+                .help("Optional field used to limit returned processes to those originating from projects with a specific deployment ID."))
+            .arg(Arg::new("script-process-filter-end-time").long("script-process-filter-end-time").value_name("SCRIPT_PROCESS_FILTER_END_TIME")
+                .help("Optional field used to limit returned processes to those that completed on or before the given timestamp."))
+            .arg(Arg::new("script-process-filter-function-name").long("script-process-filter-function-name").value_name("SCRIPT_PROCESS_FILTER_FUNCTION_NAME")
+                .help("Optional field used to limit returned processes to those originating from a script function with the given function name."))
+            .arg(Arg::new("script-process-filter-start-time").long("script-process-filter-start-time").value_name("SCRIPT_PROCESS_FILTER_START_TIME")
+                .help("Optional field used to limit returned processes to those that were started on or after the given timestamp."))
+            .arg(Arg::new("script-process-filter-statuses").long("script-process-filter-statuses").value_name("SCRIPT_PROCESS_FILTER_STATUSES").action(ArgAction::Append)
+                .help("Optional field used to limit returned processes to those having one of the specified process statuses."))
+            .arg(Arg::new("script-process-filter-types").long("script-process-filter-types").value_name("SCRIPT_PROCESS_FILTER_TYPES").action(ArgAction::Append)
+                .help("Optional field used to limit returned processes to those having one of the specified process types."))
+            .arg(Arg::new("script-process-filter-user-access-levels").long("script-process-filter-user-access-levels").value_name("SCRIPT_PROCESS_FILTER_USER_ACCESS_LEVELS").action(ArgAction::Append)
+                .help("Optional field used to limit returned processes to those having one of the specified user access levels."))
+            .args(escape_hatch_args())
+    }
+
+    // script.processes
+    fn group_script_processes() -> Command {
+        Command::new("processes")
+            .about("Methods under script.processes")
+            .subcommand_required(true)
+            .subcommand(leaf_script_processes_list())
+            .subcommand(leaf_script_processes_list_script_processes())
+    }
+
+    // script.projects.create
+    fn leaf_script_projects_create() -> Command {
+        Command::new("script.projects.create")
+            .visible_alias("create")
+            .about("Creates a new, empty script project with no script files and a base manifest file.")
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.deployments.create
+    fn leaf_script_projects_deployments_create() -> Command {
+        Command::new("script.projects.deployments.create")
+            .visible_alias("create")
+            .about("Creates a deployment of an Apps Script project.")
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.deployments.delete
+    fn leaf_script_projects_deployments_delete() -> Command {
+        Command::new("script.projects.deployments.delete")
+            .visible_alias("delete")
+            .about("Deletes a deployment of an Apps Script project.")
+            .arg(Arg::new("deployment-id").long("deployment-id").value_name("DEPLOYMENT_ID").required(true)
+                .help("The deployment ID to be undeployed."))
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.deployments.get
+    fn leaf_script_projects_deployments_get() -> Command {
+        Command::new("script.projects.deployments.get")
+            .visible_alias("get")
+            .about("Gets a deployment of an Apps Script project.")
+            .arg(Arg::new("deployment-id").long("deployment-id").value_name("DEPLOYMENT_ID").required(true)
+                .help("The deployment ID."))
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.deployments.list
+    fn leaf_script_projects_deployments_list() -> Command {
+        Command::new("script.projects.deployments.list")
+            .visible_alias("list")
+            .about("Lists the deployments of an Apps Script project.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("The maximum number of deployments on each returned page. Defaults to 50."))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("The token for continuing a previous list request on the next page. This should be set to the value of `nextPageToken` from a previous response."))
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.deployments.update
+    fn leaf_script_projects_deployments_update() -> Command {
+        Command::new("script.projects.deployments.update")
+            .visible_alias("update")
+            .about("Updates a deployment of an Apps Script project.")
+            .arg(Arg::new("deployment-id").long("deployment-id").value_name("DEPLOYMENT_ID").required(true)
+                .help("The deployment ID for this deployment."))
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.deployments
+    fn group_script_projects_deployments() -> Command {
+        Command::new("deployments")
+            .about("Methods under script.projects.deployments")
+            .subcommand_required(true)
+            .subcommand(leaf_script_projects_deployments_create())
+            .subcommand(leaf_script_projects_deployments_delete())
+            .subcommand(leaf_script_projects_deployments_get())
+            .subcommand(leaf_script_projects_deployments_list())
+            .subcommand(leaf_script_projects_deployments_update())
+    }
+
+    // script.projects.get
+    fn leaf_script_projects_get() -> Command {
+        Command::new("script.projects.get")
+            .visible_alias("get")
+            .about("Gets a script project's metadata.")
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.getContent
+    fn leaf_script_projects_get_content() -> Command {
+        Command::new("script.projects.getContent")
+            .visible_alias("getContent")
+            .about("Gets the content of the script project, including the code source and metadata for each script file.")
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .arg(Arg::new("version-number").long("version-number").value_name("VERSION_NUMBER").value_parser(clap::value_parser!(i64))
+                .help("The version number of the project to retrieve. If not provided, the project's HEAD version is returned."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.getMetrics
+    fn leaf_script_projects_get_metrics() -> Command {
+        Command::new("script.projects.getMetrics")
+            .visible_alias("getMetrics")
+            .about("Get metrics data for scripts, such as number of executions and active users.")
+            .arg(Arg::new("metrics-filter-deployment-id").long("metrics-filter-deployment-id").value_name("METRICS_FILTER_DEPLOYMENT_ID")
+                .help("Optional field indicating a specific deployment to retrieve metrics from."))
+            .arg(Arg::new("metrics-granularity").long("metrics-granularity").value_name("METRICS_GRANULARITY").value_parser(["UNSPECIFIED_GRANULARITY", "WEEKLY", "DAILY"])
+                .help("Required field indicating what granularity of metrics are returned."))
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("Required field indicating the script to get metrics for."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.updateContent
+    fn leaf_script_projects_update_content() -> Command {
+        Command::new("script.projects.updateContent")
+            .visible_alias("updateContent")
+            .about("Updates the content of the specified script project. This content is stored as the HEAD version...")
+            .long_about("Updates the content of the specified script project. This content is stored as the HEAD version, and is used when the script is executed as a trigger, in the script editor, in add-on preview mode, or as a web app or Apps Script API in development mode. This clears all the existing files in the proje")
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.versions.create
+    fn leaf_script_projects_versions_create() -> Command {
+        Command::new("script.projects.versions.create")
+            .visible_alias("create")
+            .about("Creates a new immutable version using the current code, with a unique version number.")
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.versions.get
+    fn leaf_script_projects_versions_get() -> Command {
+        Command::new("script.projects.versions.get")
+            .visible_alias("get")
+            .about("Gets a version of a script project.")
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .arg(Arg::new("version-number").long("version-number").value_name("VERSION_NUMBER").value_parser(clap::value_parser!(i64)).required(true)
+                .help("The version number."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.versions.list
+    fn leaf_script_projects_versions_list() -> Command {
+        Command::new("script.projects.versions.list")
+            .visible_alias("list")
+            .about("List the versions of a script project.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("The maximum number of versions on each returned page. Defaults to 50."))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("The token for continuing a previous list request on the next page. This should be set to the value of `nextPageToken` from a previous response."))
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script project's Drive ID."))
+            .args(escape_hatch_args())
+    }
+
+    // script.projects.versions
+    fn group_script_projects_versions() -> Command {
+        Command::new("versions")
+            .about("Methods under script.projects.versions")
+            .subcommand_required(true)
+            .subcommand(leaf_script_projects_versions_create())
+            .subcommand(leaf_script_projects_versions_get())
+            .subcommand(leaf_script_projects_versions_list())
+    }
+
+    // script.projects
+    fn group_script_projects() -> Command {
+        Command::new("projects")
+            .about("Methods under script.projects")
+            .subcommand_required(true)
+            .subcommand(leaf_script_projects_create())
+            .subcommand(group_script_projects_deployments())
+            .subcommand(leaf_script_projects_get())
+            .subcommand(leaf_script_projects_get_content())
+            .subcommand(leaf_script_projects_get_metrics())
+            .subcommand(leaf_script_projects_update_content())
+            .subcommand(group_script_projects_versions())
+    }
+
+    // script.scripts.run
+    fn leaf_script_scripts_run() -> Command {
+        Command::new("script.scripts.run")
+            .visible_alias("run")
+            .about("")
+            .arg(Arg::new("script-id").long("script-id").value_name("SCRIPT_ID").required(true)
+                .help("The script ID of the script to be executed. Find the script ID on the **Project settings** page under \"IDs.\" As multiple executable APIs can be deployed in new"))
+            .args(escape_hatch_args())
+    }
+
+    // script.scripts
+    fn group_script_scripts() -> Command {
+        Command::new("scripts")
+            .about("Methods under script.scripts")
+            .subcommand_required(true)
+            .subcommand(leaf_script_scripts_run())
+    }
+
+    // script
+    fn service_script() -> Command {
+        Command::new("script")
+            .about("Apps Script API operations (v1, 16 methods)")
+            .subcommand_required(true)
+            .subcommand(group_script_processes())
+            .subcommand(group_script_projects())
+            .subcommand(group_script_scripts())
+    }
+
+    // searchconsole.searchanalytics.query
+    fn leaf_searchconsole_searchanalytics_query() -> Command {
+        Command::new("searchconsole.searchanalytics.query")
+            .visible_alias("query")
+            .about("Query your data with filters and parameters that you define. Returns zero or more rows grouped by...")
+            .long_about("Query your data with filters and parameters that you define. Returns zero or more rows grouped by the row keys that you define. You must define a date range of one or more days. When date is one of the group by values, any days without data are omitted from the result list. If you need to know which")
+            .arg(Arg::new("site-url").long("site-url").value_name("SITE_URL").required(true)
+                .help("The site's URL, including protocol. For example: `http://www.example.com/`."))
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.searchanalytics
+    fn group_searchconsole_searchanalytics() -> Command {
+        Command::new("searchanalytics")
+            .about("Methods under searchconsole.searchanalytics")
+            .subcommand_required(true)
+            .subcommand(leaf_searchconsole_searchanalytics_query())
+    }
+
+    // searchconsole.sitemaps.delete
+    fn leaf_searchconsole_sitemaps_delete() -> Command {
+        Command::new("searchconsole.sitemaps.delete")
+            .visible_alias("delete")
+            .about("Deletes a sitemap from the Sitemaps report. Does not stop Google from crawling this sitemap or the...")
+            .long_about("Deletes a sitemap from the Sitemaps report. Does not stop Google from crawling this sitemap or the URLs that were previously crawled in the deleted sitemap.")
+            .arg(Arg::new("feedpath").long("feedpath").value_name("FEEDPATH").required(true)
+                .help("The URL of the actual sitemap. For example: `http://www.example.com/sitemap.xml`."))
+            .arg(Arg::new("site-url").long("site-url").value_name("SITE_URL").required(true)
+                .help("The site's URL, including protocol. For example: `http://www.example.com/`."))
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.sitemaps.get
+    fn leaf_searchconsole_sitemaps_get() -> Command {
+        Command::new("searchconsole.sitemaps.get")
+            .visible_alias("get")
+            .about("Retrieves information about a specific sitemap.")
+            .arg(Arg::new("feedpath").long("feedpath").value_name("FEEDPATH").required(true)
+                .help("The URL of the actual sitemap. For example: `http://www.example.com/sitemap.xml`."))
+            .arg(Arg::new("site-url").long("site-url").value_name("SITE_URL").required(true)
+                .help("The site's URL, including protocol. For example: `http://www.example.com/`."))
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.sitemaps.list
+    fn leaf_searchconsole_sitemaps_list() -> Command {
+        Command::new("searchconsole.sitemaps.list")
+            .visible_alias("list")
+            .about("Lists the sitemaps-entries submitted for this site, or included in the sitemap index file (if...")
+            .long_about("Lists the sitemaps-entries submitted for this site, or included in the sitemap index file (if `sitemapIndex` is specified in the request).")
+            .arg(Arg::new("sitemap-index").long("sitemap-index").value_name("SITEMAP_INDEX")
+                .help("A URL of a site's sitemap index. For example: `http://www.example.com/sitemapindex.xml`."))
+            .arg(Arg::new("site-url").long("site-url").value_name("SITE_URL").required(true)
+                .help("The site's URL, including protocol. For example: `http://www.example.com/`."))
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.sitemaps.submit
+    fn leaf_searchconsole_sitemaps_submit() -> Command {
+        Command::new("searchconsole.sitemaps.submit")
+            .visible_alias("submit")
+            .about("Submits a sitemap for a site.")
+            .arg(Arg::new("feedpath").long("feedpath").value_name("FEEDPATH").required(true)
+                .help("The URL of the actual sitemap. For example: `http://www.example.com/sitemap.xml`."))
+            .arg(Arg::new("site-url").long("site-url").value_name("SITE_URL").required(true)
+                .help("The site's URL, including protocol. For example: `http://www.example.com/`."))
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.sitemaps
+    fn group_searchconsole_sitemaps() -> Command {
+        Command::new("sitemaps")
+            .about("Methods under searchconsole.sitemaps")
+            .subcommand_required(true)
+            .subcommand(leaf_searchconsole_sitemaps_delete())
+            .subcommand(leaf_searchconsole_sitemaps_get())
+            .subcommand(leaf_searchconsole_sitemaps_list())
+            .subcommand(leaf_searchconsole_sitemaps_submit())
+    }
+
+    // searchconsole.sites.add
+    fn leaf_searchconsole_sites_add() -> Command {
+        Command::new("searchconsole.sites.add")
+            .visible_alias("add")
+            .about("Adds a site to the set of the user's sites in Search Console.")
+            .arg(Arg::new("site-url").long("site-url").value_name("SITE_URL").required(true)
+                .help("The URL of the site to add."))
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.sites.delete
+    fn leaf_searchconsole_sites_delete() -> Command {
+        Command::new("searchconsole.sites.delete")
+            .visible_alias("delete")
+            .about("Removes a site from the set of the user's Search Console sites.")
+            .arg(Arg::new("site-url").long("site-url").value_name("SITE_URL").required(true)
+                .help("The URI of the property as defined in Search Console. **Examples:** `http://www.example.com/` or `sc-domain:example.com`."))
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.sites.get
+    fn leaf_searchconsole_sites_get() -> Command {
+        Command::new("searchconsole.sites.get")
+            .visible_alias("get")
+            .about("Retrieves information about specific site.")
+            .arg(Arg::new("site-url").long("site-url").value_name("SITE_URL").required(true)
+                .help("The URI of the property as defined in Search Console. **Examples:** `http://www.example.com/` or `sc-domain:example.com`."))
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.sites.list
+    fn leaf_searchconsole_sites_list() -> Command {
+        Command::new("searchconsole.sites.list")
+            .visible_alias("list")
+            .about("Lists the user's Search Console sites.")
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.sites
+    fn group_searchconsole_sites() -> Command {
+        Command::new("sites")
+            .about("Methods under searchconsole.sites")
+            .subcommand_required(true)
+            .subcommand(leaf_searchconsole_sites_add())
+            .subcommand(leaf_searchconsole_sites_delete())
+            .subcommand(leaf_searchconsole_sites_get())
+            .subcommand(leaf_searchconsole_sites_list())
+    }
+
+    // searchconsole.urlInspection.index.inspect
+    fn leaf_searchconsole_url_inspection_index_inspect() -> Command {
+        Command::new("searchconsole.urlInspection.index.inspect")
+            .visible_alias("inspect")
+            .about("Index inspection.")
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.urlInspection.index
+    fn group_searchconsole_url_inspection_index() -> Command {
+        Command::new("index")
+            .about("Methods under searchconsole.urlInspection.index")
+            .subcommand_required(true)
+            .subcommand(leaf_searchconsole_url_inspection_index_inspect())
+    }
+
+    // searchconsole.urlInspection
+    fn group_searchconsole_url_inspection() -> Command {
+        Command::new("urlInspection")
+            .about("Methods under searchconsole.urlInspection")
+            .subcommand_required(true)
+            .subcommand(group_searchconsole_url_inspection_index())
+    }
+
+    // searchconsole.urlTestingTools.mobileFriendlyTest.run
+    fn leaf_searchconsole_url_testing_tools_mobile_friendly_test_run() -> Command {
+        Command::new("searchconsole.urlTestingTools.mobileFriendlyTest.run")
+            .visible_alias("run")
+            .about("Runs Mobile-Friendly Test for a given URL.")
+            .args(escape_hatch_args())
+    }
+
+    // searchconsole.urlTestingTools.mobileFriendlyTest
+    fn group_searchconsole_url_testing_tools_mobile_friendly_test() -> Command {
+        Command::new("mobileFriendlyTest")
+            .about("Methods under searchconsole.urlTestingTools.mobileFriendlyTest")
+            .subcommand_required(true)
+            .subcommand(leaf_searchconsole_url_testing_tools_mobile_friendly_test_run())
+    }
+
+    // searchconsole.urlTestingTools
+    fn group_searchconsole_url_testing_tools() -> Command {
+        Command::new("urlTestingTools")
+            .about("Methods under searchconsole.urlTestingTools")
+            .subcommand_required(true)
+            .subcommand(group_searchconsole_url_testing_tools_mobile_friendly_test())
+    }
+
+    // searchconsole
+    fn service_searchconsole() -> Command {
+        Command::new("searchconsole")
+            .about("Google Search Console API operations (v1, 11 methods)")
+            .subcommand_required(true)
+            .subcommand(group_searchconsole_searchanalytics())
+            .subcommand(group_searchconsole_sitemaps())
+            .subcommand(group_searchconsole_sites())
+            .subcommand(group_searchconsole_url_inspection())
+            .subcommand(group_searchconsole_url_testing_tools())
     }
 
     // sheets.spreadsheets.batchUpdate

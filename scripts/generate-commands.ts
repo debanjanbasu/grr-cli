@@ -39,12 +39,6 @@ const MANIFEST = resolve(INDEX_DIR, 'manifest.json');
 
 const CHECK_ONLY = process.argv.includes('--check');
 
-// Alphabetical, matching discovery::services()' BTreeMap iteration order.
-const SERVICES = [
-  'calendar', 'chat', 'docs', 'drive', 'forms', 'gmail',
-  'people', 'sheets', 'slides', 'tasks',
-];
-
 // The hand-written top-level commands; a service may never shadow them.
 const STATIC_TOP_LEVEL = new Set(['auth', 'api', 'schema', 'transport']);
 
@@ -116,8 +110,16 @@ function rs(s: string): string {
 // ── Load the index ────────────────────────────────────────────────────────
 
 async function loadIndex(): Promise<DistilledIndex[]> {
+  // The manifest is the single source of truth for WHICH services exist —
+  // deriving the list here instead of keeping a second hardcoded copy is
+  // what keeps the generator from silently drifting behind the index when a
+  // new Workspace API is added to fetch-discovery.ts.
+  const manifest = JSON.parse(await readFile(MANIFEST, 'utf8')) as Manifest;
+  const serviceNames = Object.keys(manifest.services ?? {}).sort();
+  assert(serviceNames.length > 0, 'manifest lists no services; run fetch-discovery.ts first');
+
   const services: DistilledIndex[] = [];
-  for (const name of SERVICES) {
+  for (const name of serviceNames) {
     const body = await readFile(resolve(INDEX_DIR, `${name}.json`), 'utf8');
     // The asserts below are the runtime validation of this cast: the file is
     // written by fetch-discovery.ts, and the shape both sides share is the
