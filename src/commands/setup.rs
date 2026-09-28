@@ -35,6 +35,10 @@ const SERVICES: &[(&str, &str)] = &[
     ("docs.googleapis.com", "Docs"),
     ("sheets.googleapis.com", "Sheets"),
     ("slides.googleapis.com", "Slides"),
+    ("script.googleapis.com", "Apps Script"),
+    ("analyticsadmin.googleapis.com", "Analytics Admin"),
+    ("analyticsdata.googleapis.com", "Analytics Data"),
+    ("searchconsole.googleapis.com", "Search Console"),
 ];
 
 #[derive(Args, Debug, Clone)]

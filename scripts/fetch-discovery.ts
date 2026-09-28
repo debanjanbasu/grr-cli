@@ -26,19 +26,61 @@ import type { DistilledIndex, DistilledMethod, Manifest, ManifestServiceEntry } 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = resolve(ROOT, 'src', 'discovery');
 
-// name -> [discovery url, api version]
-export const SERVICES: Record<string, readonly [discoveryUrl: string, apiVersion: string]> = {
-  gmail: ['https://gmail.googleapis.com/$discovery/rest?version=v1', 'v1'],
-  calendar: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest', 'v3'],
-  drive: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest', 'v3'],
-  people: ['https://people.googleapis.com/$discovery/rest?version=v1', 'v1'],
-  chat: ['https://chat.googleapis.com/$discovery/rest?version=v1', 'v1'],
-  forms: ['https://forms.googleapis.com/$discovery/rest?version=v1', 'v1'],
-  tasks: ['https://tasks.googleapis.com/$discovery/rest?version=v1', 'v1'],
-  docs: ['https://docs.googleapis.com/$discovery/rest?version=v1', 'v1'],
-  sheets: ['https://sheets.googleapis.com/$discovery/rest?version=v4', 'v4'],
-  slides: ['https://slides.googleapis.com/$discovery/rest?version=v1', 'v1'],
-};
+// The Workspace family grr covers: every CONSUMER-available Workspace API
+// in Google's Discovery index. Enterprise-only APIs (Keep, Admin SDK,
+// Cloud Identity, Cloud Search, Meet, Licensing, Reseller, Groups
+// Migration/Settings) are deliberately excluded — consumer accounts cannot
+// authorise them, so their methods would only ever 403.
+//
+// Versions and endpoint URLs are resolved FROM THE LIVE DISCOVERY INDEX at
+// fetch time, not hardcoded: when Google ships a new preferred version
+// (drive v4, ...) or moves an endpoint, the daily refresh picks it up
+// without a script change. A NEW Workspace API is one line added here, and
+// the daily workflow then regenerates the index, the command tree, and
+// every doc page that renders from them.
+export const WORKSPACE_APIS: readonly string[] = [
+  'gmail',
+  'calendar',
+  'drive',
+  'people',
+  'chat',
+  'forms',
+  'tasks',
+  'docs',
+  'sheets',
+  'slides',
+  'script',
+  'analyticsadmin',
+  'analyticsdata',
+  'searchconsole',
+];
+
+interface DiscoveryIndexEntry {
+  name: string;
+  version: string;
+  preferred?: boolean;
+  discoveryRestUrl?: string;
+  title?: string;
+}
+
+/** Resolve each Workspace API's preferred version + endpoint from the live index. */
+export async function resolveServices(): Promise<Array<[string, string, string]>> {
+  const index = (await fetchJson('https://www.googleapis.com/discovery/v1/apis')) as {
+    items?: DiscoveryIndexEntry[];
+  };
+  const items = index.items ?? [];
+  const resolved: Array<[string, string, string]> = [];
+  for (const name of WORKSPACE_APIS) {
+    const api = items.find((entry) => entry.name === name && entry.preferred === true);
+    const url = api?.discoveryRestUrl;
+    if (!api || !url) {
+      console.warn(`warning: ${name} not found in the discovery index (no preferred version); skipping`);
+      continue;
+    }
+    resolved.push([name, url, api.version]);
+  }
+  return resolved;
+}
 
 const CHECK_ONLY = process.argv.includes('--check');
 
@@ -147,7 +189,8 @@ async function main(): Promise<void> {
   let totalMethods = 0;
   let changed = false;
 
-  for (const [name, [url, version]] of Object.entries(SERVICES)) {
+  const services = await resolveServices();
+  for (const [name, url, version] of services) {
     const doc = await fetchJson(url);
     const methods: DistilledMethod[] = [];
     // Iterate entries, not values: the resource *name* is part of the method
@@ -209,7 +252,7 @@ async function main(): Promise<void> {
   for (const f of files) bytes += (await readFile(resolve(OUT_DIR, f))).length;
 
   console.log('---');
-  console.log(`${Object.keys(SERVICES).length} services, ${totalMethods} methods total`);
+  console.log(`${services.length} services, ${totalMethods} methods total`);
   console.log(`index size: ${(bytes / 1024).toFixed(0)} KiB across ${files.length} files`);
 
   if (CHECK_ONLY && changed) {

@@ -89,6 +89,30 @@ const SERVICES: &[(&str, &str, &str, &str)] = &[
         "v1",
         "https://slides.googleapis.com/$discovery/rest?version=v1",
     ),
+    (
+        "script.json",
+        "script",
+        "v1",
+        "https://script.googleapis.com/$discovery/rest?version=v1",
+    ),
+    (
+        "analyticsadmin.json",
+        "analyticsadmin",
+        "v1beta",
+        "https://analyticsadmin.googleapis.com/$discovery/rest?version=v1beta",
+    ),
+    (
+        "analyticsdata.json",
+        "analyticsdata",
+        "v1beta",
+        "https://analyticsdata.googleapis.com/$discovery/rest?version=v1beta",
+    ),
+    (
+        "searchconsole.json",
+        "searchconsole",
+        "v1",
+        "https://searchconsole.googleapis.com/$discovery/rest?version=v1",
+    ),
 ];
 
 #[derive(Debug, Clone, serde::Serialize, Deserialize)]
