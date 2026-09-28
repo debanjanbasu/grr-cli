@@ -17,6 +17,7 @@ use serde_json::{Map, Value};
 
 use crate::commands::api::{self, call_method};
 use crate::commands::generated::GENERATED_AT;
+use crate::commands::safety::SafetyProfile;
 
 /// Escape-hatch arg ids present on every generated leaf (plus clap's own
 /// `help`). A Discovery parameter whose kebab-case name lands here is
@@ -68,7 +69,22 @@ pub(crate) fn kebab_case(name: &str) -> String {
 /// Entry point for every generated service subcommand. `matches` is the
 /// ROOT `ArgMatches` (the one whose current subcommand is the service), so
 /// the full chain is walkable from here.
+///
+/// Permissive for now: the owner wires the safety profile (global
+/// `--readonly`/`--deny-service`/`--deny-verb` args, or a flattened
+/// [`SafetyArgs`](crate::commands::safety::SafetyArgs)) into `cli.rs` and
+/// switches to [`dispatch_with_profile`].
 pub async fn dispatch(matches: &ArgMatches, auth: &GoogleAuth) -> Result<()> {
+    dispatch_with_profile(matches, auth, &SafetyProfile::PERMISSIVE).await
+}
+
+/// [`dispatch`] with a safety profile — the seam for `cli.rs`. The same
+/// gate the `grr api call` flags and the `grr mcp` server honor.
+pub async fn dispatch_with_profile(
+    matches: &ArgMatches,
+    auth: &GoogleAuth,
+    profile: &SafetyProfile,
+) -> Result<()> {
     // Walk to the deepest subcommand. The generator guarantees a leaf's
     // canonical clap name IS its full dotted method id
     // (`gmail.users.messages.list`), so the deepest name is the id —
@@ -93,6 +109,11 @@ pub async fn dispatch(matches: &ArgMatches, auth: &GoogleAuth) -> Result<()> {
 
     let (service, method) =
         discovery::resolve(&id).map_err(|message| anyhow::anyhow!("{message}"))?;
+
+    // The safety gate runs before anything is built or sent.
+    if let Err(message) = profile.check(&service.name, method) {
+        bail!("{message}");
+    }
 
     let format = cursor
         .get_one::<OutputFormat>("format")
@@ -420,6 +441,102 @@ mod tests {
         let (_, method) = discovery::resolve("gmail.users.messages.get").unwrap();
         let params = collect_params(method, leaf).unwrap();
         assert_eq!(params.get("format"), Some(&json!("raw")));
+    }
+
+    async fn test_auth() -> GoogleAuth {
+        let config = crate::core::config::OAuthConfig {
+            client_id: "test-id.apps.googleusercontent.com".into(),
+            client_secret: None,
+        };
+        let storage = crate::core::auth::TokenStorage {
+            access_token: "test-token".into(),
+            refresh_token: None,
+            expires_at: u64::MAX,
+            token_type: "Bearer".into(),
+            scope: String::new(),
+        };
+        GoogleAuth::with_token(config, storage).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn dispatch_with_profile_refuses_a_write() {
+        // The gate fires before anything is built or sent, so the dummy
+        // auth handle is never used.
+        let root = crate::cli::root_command();
+        let matches = root
+            .try_get_matches_from([
+                "grr",
+                "gmail",
+                "users",
+                "messages",
+                "send",
+                "--user-id",
+                "me",
+                "--dry-run",
+            ])
+            .expect("valid invocation");
+        let auth = test_auth().await;
+        let err = dispatch_with_profile(&matches, &auth, &SafetyProfile::readonly())
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("POST"), "{err}");
+        assert!(err.contains("--readonly"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn dispatch_with_profile_refuses_a_denied_service_only() {
+        let root = crate::cli::root_command();
+        let matches = root
+            .try_get_matches_from([
+                "grr",
+                "gmail",
+                "users",
+                "messages",
+                "list",
+                "--user-id",
+                "me",
+                "--dry-run",
+            ])
+            .expect("valid invocation");
+        let auth = test_auth().await;
+        let profile = SafetyProfile::new(false, ["gmail".to_owned()], []);
+        let err = dispatch_with_profile(&matches, &auth, &profile)
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("--deny-service gmail"), "{err}");
+
+        // Another service rides through untouched.
+        let root = crate::cli::root_command();
+        let matches = root
+            .try_get_matches_from(["grr", "tasks", "tasklists", "list", "--dry-run"])
+            .expect("valid invocation");
+        assert!(
+            dispatch_with_profile(&matches, &auth, &profile)
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn plain_dispatch_stays_permissive() {
+        // The unwired default: the same dry-run the tree always returned.
+        let root = crate::cli::root_command();
+        let matches = root
+            .try_get_matches_from([
+                "grr",
+                "gmail",
+                "users",
+                "messages",
+                "list",
+                "--user-id",
+                "me",
+                "--dry-run",
+            ])
+            .expect("valid invocation");
+        let auth = test_auth().await;
+        assert!(dispatch(&matches, &auth).await.is_ok());
     }
 
     fn deepest(matches: &ArgMatches) -> &ArgMatches {

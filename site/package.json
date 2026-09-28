@@ -14,8 +14,11 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.19.0",
     "astro": "^7.3.5",
+    "daisyui": "^5.7.46",
+    "tailwindcss": "^4.3.3",
     "typescript": "^5.7.0"
   }
 }

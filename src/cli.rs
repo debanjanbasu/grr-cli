@@ -24,7 +24,7 @@ use anyhow::Result;
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::commands::{api, auth, gen_dispatch, generated, transport};
+use crate::commands::{api, auth, gen_dispatch, generated, mcp, safety, transport};
 use crate::schema;
 use auth::AuthCommands;
 
@@ -54,6 +54,10 @@ enum StaticCommands {
     #[command(subcommand)]
     Api(api::ApiCommands),
 
+    /// Start a Model Context Protocol server over stdio, exposing every
+    /// grr method as a typed MCP tool. --readonly for a read-only server.
+    Mcp(mcp::McpArgs),
+
     /// Show negotiated transport protocol and runtime features
     Transport(transport::TransportArgs),
 
@@ -64,8 +68,16 @@ enum StaticCommands {
 /// The complete parse tree: the four static commands plus every generated
 /// service command. `grr --help` and `grr schema` both read this, so it
 /// is the single definition of the CLI surface.
+///
+/// The safety flags are `global(true)`: clap merges global args across
+/// levels, so `--readonly` parses whether it appears before the subcommand
+/// (`grr --readonly gmail …`) or after it
+/// (`grr gmail users messages list --readonly`), and is readable from the
+/// root matches either way.
 pub(crate) fn root_command() -> clap::Command {
-    Cli::command().subcommands(generated::tree::commands())
+    Cli::command()
+        .subcommands(generated::tree::commands())
+        .args(safety::global_args())
 }
 
 /// Build a fresh GoogleAuth from the loaded config. One credential backs
@@ -140,19 +152,36 @@ pub async fn run() -> Result<()> {
         "api" => {
             let cmd = api::ApiCommands::from_arg_matches(sub)?;
             // Needs an auth handle but no typed service client: every URL
-            // comes from the Discovery index at call time.
+            // comes from the Discovery index at call time. The safety
+            // profile comes from the same global flags as the tree.
+            let safety_args = safety::SafetyArgs::from_arg_matches(&matches)?;
             let config = ConfigLoader::load().await?;
             let auth = build_auth(&config).await?;
-            api::handle_api_cmd(&auth, cmd).await?;
+            api::handle_api_cmd(&auth, cmd, &safety::SafetyProfile::from_args(&safety_args))
+                .await?;
+        }
+
+        // The MCP server is self-contained: it loads the config, builds its
+        // own auth handle, and serves the JSON-RPC stream itself.
+        "mcp" => {
+            let args = mcp::McpArgs::from_arg_matches(sub)?;
+            mcp::run_mcp(args).await?;
         }
 
         // A generated service. Dispatch walks the matched chain itself
         // (the deepest subcommand's name IS the full dotted method id),
-        // so it gets the full root matches.
+        // so it gets the full root matches. The safety profile comes from
+        // the global --readonly/--deny-service/--deny-verb flags.
         _ => {
+            let safety_args = safety::SafetyArgs::from_arg_matches(&matches)?;
             let config = ConfigLoader::load().await?;
             let auth = build_auth(&config).await?;
-            gen_dispatch::dispatch(&matches, &auth).await?;
+            gen_dispatch::dispatch_with_profile(
+                &matches,
+                &auth,
+                &safety::SafetyProfile::from_args(&safety_args),
+            )
+            .await?;
         }
     }
 
