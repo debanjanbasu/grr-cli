@@ -23,6 +23,7 @@
 //! front would exceed the ~25-scope ceiling on unverified apps and fail at
 //! consent, so a narrow call stays narrow.
 
+use crate::commands::safety::SafetyProfile;
 use crate::core::auth::GoogleAuth;
 use crate::discovery::{self, Method, Service};
 use crate::output::{OutputFormat, print_output};
@@ -119,16 +120,25 @@ pub struct ApiCallArgs {
     #[arg(long)]
     pub dry_run: bool,
 
+    // NOTE: the safety flags (--readonly, --deny-service, --deny-verb) are
+    // NOT redeclared here: they are global args on the root command
+    // (cli.rs), and a second declaration with the same IDs would panic
+    // clap's arg-matching. Global args propagate into this subcommand's
+    // matches, so from_arg_matches still fills them.
     /// Output format
     #[arg(short, long, value_enum, default_value = "json")]
     pub format: OutputFormat,
 }
 
-pub async fn handle_api_cmd(auth: &GoogleAuth, cmd: ApiCommands) -> Result<()> {
+pub async fn handle_api_cmd(
+    auth: &GoogleAuth,
+    cmd: ApiCommands,
+    profile: &SafetyProfile,
+) -> Result<()> {
     match cmd {
         ApiCommands::List(args) => handle_list(args),
         ApiCommands::Describe(args) => handle_describe(args),
-        ApiCommands::Call(args) => handle_call(auth, args).await,
+        ApiCommands::Call(args) => handle_call(auth, args, profile).await,
         // The refresh needs no credential: Discovery documents are public.
         ApiCommands::Refresh(args) => handle_refresh(args).await,
     }
@@ -284,13 +294,21 @@ fn handle_describe(args: ApiDescribeArgs) -> Result<()> {
     Ok(())
 }
 
-async fn handle_call(auth: &GoogleAuth, args: ApiCallArgs) -> Result<()> {
+async fn handle_call(auth: &GoogleAuth, args: ApiCallArgs, profile: &SafetyProfile) -> Result<()> {
     let (service, method) = discovery::resolve(&args.method).map_err(|message| {
         anyhow::anyhow!(
             "{message}\n\nRun `grr api list {}` to see what is available.",
             service_hint(&args.method)
         )
     })?;
+
+    // The safety gate runs before anything is built or sent — the same
+    // gate the `grr mcp` server honors (src/commands/safety.rs). The
+    // profile comes from the global --readonly/--deny-service/--deny-verb
+    // flags, parsed once in cli.rs.
+    if let Err(message) = profile.check(&service.name, method) {
+        bail!("{message}");
+    }
 
     let params = parse_params(args.params.as_deref(), &args.param)?;
     let payload = call_method(
@@ -783,6 +801,104 @@ mod tests {
                 .as_str()
                 .unwrap()
                 .ends_with("gmail.readonly")
+        );
+    }
+
+    async fn test_auth() -> GoogleAuth {
+        let config = crate::core::config::OAuthConfig {
+            client_id: "test-id.apps.googleusercontent.com".into(),
+            client_secret: None,
+        };
+        let storage = crate::core::auth::TokenStorage {
+            access_token: "test-token".into(),
+            refresh_token: None,
+            expires_at: u64::MAX,
+            token_type: "Bearer".into(),
+            scope: String::new(),
+        };
+        GoogleAuth::with_token(config, storage).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn handle_call_refuses_a_write_under_readonly() {
+        // The gate fires before anything is built or sent, so the dummy
+        // auth handle is never used.
+        let auth = test_auth().await;
+        let args = ApiCallArgs {
+            method: "gmail.users.messages.send".into(),
+            params: None,
+            param: vec![],
+            body_file: None,
+            method_override: None,
+            query: vec![],
+            dry_run: true,
+            format: OutputFormat::Json,
+        };
+        let err = handle_call(&auth, args, &SafetyProfile::readonly())
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("POST"), "{err}");
+        assert!(err.contains("--readonly"), "{err}");
+        assert!(err.contains("Rerun without --readonly"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn handle_call_refuses_a_denied_service_and_a_denied_verb() {
+        let auth = test_auth().await;
+        let args = ApiCallArgs {
+            method: "gmail.users.messages.list".into(),
+            params: None,
+            param: vec![],
+            body_file: None,
+            method_override: None,
+            query: vec![],
+            dry_run: true,
+            format: OutputFormat::Json,
+        };
+        let profile = SafetyProfile::new(false, vec!["gmail".to_owned()], vec![]);
+        let err = handle_call(&auth, args, &profile)
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("--deny-service gmail"), "{err}");
+
+        let args = ApiCallArgs {
+            method: "gmail.users.messages.list".into(),
+            params: None,
+            param: vec![],
+            body_file: None,
+            method_override: None,
+            query: vec![],
+            dry_run: true,
+            format: OutputFormat::Json,
+        };
+        let profile = SafetyProfile::new(false, vec![], vec!["get".to_owned()]);
+        let err = handle_call(&auth, args, &profile)
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("--deny-verb GET"), "{err}");
+    }
+
+    #[tokio::test]
+    async fn handle_call_runs_a_read_under_readonly() {
+        let auth = test_auth().await;
+        let args = ApiCallArgs {
+            method: "gmail.users.messages.list".into(),
+            params: None,
+            param: vec!["userId=me".into()],
+            body_file: None,
+            method_override: None,
+            query: vec![],
+            dry_run: true,
+            format: OutputFormat::Json,
+        };
+        // A GET is not a write: the dry-run returns instead of refusing.
+        assert!(
+            handle_call(&auth, args, &SafetyProfile::readonly())
+                .await
+                .is_ok()
         );
     }
 }

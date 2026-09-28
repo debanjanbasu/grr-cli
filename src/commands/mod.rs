@@ -8,5 +8,7 @@ pub mod api;
 pub mod auth;
 pub mod gen_dispatch;
 pub mod generated;
+pub mod mcp;
+pub mod safety;
 pub mod setup;
 pub mod transport;
