@@ -287,6 +287,10 @@ pub fn services() -> &'static BTreeMap<&'static str, Service> {
     SERVICES_CACHE.get_or_init(|| {
         let mut map: BTreeMap<&'static str, Service> = BTreeMap::new();
         for (file, name, version, _url) in SERVICES {
+            // Every SERVICES entry needs its own arm: the wildcard below is
+            // a tripwire, not a fallback — a new service added to SERVICES
+            // without an arm would otherwise silently load the LAST file's
+            // content (four services once presented as Google Slides).
             let body = match *file {
                 "gmail.json" => include_str!("discovery/gmail.json"),
                 "calendar.json" => include_str!("discovery/calendar.json"),
@@ -297,7 +301,12 @@ pub fn services() -> &'static BTreeMap<&'static str, Service> {
                 "tasks.json" => include_str!("discovery/tasks.json"),
                 "docs.json" => include_str!("discovery/docs.json"),
                 "sheets.json" => include_str!("discovery/sheets.json"),
-                _ => include_str!("discovery/slides.json"),
+                "slides.json" => include_str!("discovery/slides.json"),
+                "script.json" => include_str!("discovery/script.json"),
+                "analyticsadmin.json" => include_str!("discovery/analyticsadmin.json"),
+                "analyticsdata.json" => include_str!("discovery/analyticsdata.json"),
+                "searchconsole.json" => include_str!("discovery/searchconsole.json"),
+                _ => panic!("no embedded discovery index for {file}; add an include_str! arm"),
             };
             let embedded = match serde_json::from_str::<Service>(body) {
                 Ok(mut service) => {
@@ -880,6 +889,30 @@ mod tests {
         assert!(
             total >= 300,
             "expected 300+ methods across the Workspace APIs, found {total}"
+        );
+    }
+
+    #[test]
+    fn every_service_embeds_its_own_index_not_its_neighbors() {
+        // The include_str! match arms must cover every SERVICES entry. The
+        // wildcard once mapped the four newer services onto the Slides
+        // content — inflating the total and only surfacing when `grr ask`
+        // derived per-service rubrics. Distinct method-id sets catch it.
+        let all = services();
+        let distinct: std::collections::BTreeSet<String> = all
+            .values()
+            .map(|s| {
+                s.methods
+                    .iter()
+                    .map(|m| m.id.as_str())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            })
+            .collect();
+        assert_eq!(
+            distinct.len(),
+            all.len(),
+            "two services share a method-id set — an include_str! arm is missing"
         );
     }
 

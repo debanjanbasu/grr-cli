@@ -16,17 +16,17 @@ interface Props {
 const { cards } = Astro.props;
 ---
 
-<div class="architecture-grid">
+<div class="architecture-grid mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
   {cards.map((card, index) => (
-    <article class="architecture-card reveal">
-      <div class="architecture-card-top">
-        <span class="architecture-index">0{index + 1}</span>
+    <article class="architecture-card reveal pt-4 border-t-2 border-t-base-300 transition-[transform,border-color] duration-300 hover:border-t-primary hover:[transform:perspective(700px)_rotateX(1.5deg)_rotateY(-1.5deg)_translateY(-2px)]">
+      <div class="architecture-card-top mb-3 flex items-center justify-between">
+        <span class="architecture-index text-[13px] text-(--quiet)">0{index + 1}</span>
         <span class="architecture-glyph" aria-hidden="true">
-          <img src={card.glyph.src} alt="" width="48" height="48" loading="lazy" decoding="async" />
+          <img src={card.glyph.src} alt="" width="48" height="48" loading="lazy" decoding="async" class="h-8 w-8" />
         </span>
       </div>
-      <h3>{card.title}</h3>
-      <p>{card.copy}</p>
+      <h3 class="mt-0 mb-2 text-lg leading-[1.2]">{card.title}</h3>
+      <p class="m-0 text-[13px] text-base-content/70">{card.copy}</p>
     </article>
   ))}
 </div>

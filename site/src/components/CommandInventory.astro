@@ -11,24 +11,29 @@ interface Props {
 const { surfaces } = Astro.props;
 ---
 
-<div class="inventory-panel">
-  <div class="inventory-heading">
+<div class="inventory-panel mt-11 border-t border-base-300 pt-6">
+  <div class="mb-4 flex flex-wrap items-start justify-between gap-4">
     <div>
       <span class="eyebrow">the generated command surface</span>
-      <h3>Every branch, still namespaced.</h3>
+      <h3 class="mt-1 mb-0 text-[clamp(19px,2.2vw,24px)] leading-[1.2]">Every branch, still namespaced.</h3>
     </div>
-    <span class="inventory-count">10 APIs</span>
+    <span class="badge badge-secondary">10 APIs</span>
   </div>
-  <div class="inventory-list">
-    {surfaces.map((surface) => (
-      <details class="inventory-item">
-        <summary>
-          <span>{surface.name}</span>
-          <span class="inventory-summary-mark" aria-hidden="true">+</span>
-        </summary>
-        <div class="inventory-commands"><code>{surface.commands}</code></div>
-      </details>
-    ))}
+  <div class="grid">
+    {
+      surfaces.map((surface) => (
+        <details class="collapse collapse-arrow inventory-item rounded-none">
+          <summary class="collapse-title min-h-12 px-1 text-sm">
+            <span>{surface.name}</span>
+          </summary>
+          <div class="collapse-content px-1">
+            <code>{surface.commands}</code>
+          </div>
+        </details>
+      ))
+    }
   </div>
-  <p>Run <code>grr &lt;service&gt; --help</code> and <code>grr schema</code> for the exact flags. The tree is generated from Google's Discovery Service - every method nests by resource (<code>grr gmail users messages list</code>, <code>grr drive files get</code>) with typed flags per parameter. <code>grr api list</code> and <code>grr api describe</code> are the flat, id-based equivalents.</p>
+  <p class="m-0 mt-3.5 max-w-[74ch] text-[13px] text-(--muted)">
+    Run <code>grr &lt;service&gt; --help</code> and <code>grr schema</code> for the exact flags. The tree is generated from Google's Discovery Service - every method nests by resource (<code>grr gmail users messages list</code>, <code>grr drive files get</code>) with typed flags per parameter. <code>grr api list</code> and <code>grr api describe</code> are the flat, id-based equivalents.
+  </p>
 </div>

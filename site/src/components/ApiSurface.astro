@@ -1,4 +1,6 @@
 ---
+import CodeBlock from './CodeBlock.astro';
+
 const example = `$ grr api list --service sheets
 $ grr api describe sheets.spreadsheets.values.get
 $ grr api call sheets.spreadsheets.values.get \\
@@ -6,20 +8,18 @@ $ grr api call sheets.spreadsheets.values.get \\
 $ grr api refresh --service sheets`;
 ---
 
-<div class="inventory-panel api-panel">
-  <div class="inventory-heading">
+<div class="inventory-panel api-panel mt-7 border-t border-base-300 pt-6">
+  <div class="mb-4 flex flex-wrap items-start justify-between gap-4">
     <div>
       <span class="eyebrow">the same index, read flat</span>
-      <h3>Every method by id, no tree walking.</h3>
+      <h3 class="mt-1 mb-0 text-[clamp(19px,2.2vw,24px)] leading-[1.2]">Every method by id, no tree walking.</h3>
     </div>
-    <span class="inventory-count">308 methods · 10 APIs</span>
+    <span class="badge badge-secondary">308 methods · 10 APIs</span>
   </div>
-  <p>
+  <p class="m-0 mb-3.5 max-w-[74ch] text-[13px] text-(--muted)">
     The command tree is generated from an embedded Discovery index, and <code>grr api</code> reads the same index flat:
     <code>grr api list</code>, <code>grr api describe</code>, and <code>grr api call</code> reach every method those ten Google APIs
     publish — 308 of them — by dotted id, with <code>--dry-run</code> before any send and per-method scopes reported up front.
   </p>
-  <div class="api-commands">
-    <code>{example}</code>
-  </div>
+  <CodeBlock code={example} label="grr api" />
 </div>

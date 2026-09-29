@@ -7,13 +7,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   description="How grr handles local credentials, Google API requests, and the static project website."
 >
   <section class="page-hero section">
-    <div class="container page-hero-grid">
+    <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
       <div class="reveal">
         <span class="eyebrow">privacy</span>
-        <h1>Your account stays yours.</h1>
-        <p>grr is a local command-line tool. This policy describes what the software does with credentials and requests, and what this static site does not do.</p>
+        <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Your account stays yours.</h1>
+        <p class="m-0 max-w-[62ch] text-sm text-base-content/70">grr is a local command-line tool. This policy describes what the software does with credentials and requests, and what this static site does not do.</p>
       </div>
-      <div class="page-hero-aside reveal">effective · September 25, 2026</div>
+      <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">effective · September 25, 2026</div>
     </div>
   </section>
 
@@ -22,7 +22,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       <p class="lead">The grr project does not operate a backend, collect telemetry, or build an advertising profile. The CLI runs on your machine and uses your own Google OAuth credentials to call the Google services you choose.</p>
 
       <h2>What the CLI does</h2>
-      <p>When you run a grr command, the binary sends the request to the relevant Google API using the access and refresh tokens issued to your Google account. grr sends only the requests needed for the command you selected. Google processes those requests under Google’s own applicable terms and privacy policies.</p>
+      <p>When you run a grr command, the binary sends the request to the relevant Google API using the access and refresh tokens issued to your Google account. grr sends only the requests needed for the command you selected. Google processes those requests under Google&rsquo;s own applicable terms and privacy policies.</p>
       <p>grr includes no analytics SDK, usage telemetry, or project-operated data collection endpoint. Your shell history, command output, and any files you create remain under your control.</p>
 
       <h2>Credentials and token storage</h2>
@@ -31,7 +31,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       <p>Anyone with access to your user account or local files may be able to access those credentials. Protect your machine, your config file, and your Google account as you would any other credential.</p>
 
       <h2>This website</h2>
-      <p>This site is static and has no analytics cookies or tracking scripts. The stats panel is rendered with build-time values. If its optional browser refresh runs, the browser makes direct requests to crates.io and GitHub’s public API; those services receive the ordinary network information required to serve their APIs.</p>
+      <p>This site is static and has no analytics cookies or tracking scripts. The stats panel is rendered with build-time values. If its optional browser refresh runs, the browser makes direct requests to crates.io and GitHub&rsquo;s public API; those services receive the ordinary network information required to serve their APIs.</p>
       <p>No project data, OAuth token, or CLI command is sent to the grr website or to the project maintainers by the website.</p>
 
       <h2>Sharing and retention</h2>

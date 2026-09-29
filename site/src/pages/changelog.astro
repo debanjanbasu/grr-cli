@@ -28,15 +28,15 @@ const formatDate = (iso: string | null) => (iso ? dateFormatter.format(new Date(
   title="Changelog"
   description="Every release of grr, newest first: added commands, fixed bugs, performance work and breaking changes, generated from the commit history."
 >
-  <section class="section changelog-head">
+  <section class="section changelog-head pb-0">
     <div class="container">
       <span class="eyebrow">release history</span>
-      <h1>Changelog</h1>
-      <p class="changelog-lede">
+      <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Changelog</h1>
+      <p class="changelog-lede m-0 max-w-[62ch] text-sm text-base-content/70">
         Generated from the commit history and the release tags, so it cannot drift from what actually
         shipped. {releases.length} releases, {totalChanges} recorded changes.
       </p>
-      <p class="changelog-meta">
+      <p class="changelog-meta mt-2 text-xs text-(--quiet)">
         {
           newest.unreleased
             ? `Unreleased work is on <a href="${REPO_URL}/commits/main">main</a>. The newest tag is ${newest === releases[1] ? releases[1].version : 'none yet'}.`
@@ -49,58 +49,58 @@ const formatDate = (iso: string | null) => (iso ? dateFormatter.format(new Date(
 
   <section class="section changelog-body">
     <div class="container">
-      <nav class="changelog-jump" aria-label="Jump to a release">
+      <nav class="changelog-jump mb-8 flex flex-wrap gap-1.5" aria-label="Jump to a release">
         {
           releases.map((release) => (
-            <a href={release.unreleased ? '#unreleased' : `#v${release.version.replace(/\./g, '-')}`}>
+            <a class="badge badge-outline badge-sm" href={release.unreleased ? '#unreleased' : `#v${release.version.replace(/\./g, '-')}`}>
               {release.unreleased ? 'Unreleased' : release.version}
             </a>
           ))
         }
       </nav>
 
-      {
-        releases.map((release) => (
-          <article
-            class="changelog-release"
-            id={release.unreleased ? 'unreleased' : `v${release.version.replace(/\./g, '-')}`}
-          >
-            <header class="changelog-release-head">
-              <h2>
-                {release.unreleased ? 'Unreleased' : release.version}
-                {release.unreleased && <span class="tag tag-accent">in progress</span>}
-              </h2>
-              {release.date && <time datetime={release.date}>{formatDate(release.date)}</time>}
-            </header>
+      <ul class="timeline timeline-vertical timeline-compact">
+        {
+          releases.map((release) => (
+            <li>
+              <div class="timeline-start timeline-box w-fit" id={release.unreleased ? 'unreleased' : `v${release.version.replace(/\./g, '-')}`}>
+                <div class="flex items-center gap-2">
+                  <h2 class="m-0 text-base font-normal">{release.unreleased ? 'Unreleased' : release.version}</h2>
+                  {release.unreleased && <span class="badge badge-secondary badge-sm">in progress</span>}
+                </div>
+                {release.date && <time class="block text-xs text-(--muted)" datetime={release.date}>{formatDate(release.date)}</time>}
+              </div>
+              <hr />
+              <div class="timeline-end timeline-box min-w-0 max-w-[72ch]">
+                {release.sections.length === 0 && <p class="changelog-empty m-0 text-xs text-(--quiet)">No user-visible changes yet.</p>}
+                {release.sections.map((section) => (
+                  <section class={`changelog-section${section.key === 'breaking' ? ' is-breaking' : ''}`}>
+                    <h3 class={`m-0 mb-1.5 text-sm ${section.key === 'breaking' ? 'text-(--accent-text)' : 'text-base-content/80'}`}>{section.heading}</h3>
+                    <ul class="m-0 mb-2 list-none space-y-1 p-0">
+                      {section.items.map((item) => (
+                        <li class="text-[13px] text-base-content/70">
+                          {item.scope && <span class="changelog-scope badge badge-ghost badge-sm mr-1.5">{item.scope}</span>}
+                          <span>{item.description}</span>
+                          {item.note && <span class="changelog-note block text-xs text-(--quiet)">{item.note}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            </li>
+          ))
+        }
+      </ul>
 
-            {release.sections.length === 0 && <p class="changelog-empty">No user-visible changes yet.</p>}
-
-            {release.sections.map((section) => (
-              <section class={`changelog-section${section.key === 'breaking' ? ' is-breaking' : ''}`}>
-                <h3>{section.heading}</h3>
-                <ul>
-                  {section.items.map((item) => (
-                    <li>
-                      {item.scope && <span class="changelog-scope">{item.scope}</span>}
-                      <span>{item.description}</span>
-                      {item.note && <span class="changelog-note">{item.note}</span>}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </article>
-        ))
-      }
-
-      <footer class="changelog-foot">
-        <p>
+      <footer class="changelog-foot mt-10 border-t border-base-300 pt-6 text-xs text-(--quiet)">
+        <p class="m-0">
           Generated <time datetime={generatedAt}>{new Date(generatedAt).toISOString().slice(0, 10)}</time>
           by <code>scripts/generate-changelog.mjs</code> and refreshed automatically.
         </p>
-        <p>
-          Looking for setup instructions instead? <a href="/docs/getting-started/">Start here</a>, or see
-          <a href="/docs/">all documentation</a>.
+        <p class="m-0 mt-1">
+          Looking for setup instructions instead? <a class="link link-hover" href="/docs/getting-started/">Start here</a>, or see
+          <a class="link link-hover" href="/docs/">all documentation</a>.
         </p>
       </footer>
     </div>
