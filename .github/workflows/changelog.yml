@@ -48,7 +48,7 @@ concurrency:
 jobs:
   regenerate:
     name: regenerate changelog
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 10
     permissions:
       # Push the regeneration branch; never main.
@@ -175,7 +175,7 @@ jobs:
     # tag did not exist when that commit was made). The fix is to merge the
     # regeneration PR above, or to regenerate in the release PR itself.
     if: github.event_name == 'release' && github.event.action == 'published'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 10
     permissions:
       # Read-only: this job verifies, it never writes.

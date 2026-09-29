@@ -62,7 +62,7 @@ jobs:
   clippy:
     if: github.event_name != 'schedule'
     name: clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
@@ -79,7 +79,7 @@ jobs:
   fmt:
     if: github.event_name != 'schedule'
     name: fmt
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
@@ -94,7 +94,7 @@ jobs:
   scripts:
     if: github.event_name != 'schedule'
     name: scripts typecheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -117,7 +117,7 @@ jobs:
     # the curated clients, which are not part of this subset.
     if: github.event_name != 'schedule'
     name: feature-subset (cli)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
@@ -137,7 +137,7 @@ jobs:
 
   security:
     name: security audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 15
     continue-on-error: true
     permissions:
