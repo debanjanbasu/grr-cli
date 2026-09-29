@@ -51,7 +51,7 @@ concurrency:
 jobs:
   benchmark:
     name: measure and refresh snapshot
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 45
     permissions:
       # Push the benchmark branch; never main.
