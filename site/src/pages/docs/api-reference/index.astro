@@ -1,0 +1,77 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import DocsShell from '../../../components/DocsShell.astro';
+import SectionIntro from '../../../components/SectionIntro.astro';
+import CodeBlock from '../../../components/CodeBlock.astro';
+import { discoveryMethodTotal, discoveryServices } from '../../../data/discovery-coverage';
+
+const base = import.meta.env.BASE_URL;
+
+const generated = `# Every page under docs/api-reference/ is baked at build time from the
+# committed index at src/discovery/*.json — the same index the binary
+# embeds and the generated tree is compiled from, so the page and the
+# binary can never drift. The daily Discovery workflow refreshes the
+# index and the page regenerates with it on the next deploy.
+
+# The runtime equivalent of every entry below: same index, offline, no login.
+$ grr api describe gmail.users.messages.get
+$ grr api list --service gmail --filter "batch"`;
+---
+
+<BaseLayout
+  title="API reference"
+  description={`Every one of the ${discoveryMethodTotal} methods across ${discoveryServices.length} Google APIs in the grr Discovery index — HTTP verb, path template, parameters, scopes, and a copyable command for each, rendered from the committed index the binary embeds.`}
+>
+  <DocsShell currentPath={`${base}docs/api-reference/`}>
+    <section class="page-hero section">
+      <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
+        <div class="reveal">
+          <span class="eyebrow">api reference</span>
+          <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">All {discoveryMethodTotal} methods, from one index.</h1>
+          <p class="m-0 max-w-[62ch] text-sm text-base-content/70">One page per service, every method on it rendered at build time from the committed Discovery index the grr binary embeds &mdash; the same data <code>grr api describe</code> reads at runtime. Nothing here is hand-written, so nothing here can drift.</p>
+        </div>
+        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">{discoveryMethodTotal} methods · {discoveryServices.length} services · refreshed daily</div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="services-title">
+      <div class="container">
+        <SectionIntro
+          id="services-title"
+          eyebrow="pick a service"
+          title="Fourteen services, one index."
+          copy="Each card is one page. Every method of that service is on it, grouped by resource, with its verb, path, parameters, and scopes."
+        />
+        <div class="install-grid mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {
+            discoveryServices.map((service) => (
+              <a class="api-card install-card card card-border border-base-300 bg-base-100 transition-colors duration-150" href={`${base}docs/api-reference/${service.name}/`}>
+                <div class="card-body gap-1 p-5">
+                  <h2 class="card-title m-0 text-base">{service.label}</h2>
+                  <p class="m-0 text-[13px] text-base-content/70">{service.note}</p>
+                  <p class="install-note m-0 mt-2 text-xs text-(--quiet)">
+                    {service.methods} methods · {service.version} · {service.scopes} scopes
+                  </p>
+                </div>
+              </a>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="generated-title">
+      <div class="container prose reveal">
+        <h2 id="generated-title">How this reference is generated</h2>
+        <p class="lead">The pages under <code>docs/api-reference/</code> are baked from the committed Discovery index at <code>src/discovery/*.json</code> &mdash; the same index the grr binary embeds and the generated command tree is compiled from.</p>
+        <p>That is the honesty contract: this reference is not hand-written, so it cannot drift from the binary. The daily Discovery workflow refreshes the index, the command tree regenerates, and these pages regenerate with it on the next deploy. The runtime equivalent of every entry is <code>grr api describe</code> + a method id &mdash; the same method id returns the verb, the path template, the scopes, and the parameters from the embedded index, offline, without a login.</p>
+        <p>Flags in the examples follow the generator&rsquo;s naming rule: a parameter name is kebab-cased (<code>userId</code> &rarr; <code>--user-id</code>), and a name that would collide with a built-in flag is prefixed (<code>format</code> &rarr; <code>--param-format</code>, <code>query</code> &rarr; <code>--param-query</code>). The highlighted scope on every method is the narrowest <code>.../auth/...</code> entry &mdash; Discovery lists scopes broadest first, so it is the one that says what a call really touches.</p>
+        <CodeBlock code={generated} label="how this is generated" />
+        <ul>
+          <li><a href={`${base}docs/discovery/`}>Discovery API &mdash; how the index drives the whole tree</a></li>
+          <li><a href={`${base}docs/commands/`}>Commands &mdash; the generated tree the same index produces</a></li>
+        </ul>
+      </div>
+    </section>
+  </DocsShell>
+</BaseLayout>

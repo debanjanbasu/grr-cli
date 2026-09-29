@@ -26,7 +26,13 @@ const pages = [
     href: `${base}docs/discovery/`,
     eyebrow: 'the index',
     title: 'Discovery API',
-    copy: `The index behind the whole tree: grr api list, describe, call, and refresh — ${discoveryMethodTotal} methods across ten Google APIs.`,
+    copy: `The index behind the whole tree: grr api list, describe, call, and refresh — ${discoveryMethodTotal} methods across fourteen Google APIs.`,
+  },
+  {
+    href: `${base}docs/api-reference/`,
+    eyebrow: 'every method',
+    title: 'API reference',
+    copy: `Every one of the ${discoveryMethodTotal} methods across fourteen services, baked from the committed Discovery index: verb, path, parameters, scopes, and a copyable command per method.`,
   },
   {
     href: `${base}docs/agents/`,
@@ -45,7 +51,7 @@ $ grr auth status`;
 
 <BaseLayout
   title="Docs"
-  description="Docs for grr, the zero-config Rust CLI for Google Workspace: install and first login, the generated command tree over 10 APIs, the 308-method Discovery index, and agent guidance."
+  description="Docs for grr, the zero-config Rust CLI for Google Workspace: install and first login, the generated command tree over 14 APIs, the 401-method Discovery index, and agent guidance."
 >
   <DocsShell currentPath={`${base}docs/`}>
     <section class="page-hero section">
@@ -53,9 +59,9 @@ $ grr auth status`;
         <div class="reveal">
           <span class="eyebrow">documentation</span>
           <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Everything grr can do, verified against the source.</h1>
-          <p class="m-0 max-w-[62ch] text-sm text-base-content/70">Four pages. Every command, flag, and method id on them was checked against the binary, the Rust source, and the committed Discovery index, so if it is written here it exists.</p>
+          <p class="m-0 max-w-[62ch] text-sm text-base-content/70">Five pages. Every command, flag, and method id on them was checked against the binary, the Rust source, and the committed Discovery index, so if it is written here it exists.</p>
         </div>
-        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">10 APIs · {discoveryMethodTotal} methods · one generated tree</div>
+        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">14 APIs · {discoveryMethodTotal} methods · one generated tree</div>
       </div>
     </section>
 
