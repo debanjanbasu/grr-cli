@@ -12,6 +12,7 @@ Use this file as the execution ruleset. Deep detail lives in the files linked fr
 | OAuth client, config resolution, `.env`, `auth setup` | `build.rs`, `src/core/config.rs`, `src/core/config_loader.rs`, `.env.example` |
 | `grr api` / discovery (methods, scopes, URLs) | `src/discovery.rs`, `src/discovery/*.json`, `scripts/fetch-discovery.ts` |
 | Release binaries, UPX, archives, targets | `.github/workflows/release.yml`, `.cargo/config.toml`, `Cargo.toml [profile.*]` |
+| MCP / ask / safety | `src/mcp.rs`, `src/commands/{mcp,safety,ask}.rs` — the MCP server, the safety gate (global args), the System One ask flow |
 | The website | `site/README.md` if present, else `site/astro.config.mjs` + `site/src/pages/` |
 | Docs / changelog automation | `scripts/generate-changelog.ts`, `.github/workflows/changelog.yml`, `.github/workflows/discovery.yml` |
 | The agent skill (`skills/grr/SKILL.md`) | Keep it in lockstep with the output contract and naming rules in `gen_dispatch.rs` and `generated.rs` |
@@ -32,6 +33,7 @@ node scripts/generate-commands.ts      # regenerate the service command tree
 node scripts/generate-commands.ts --check   # exit 1 if stale (CI gate)
 node scripts/generate-changelog.ts     # regenerate CHANGELOG.md + site data
 node scripts/generate-changelog.ts --check # idempotency gate
+npm run demo                             # regenerate demo/demo.cast (local: + opencode segment)
 
 grr schema                                  # the full command tree as JSON — the contract
 grr api list [--service X] [--filter SUBSTR] # the 308 methods, offline, no login
@@ -59,7 +61,8 @@ grr api list [--service X] [--filter SUBSTR] # the 308 methods, offline, no logi
 7. **The OAuth client must never enter the repo** — not in source, tests, CI logs, or the `.crate` tarball. `build.rs` reads `GRR_CLIENT_ID`/`GRR_CLIENT_SECRET` from the environment (falling back to a repo-root `.env`) and re-exports via `cargo:rustc-env`. Release binaries embed them (Google treats installed-app secrets as non-confidential; PKCE protects the flow); source builds fall through to `grr auth setup`.
 8. **`panic = "immediate-abort"`** in `[profile.release]` (gated by `panic-immediate-abort` in `.cargo/config.toml [unstable]`, paired with `build-std`). Panic messages become context-free; do not write tests that assert on panic text.
 9. **stdout is machine output, stderr is logs** — `grr gmail users messages list --user-id me | jq` must never receive log lines. The known plain-text stdout exceptions are `grr transport` and the pre-JSON device-login line; note any new one in docs when you add it.
-
+10. **Global args are IDs, not names**: a `global(true)` arg's ID must be the FIELD name (`deny_service`), not the long flag (`deny-service`) - the hyphenated variant is the exact "Mismatch between definition and access" clap panic. And a flag may only be declared ONCE in the tree: a second declaration with the same ID panics arg-matching.
+11. **The demo cast is generated** (`scripts/generate-demo.ts`), never hand-edited; regeneration is local (`npm run demo`) so the opencode agent segment cannot silently regress in CI. The committed cast must never contain private data: no Bearer tokens, no client ids, no real message subjects.
 ## Rust coding standards
 
 - Conventional commits (`feat:`, `fix:`, `perf:`, `feat!:` for breaking). The changelog generator parses them — a malformed subject lands under "Other" instead of its proper section.

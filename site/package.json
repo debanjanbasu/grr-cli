@@ -20,5 +20,8 @@
     "daisyui": "^5.7.46",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "asciinema-player": "3.17.0"
   }
 }

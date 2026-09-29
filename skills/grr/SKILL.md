@@ -31,7 +31,7 @@ sheets.spreadsheets.values.get  ->  grr sheets spreadsheets values get
 tasks.tasklists.list            ->  grr tasks tasklists list
 ```
 
-Top level: `grr auth | api | schema | transport` plus one subcommand per service (gmail, calendar, drive, people, chat, forms, tasks, docs, sheets, slides). Resources nest as subcommands; each method is a leaf that also carries its bare name as a visible alias (`list`, `get` — camelCase methods keep their casing, e.g. `getProfile`).
+Top level: `grr auth | api | ask | mcp | schema | transport` plus one subcommand per service (gmail, calendar, drive, people, chat, forms, tasks, docs, sheets, slides, script, analyticsadmin, analyticsdata, searchconsole). Resources nest as subcommands; each method is a leaf that also carries its bare name as a visible alias (`list`, `get` — camelCase methods keep their casing, e.g. `getProfile`).
 
 Flags are generated from the same ids, camelCase → kebab-case:
 
@@ -61,6 +61,44 @@ grr gmail users messages list --user-id me --q "is:unread" --max-results 5 \
 ## Scope honesty
 
 grr consents to a fixed scope set at login. A method whose least-privilege scope (the `leastPrivilegeScope` field in `describe`) falls outside that set prints a **note on stderr** and is attempted anyway; Google may then answer 403, and the error names the exact scope. That is a user decision, not a retry candidate — widening scopes requires a human to re-run `grr auth login`. Surface the note to the user instead of looping.
+
+## Safety profiles — global flags, honored everywhere
+
+`--readonly`, `--deny-service <name>`, `--deny-verb <VERB>` are global: they parse before or after the subcommand, and the gate covers the generated tree, `grr api call`, and `grr mcp` alike.
+
+```sh
+grr --readonly gmail users messages delete --user-id me --id abc   # refused: DELETE
+grr gmail users messages delete --user-id me --id abc --readonly   # same refusal
+grr --deny-service chat chat spaces list                            # refused: the chat service
+```
+
+An agent driving grr for a user should pass `--readonly` unless the user asked for a write — it converts every destructive method into an actionable error instead of a side effect.
+
+## Multi-account
+
+`grr auth login --account work` and `grr auth status --account work`: each named account keeps its own token in the OS keyring (the default account's naming is untouched). Names are validated: trimmed, lowercased, no spaces/colons/slashes. Pass `--account` whenever the user has more than one Google account and named which one.
+
+## MCP server: `grr mcp`
+
+`grr mcp` serves a Model Context Protocol (JSON-RPC 2.0 over stdio) server exposing every method in the index as a typed MCP tool:
+
+- Tool name = the dotted method id (`gmail.users.messages.list`); `tools/list` returns every tool with an inputSchema built from Discovery (typed properties, required list, enum values) plus `params`/`body_file`/`query`/`dry_run`.
+- `tools/call` runs through the same engine as the CLI — results come back as JSON text content; errors are `isError` results, never a dead server.
+- Connect any MCP client: register `grr mcp` as a stdio server (Claude Desktop, Gemini CLI, VS Code, Cursor). `--readonly` gives a server that refuses writes.
+- The stream is stdout; logs go to stderr. Do not print to the stream.
+
+## Natural language: `grr ask`
+
+`grr ask "<request>"` turns plain English into a typed method + parameters using a System One model (TypeSafe's Jev by default; any provider speaking the same contract works by config — `[systemone] endpoint/model` in `~/.grr/config.toml`, `TYPESAFE_API_KEY` in the env):
+
+- Hierarchical classification: service (14 options) → method (≤79) → one typed question per required parameter. Every candidate is code-supplied from the discovery index — the model can only select, never invent.
+- **It prints the PLAN by default** (method, params, url, scopes, confidence as JSON) and sends nothing. `--run` executes through the same engine as `grr api call`.
+- Confidence below the threshold (default 0.6) is flagged, not hidden. Planning needs no Google credential — only the API key.
+
+```sh
+grr ask "show my unread gmail"                    # -> gmail.users.messages.list, {"userId":"me"}, the plan
+grr ask "next week's calendar" --run              # judge + execute
+```
 
 ## The flat escape hatch: `grr api`
 
