@@ -7,6 +7,7 @@ import CommandInventory from '../components/CommandInventory.astro';
 import FeatureRow from '../components/FeatureRow.astro';
 import Mascot from '../components/Mascot.astro';
 import SectionIntro from '../components/SectionIntro.astro';
+import DemoPlayer from '../components/DemoPlayer.astro';
 import Stats from '../components/Stats.astro';
 import heroTerminal from '../assets/hero-terminal.svg?raw';
 import artMail from '../assets/art-mail.svg';
@@ -300,6 +301,28 @@ const storySteps = [
   </div>
 
   <Stats />
+
+  <section class="demo-section section" aria-labelledby="demo-title">
+    <div class="container demo-grid">
+      <div class="demo-copy reveal">
+        <span class="eyebrow">watch it work</span>
+        <h2 id="demo-title">A real terminal. A real agent. 41 seconds.</h2>
+        <p>
+          Every frame below is grr's actual output: the generated command tree, a live
+          <code>grr transport</code> probe over HTTP/3, a <code>grr ask</code> plan turning plain
+          English into a typed method and parameters — and opencode, an agentic harness,
+          driving grr the way an AI agent would.
+        </p>
+        <p class="demo-note">
+          Recorded once with <code>scripts/generate-demo.ts</code>; no hand-editing, no mocks —
+          only the pacing is synthetic.
+        </p>
+      </div>
+      <div class="demo-visual">
+        <DemoPlayer client:visible />
+      </div>
+    </div>
+  </section>
 
   <section class="services-section section" id="services" aria-labelledby="services-title">
     <div class="container">

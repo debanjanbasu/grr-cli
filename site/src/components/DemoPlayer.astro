@@ -1,0 +1,57 @@
+---
+// The terminal demo: an asciinema cast of grr's real output, played by the
+// self-hosted asciinema-player.
+//
+// `client:visible` is the lazy mount: the player bundle (~50 KB) and the
+// .cast fetch only load when this section scrolls near the viewport, so the
+// page's LCP is untouched. Astro's ClientRouter re-hydrates this component
+// after a client-side navigation, so the mount logic is idempotent.
+interface Props {
+  src?: string;
+  duration?: string;
+}
+
+const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = Astro.props;
+---
+
+<div class="demo-shell" data-demo-player data-demo-src={src}>
+  <div class="demo-bar" aria-hidden="true">
+    <span class="demo-dots"><i></i><i></i><i></i></span>
+    <span class="demo-title">grr — a real terminal, a real agent</span>
+    <span class="demo-dims">{duration} · asciinema</span>
+  </div>
+  <div class="demo-stage" data-demo-stage></div>
+</div>
+
+<script>
+  import { create } from 'asciinema-player';
+  import 'asciinema-player/dist/bundle/asciinema-player.css';
+
+  function mount() {
+    document.querySelectorAll<HTMLElement>('[data-demo-stage]').forEach((stage) => {
+      if (stage.dataset.demoMounted === 'true') return;
+      stage.dataset.demoMounted = 'true';
+      const shell = stage.closest<HTMLElement>('[data-demo-player]');
+      const src = shell?.dataset.demoSrc ?? '/demo/demo.cast';
+      try {
+        create(src, stage, {
+          loop: true,
+          autoPlay: true,
+          // The brand font: the demo renders in the same 3270 the site uses.
+          terminalFontFamily: "'IBM3270', 'IBM3270 Fallback', monospace",
+          theme: 'asciinema',
+        });
+      } catch (error) {
+        // A failed mount must never take the page down: the shell keeps its
+        // terminal styling and the caption still reads.
+        stage.textContent = 'demo unavailable';
+        if (shell) shell.dataset.demoMounted = 'failed';
+      }
+    });
+  }
+
+  // Hydrated on visible by client:visible; also re-mount after a
+  // ClientRouter swap (new DOM nodes carry no mount marker).
+  mount();
+  document.addEventListener('astro:page-load', mount);
+</script>

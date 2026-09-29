@@ -147,7 +147,15 @@ The command tree is **generated** from the committed Discovery index at build ti
 
 | Group | What it covers | Methods |
 | --- | --- | --- |
-| `grr auth` | `login [--device]`, `status`, `setup [--client-id] [--client-secret] [--print-only] [--force] [--enable-apis]` | — |
+| `grr auth` | `login [--device] [--account name]`, `status [--account name]`, `setup [--client-id] [--client-secret] [--print-only] [--force] [--enable-apis]` | — |
+**Safety profiles.** `--readonly`, `--deny-service <name>` and `--deny-verb <VERB>` are global flags honored by the generated tree, `grr api call` and `grr mcp` alike — they parse before or after the subcommand, and turn destructive methods into actionable errors:
+
+```sh
+grr --readonly gmail users messages delete --user-id me --id abc   # refused: DELETE
+grr --deny-service chat chat spaces list                            # refused: the chat service
+```
+| `grr ask` | `"<request>" [--run] [--service] [--method]` — natural language to a typed method + params via a System One model; prints the plan by default | - |
+| `grr mcp` | an MCP (JSON-RPC over stdio) server exposing every method as a typed tool; `--readonly` for read-only | - |
 | `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 308 |
 | `grr schema` | the whole command tree as JSON | — |
 | `grr transport` | negotiated HTTP version + runtime features | — |
@@ -270,9 +278,9 @@ Each generator takes `--check` and exits 1 when its output is stale — that is 
 
 | Channel | Install | Status |
 | --- | --- | --- |
-| GitHub Releases | 4-platform binaries (macOS arm64, Linux x86_64, Windows x86_64, Windows on ARM) built on `v*` tags, UPX-packed, `.tar.zst` on unix and `.zip` on Windows | **live — 0.5.0** — [releases](https://github.com/debanjanbasu/grr-cli/releases) |
+| GitHub Releases | 5-platform binaries (macOS arm64, Linux x86_64, Linux aarch64, Windows x86_64, Windows on ARM) built on `v*` tags, UPX-packed, `.tar.zst` on unix and `.zip` on Windows | **live — 0.5.0** — [releases](https://github.com/debanjanbasu/grr-cli/releases) |
 | crates.io | `cargo install grr-cli` (binary installs as `grr`; needs nightly + `RUSTFLAGS="--cfg reqwest_unstable"` for the default CLI HTTP/3 build, and brings no embedded OAuth client) | **live — 0.5.0, one crate**. Trusted publishing uses OIDC (no stored API tokens) |
-| winget | `winget install debanjanbasu.grr` | live at 0.2.0; update PR pending Microsoft review |
+| winget | `winget install debanjanbasu.grr` | live at 0.2.0; the 0.5.0 update PR (x64 + arm64) pending Microsoft review |
 | Homebrew | `brew tap debanjanbasu/homebrew && brew trust debanjanbasu/homebrew && brew install grr` (tap: [debanjanbasu/homebrew](https://github.com/debanjanbasu/homebrew), formula `Formula/grr.rb`) | live (arm64 macOS + x86_64 Linux) |
 
 The project publishes one package, `grr-cli`, whose binary is `grr`. `v*` tags trigger the release workflow, and crates.io publishing is handled through trusted publishing.

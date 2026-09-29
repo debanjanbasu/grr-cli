@@ -6,6 +6,16 @@ import SectionIntro from '../../components/SectionIntro.astro';
 
 const base = import.meta.env.BASE_URL;
 
+const safety = `# --readonly refuses every write verb, before or after the subcommand
+grr --readonly gmail users messages delete --user-id me --id abc
+# -> Error: 'gmail.users.messages.delete' is a DELETE (write); --readonly refuses writes.
+
+grr --deny-service chat chat spaces list
+# -> Error: 'chat.spaces.list' belongs to service chat, which --deny-service refuses.
+
+# reads are never refused
+grr --readonly gmail users messages list --user-id me --dry-run   # runs, JSON out
+`;
 const naming = `# A method id, with dots turned into spaces, IS the command.
 gmail.users.messages.list        grr gmail users messages list
 calendar.events.list             grr calendar events list
@@ -271,14 +281,14 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
         <SectionIntro
           id="account-title"
           eyebrow="account level"
-          title="The four commands that are not a service."
+          title="The six commands that are not a service."
           copy="These sit at the top level because they are not about one API. grr schema is the one to build against."
         />
         <div class="install-grid mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base"><code>grr auth</code></h2>
-              <p class="m-0 text-[13px] text-base-content/70"><code>login</code> runs the PKCE browser flow, or the device flow with <code>--device</code>. <code>status</code> makes a live profile call through the shared path and reports the account plus the <code>history_id</code> cursor. <code>setup</code> creates and stores your own OAuth client.</p>
+              <p class="m-0 text-[13px] text-base-content/70"><code>login</code> runs the PKCE browser flow, or the device flow with <code>--device</code>; <code>--account work</code> keeps a separate token per account. <code>status</code> makes a live profile call through the shared path and reports the account plus the <code>history_id</code> cursor. <code>setup</code> creates and stores your own OAuth client.</p>
             </div>
           </article>
           <article class="install-card card card-border border-base-300 bg-base-100">
@@ -290,7 +300,7 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base"><code>grr schema</code></h2>
-              <p class="m-0 text-[13px] text-base-content/70">Dumps the entire command tree as JSON: every subcommand, every argument, whether it is required, whether it takes a value, its default, and its possible values. Because the tree itself is generated from the index, schema is a faithful census of all 308 methods.</p>
+              <p class="m-0 text-[13px] text-base-content/70">Dumps the entire command tree as JSON: every subcommand, every argument, whether it is required, whether it takes a value, its default, and its possible values. Because the tree itself is generated from the index, schema is a faithful census of all 401 methods.</p>
             </div>
           </article>
           <article class="install-card card card-border border-base-300 bg-base-100">
@@ -299,12 +309,32 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
               <p class="m-0 text-[13px] text-base-content/70"><code>list</code>, <code>describe</code>, <code>call</code>, and <code>refresh</code> against the embedded Discovery index &mdash; the flat escape hatch that reaches any method by id. Same index, same call path as the tree.</p>
             </div>
           </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base"><code>grr mcp</code></h2>
+              <p class="m-0 text-[13px] text-base-content/70">A Model Context Protocol server over stdio: every method as a typed MCP tool with an inputSchema from Discovery. <code>tools/call</code> shares the engine with <code>grr api call</code>; <code>--readonly</code> refuses writes. Point Claude Desktop, Gemini CLI, VS Code or Cursor at it.</p>
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base"><code>grr ask</code></h2>
+              <p class="m-0 text-[13px] text-base-content/70">Natural language in, a typed method + parameters out: a System One model (Jev by default) classifies the request hierarchically &mdash; service, then method, then one typed question per required parameter, every candidate code-supplied. Prints the plan; <code>--run</code> executes.</p>
+            </div>
+          </article>
         </div>
       </div>
       <div class="container prose reveal max-w-[68ch] mt-8">
         <CodeBlock code={account} label="account · transport · schema" />
         <p><code>grr schema</code> is the canonical reference. It is honest about its own size: roughly 290 KB of valid JSON, emitted in well under 100 ms, with zero configuration and before any OAuth exists. Generate a wrapper or an agent tool definition from it &mdash; because it is derived from the same tree the binary dispatches on, it cannot drift from the commands that actually exist.</p>
         <CodeBlock code={schemaBlock} label="grr schema · the canonical reference" />
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="safety-title">
+      <div class="container prose reveal max-w-[68ch]">
+        <h2 id="safety-title">Safety profiles, everywhere at once</h2>
+        <p><code>--readonly</code>, <code>--deny-service</code> (a service name) and <code>--deny-verb</code> (an HTTP verb) are global flags honored by the generated tree, <code>grr api call</code> and the MCP server alike. They parse before or after the subcommand, and turn a destructive method into an actionable error naming the method, the verb, and the way out.</p>
+        <CodeBlock code={safety} label="safety profiles" />
       </div>
     </section>
 

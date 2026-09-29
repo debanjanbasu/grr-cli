@@ -1,4 +1,4 @@
-﻿/* grr — Tailwind CSS v4 + DaisyUI 5.
+/* grr — Tailwind CSS v4 + DaisyUI 5.
    Tailwind owns layout and component chrome; DaisyUI owns the component
    library and the two themes (bumblebee light, dim dark — both tuned to the
    grr orange-accent terminal identity). What remains in this file is only
@@ -603,6 +603,96 @@
     pointer-events: none;
   }
 
+  /* ── Terminal demo (genuinely custom — the asciinema shell) ───────── */
+
+  .demo-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+    gap: clamp(28px, 4vw, 64px);
+    align-items: center;
+  }
+
+  .demo-copy h2 {
+    margin: 0 0 12px;
+    font-size: clamp(24px, 3vw, 38px);
+    line-height: 1.1;
+  }
+
+  .demo-copy p {
+    max-width: 46ch;
+    margin: 0 0 10px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .demo-note {
+    color: var(--quiet);
+    font-size: 12px;
+  }
+
+  .demo-shell {
+    background: var(--terminal-bg);
+    border-top: 2px solid var(--accent);
+    box-shadow: 0 24px 64px -32px color-mix(in oklab, var(--accent) 28%, transparent);
+    /* The cast is 100 cols x 30 rows; the player scales its font with the
+       container width, so the player's height/width ratio is fixed for a
+       fixed rows/cols count — 732/937 measured in the 3270 font. Reserving
+       that exact aspect (plus the bar) means the lazy mount causes zero
+       layout shift: the shell is already the right height when the player
+       arrives. */
+    aspect-ratio: 937 / 769;
+  }
+
+  .demo-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid color-mix(in oklab, var(--terminal-dim) 30%, transparent);
+  }
+
+  .demo-dots {
+    display: flex;
+    gap: 5px;
+  }
+
+  .demo-dots i {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--accent) 65%, transparent);
+  }
+
+  .demo-title {
+    color: var(--terminal-dim);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .demo-dims {
+    color: var(--quiet);
+    font-size: 10.5px;
+    white-space: nowrap;
+  }
+
+  .demo-stage {
+    height: calc(100% - 37px);
+  }
+
+  /* The player's own chrome, blended into the shell: the player renders its
+     own terminal area; keep it transparent so the shell owns the surface. */
+  .demo-stage .ap-wrapper,
+  .demo-stage .ap-terminal {
+    background: transparent !important;
+  }
+
+  @media (max-width: 900px) {
+    .demo-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
   /* ── Terminal window (genuinely custom — the brand's code chrome) ─── */
 
   .code-window {

@@ -258,6 +258,43 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
       </div>
     </section>
 
+    <section class="section" aria-labelledby="mcp-title">
+      <div class="container">
+        <SectionIntro
+          id="mcp-title"
+          eyebrow="mcp"
+          title="Point the harness at `grr mcp` and it owns 401 tools."
+          copy="A Model Context Protocol server over stdio: every method in the index as a typed tool, generated from the same Discovery index the CLI uses."
+        />
+        <div class="container prose reveal max-w-[68ch]">
+          <p class="lead">Register <code>grr mcp</code> as a stdio server in any MCP client (Claude Desktop, Gemini CLI, VS Code, Cursor, OpenClaw) and <code>tools/list</code> returns every one of the 401 methods with an inputSchema built from Discovery: typed properties, the required list, enum values, plus the <code>params</code>/<code>body_file</code>/<code>query</code>/<code>dry_run</code> escape hatches.</p>
+          <ul>
+            <li><strong>Tool name = the dotted method id</strong> (<code>gmail.users.messages.list</code>) &mdash; the same id <code>grr api call</code> takes, so a harness can switch between MCP and CLI without translating anything.</li>
+            <li><strong><code>tools/call</code> shares the engine</strong> with the CLI: results come back as JSON text content; errors are <code>isError</code> results and never kill the server.</li>
+            <li><strong><code>--readonly</code></strong> gives a server that refuses every write method with an actionable error result &mdash; the right default when an agent works on a user&rsquo;s behalf.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="ask-title">
+      <div class="container">
+        <SectionIntro
+          id="ask-title"
+          eyebrow="natural language"
+          title="`grr ask` — plain English in, a typed plan out."
+          copy="A System One model (Jev by default, provider-agnostic by config) classifies the request hierarchically and fills the typed parameters, from the same 401-method catalog."
+        />
+        <div class="container prose reveal max-w-[68ch]">
+          <p class="lead"><code>grr ask "show my unread gmail"</code> classifies service (14 options), then method (&le;79), then one typed question per required parameter &mdash; every candidate is code-supplied from the discovery index, so the model can only <em>select</em>, never invent.</p>
+          <ul>
+            <li><strong>It prints the plan by default</strong> (method, params, url, scopes, confidence as JSON) and sends nothing. <code>--run</code> executes through the same engine as <code>grr api call</code>.</li>
+            <li><strong>Confidence is visible</strong>: below the threshold (default 0.6) the plan is flagged, not hidden &mdash; a harness can decide whether to proceed or ask the user.</li>
+            <li><strong>The safety gate applies here too</strong>: <code>--readonly</code>/<code>--deny-service</code> fire as soon as the method is resolved, before any judgment on parameters.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
     <section class="section" aria-labelledby="harness-title">
       <div class="container prose reveal max-w-[68ch]">
         <h2 id="harness-title">Mapping this onto a harness</h2>
@@ -266,6 +303,7 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
           <li><a href="https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md" target="_blank" rel="noreferrer">skills/grr/SKILL.md ↗</a> &mdash; the packaged agent skill: the discovery-first discipline, the naming rule, and the output contract in one file. Install it with <code>npx skills add https://github.com/debanjanbasu/grr-cli</code>.</li>
           <li><a href="/llms.txt">llms.txt</a> &mdash; the site&rsquo;s machine-readable index, for orientation. Fetch it once at session start.</li>
           <li><code>grr schema</code> &mdash; the generated command tree, for building tool definitions. Regenerate it rather than hand-writing flags.</li>
+          <li><a href="https://grr-cli.pages.dev/#demo-title">The terminal demo</a> &mdash; 41 seconds of real grr output, including an opencode session driving grr the way a harness would.</li>
           <li><code>grr api list</code> and <code>grr api describe</code> &mdash; the method-level view of the same index, at runtime, with no network and no credential.</li>
         </ul>
         <p>
