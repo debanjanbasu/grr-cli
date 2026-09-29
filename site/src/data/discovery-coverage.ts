@@ -9,8 +9,8 @@
  * drifted.
  *
  * Every service has dedicated `grr <service>` commands — the tree is
- * generated from the index, so the ten namespaces are on equal footing and
- * `grr api` is the flat, id-based way into the same methods.
+ * generated from the index, so the fourteen namespaces are on equal footing
+ * and `grr api` is the flat, id-based way into the same methods.
  */
 export interface DiscoveryService {
   /** Key accepted by `grr api list --service` and the `grr api call` id prefix. */
@@ -118,6 +118,42 @@ export const discoveryServices: DiscoveryService[] = [
     scopes: 5,
     revision: '20260921',
     note: 'Document create, read, and batch update.',
+  },
+  {
+    name: 'script',
+    label: 'Apps Script',
+    version: 'v1',
+    methods: 16,
+    scopes: 18,
+    revision: '20260906',
+    note: 'Script projects, deployments, versions, processes, and running functions.',
+  },
+  {
+    name: 'analyticsadmin',
+    label: 'Analytics Admin',
+    version: 'v1beta',
+    methods: 55,
+    scopes: 2,
+    revision: '20260923',
+    note: 'Accounts, properties, data streams, custom dimensions and metrics, conversion events, and the Ads and Firebase links.',
+  },
+  {
+    name: 'analyticsdata',
+    label: 'Analytics Data',
+    version: 'v1beta',
+    methods: 11,
+    scopes: 2,
+    revision: '20260923',
+    note: 'Run reports — standard, realtime, pivot, and batch — plus compatibility checks, metadata, and audience exports.',
+  },
+  {
+    name: 'searchconsole',
+    label: 'Search Console',
+    version: 'v1',
+    methods: 11,
+    scopes: 2,
+    revision: '20260923',
+    note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
 

@@ -14,6 +14,7 @@ const docPages = [
   { href: `${base}docs/getting-started/`, label: 'Getting started' },
   { href: `${base}docs/commands/`, label: 'Commands' },
   { href: `${base}docs/discovery/`, label: 'Discovery API' },
+  { href: `${base}docs/api-reference/`, label: 'API reference' },
   { href: `${base}docs/agents/`, label: 'For agents' },
 ];
 
@@ -37,9 +38,16 @@ const isActive = (href: string) =>
     }
     <li class="menu-title mt-3"><span>services · {discoveryMethodTotal} methods</span></li>
     {
+      /* Each service points at its API reference page — the per-service
+         documentation baked from the same index, which the commands page's
+         own in-page anchors complement. */
       discoveryServices.map((service) => (
         <li>
-          <a href={`${base}docs/commands/#svc-${service.name}`}>
+          <a
+            class:list={[{ 'menu-active': isActive(`${base}docs/api-reference/${service.name}/`) }]}
+            href={`${base}docs/api-reference/${service.name}/`}
+            aria-current={isActive(`${base}docs/api-reference/${service.name}/`) ? 'page' : undefined}
+          >
             <span>{service.label}</span>
             <span class="badge badge-ghost badge-sm ml-auto">{service.methods}</span>
           </a>

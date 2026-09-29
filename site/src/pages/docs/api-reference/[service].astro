@@ -1,0 +1,271 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import DocsShell from '../../../components/DocsShell.astro';
+import CodeBlock from '../../../components/CodeBlock.astro';
+import { discoveryServices } from '../../../data/discovery-coverage';
+
+/** One parameter, as distilled into the committed index. */
+interface DiscoveryParameter {
+  name: string;
+  type: string;
+  required: boolean;
+  repeated: boolean;
+  location: string;
+  description: string;
+  enum: string[] | null;
+}
+
+/** One method. The resource path is part of the id. */
+interface DiscoveryMethod {
+  id: string;
+  httpMethod: string;
+  path: string;
+  description: string;
+  scopes: string[];
+  required: string[];
+  parameters: DiscoveryParameter[];
+}
+
+/** One service document, exactly what src/discovery/<service>.json holds. */
+interface DiscoveryDoc {
+  name: string;
+  version: string;
+  revision: string;
+  title: string;
+  rootUrl: string;
+  basePath: string;
+  methods: DiscoveryMethod[];
+}
+
+// The committed index, read at build time — the same files the binary embeds,
+// so these pages can never drift from what grr serves and regenerate whenever
+// The index lives OUTSIDE site/ (it is the binary's data), so import.meta.glob
+// cannot reach it — Vite's glob is scoped to the project root. But
+// getStaticPaths runs in Node at build time, so plain fs reads work: one
+// source of truth, read directly, regenerated whenever the daily refresh
+// lands. A new service in the index produces its page here with no code
+// change.
+export async function getStaticPaths() {
+  // Astro hoists exported bindings to module scope, away from the rest of
+  // the frontmatter, so this reads the index inline rather than through a
+  // helper.
+  //
+  // The index lives outside site/, and import.meta.url here is the COMPILED
+  // chunk's URL (dist/.prerender/chunks/), not this source file — so
+  // relative navigation is meaningless. The build always runs from site/
+  // (cwd), so one level up is the repo root, where the binary's index is.
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
+  const indexDir = resolve(process.cwd(), '..', 'src', 'discovery');
+  const docs = readdirSync(indexDir)
+    .filter((file) => file.endsWith('.json') && file !== 'manifest.json')
+    .map((file) => JSON.parse(readFileSync(resolve(indexDir, file), 'utf8')) as DiscoveryDoc);
+
+  // The shape filter drops anything that is not a service document; the
+  // service list stays derived from the index itself.
+  return docs
+    .filter((doc) => doc && typeof doc.name === 'string' && Array.isArray(doc.methods))
+    .map((doc) => ({ params: { service: doc.name }, props: { doc } }));
+}
+
+interface Props {
+  doc: DiscoveryDoc;
+}
+
+const { doc } = Astro.props;
+const base = import.meta.env.BASE_URL;
+
+const coverage = discoveryServices.find((service) => service.name === doc.name);
+const label = coverage?.label ?? doc.title.replace(/ API$/, '');
+const note = coverage?.note ?? '';
+
+const description = note
+  ? `All ${doc.methods.length} ${label} methods in the committed grr Discovery index: ${note} HTTP verb, path template, parameters, scopes, and a copyable command for every method, rendered from the index the binary embeds.`
+  : `All ${doc.methods.length} ${label} methods in the committed grr Discovery index, with the HTTP verb, path template, parameters, scopes, and a copyable command for every method, rendered from the index the binary embeds.`;
+
+// The generator's naming rule, mirrored from scripts/generate-commands.ts,
+// which the example commands below must agree with: camelCase (or dotted)
+// Discovery name -> kebab-case flag, and a name that would collide with a
+// built-in flag is renamed param-<kebab>.
+const RESERVED_FLAG_IDS = new Set(['params', 'body-file', 'query', 'dry-run', 'format', 'help']);
+function kebab(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+}
+function flagId(name: string): string {
+  const k = kebab(name);
+  return RESERVED_FLAG_IDS.has(k) ? `param-${k}` : k;
+}
+
+/** Markdown links render as their text — the same rule the generator applies. */
+function stripMarkdown(text: string): string {
+  return (text ?? '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+}
+
+/** Mirrors Method::least_privilege_scope in src/discovery.rs: the last
+    .../auth/... entry (Discovery lists broadest first), falling back to the
+    first scope of all, and None for the public methods that need no
+    authorisation at all. */
+function leastPrivilege(scopes: string[]): string | null {
+  const last = [...scopes]
+    .reverse()
+    .find((scope) => scope.startsWith('https://www.googleapis.com/auth/'));
+  return last ?? scopes[0] ?? null;
+}
+
+/** The tree command: the dotted id with dots as spaces. */
+function treeCommand(serviceName: string, id: string): string {
+  return `grr ${serviceName} ${id.split('.').join(' ')}`;
+}
+
+/** Values you can know are the documented special values, used verbatim;
+    everything else is an honest placeholder for the id you cannot know. */
+function placeholderValue(param: DiscoveryParameter): string {
+  if (param.name === 'userId') return 'me';
+  if (param.name === 'calendarId') return 'primary';
+  if (param.name === 'tasklist') return '@default';
+  return `<${kebab(param.name)}>`;
+}
+
+/** The tree command plus the required flags, exactly the args the generated
+    leaf requires. Writes carry a body file, which is how a nested body ships. */
+function exampleCommand(serviceName: string, method: DiscoveryMethod): string {
+  const parts = ['grr', serviceName, ...method.id.split('.')];
+  for (const param of method.parameters ?? []) {
+    if (!param.required) continue;
+    parts.push(`--${flagId(param.name)}`, placeholderValue(param));
+  }
+  if (method.httpMethod === 'POST' || method.httpMethod === 'PUT' || method.httpMethod === 'PATCH') {
+    parts.push('--body-file', './body.json');
+  }
+  return parts.join(' ');
+}
+
+/** Methods grouped by their resource path (the id minus its method segment),
+    in index order — the order the generated tree walks. */
+const groups = new Map<string, DiscoveryMethod[]>();
+for (const method of doc.methods) {
+  const resource = method.id.split('.').slice(0, -1).join('.');
+  const bucket = groups.get(resource);
+  if (bucket) bucket.push(method);
+  else groups.set(resource, [method]);
+}
+const anchor = (value: string) => value.replace(/[^a-zA-Z0-9]+/g, '-');
+---
+
+<BaseLayout title={`${label} API reference`} description={description}>
+  <DocsShell currentPath={`${base}docs/api-reference/${doc.name}/`}>
+    <section class="page-hero section">
+      <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
+        <div class="reveal">
+          <span class="eyebrow">api reference · {doc.version}</span>
+          <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Every {label} method, from the index.</h1>
+          <p class="m-0 max-w-[62ch] text-sm text-base-content/70">All {doc.methods.length} methods of the {label} API, rendered at build time from the committed Discovery index the grr binary embeds &mdash; the same data <code>grr api describe</code> reads at runtime. Flags are kebab-cased parameter names: <code>userId</code> is <code>--user-id</code>.</p>
+        </div>
+        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">{doc.methods.length} methods · {doc.version} · revision {doc.revision}</div>
+      </div>
+    </section>
+
+    {
+      [...groups.entries()].map(([resource, methods]) => (
+        <section class="api-resource section" aria-labelledby={`res-${anchor(`${doc.name}.${resource}`)}`}>
+          <div class="container">
+            <div class="api-resource-head">
+              <h2 id={`res-${anchor(`${doc.name}.${resource}`)}`}>
+                <code>{doc.name}.{resource}</code>
+              </h2>
+              <span class="api-resource-count">
+                {methods.length} {methods.length === 1 ? 'method' : 'methods'}
+              </span>
+            </div>
+            <div class="api-methods">
+              {methods.map((method) => (
+                <article class="api-method" id={`m-${anchor(`${doc.name}.${method.id}`)}`}>
+                  <div class="api-method-head">
+                    <h3>
+                      <code>{doc.name}.{method.id}</code>
+                    </h3>
+                    <span class:list={['api-verb', 'badge', 'badge-sm', 'badge-outline', `badge-${method.httpMethod === 'GET' ? 'success' : method.httpMethod === 'POST' ? 'primary' : method.httpMethod === 'DELETE' ? 'error' : 'warning'}`]}>
+                      {method.httpMethod}
+                    </span>
+                  </div>
+                  <p class="api-method-meta">
+                    <span class="api-tree">
+                      <code>{treeCommand(doc.name, method.id)}</code>
+                    </span>
+                    <span class="api-path">
+                      <code>{method.path}</code>
+                    </span>
+                  </p>
+                  <p class="api-method-desc">{stripMarkdown(method.description)}</p>
+                  {(method.parameters ?? []).length > 0 ? (
+                    <div class="api-params-wrap">
+                      <table class="api-params">
+                        <thead>
+                          <tr>
+                            <th scope="col">Parameter</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Required</th>
+                            <th scope="col">Repeated</th>
+                            <th scope="col">Location</th>
+                            <th scope="col">Description</th>
+                            <th scope="col">Enum values</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {method.parameters.map((param) => (
+                            <tr>
+                              <th scope="row">
+                                <code>{param.name}</code>
+                              </th>
+                              <td class="api-param-type">{param.type}</td>
+                              <td class="api-param-flag">{param.required ? 'yes' : '—'}</td>
+                              <td class="api-param-flag">{param.repeated ? 'yes' : '—'}</td>
+                              <td class="api-param-loc">{param.location}</td>
+                              <td class="api-param-desc">{stripMarkdown(param.description)}</td>
+                              <td class="api-param-enum">{param.enum ? param.enum.join(' · ') : '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p class="api-noparams">No parameters.</p>
+                  )}
+                  <p class="api-scopes-line">
+                    {leastPrivilege(method.scopes ?? []) ? (
+                      <span class="api-scope-least">
+                        <code>{leastPrivilege(method.scopes ?? [])}</code>
+                        <span class="api-scope-tag">least privilege</span>
+                      </span>
+                    ) : (
+                      <span class="api-scope-none">no scope &mdash; a public endpoint that needs no authorisation</span>
+                    )}
+                    {(method.scopes ?? []).length > 0 && (
+                      <details class="api-scopes-all">
+                        <summary>
+                          {method.scopes.length} {method.scopes.length === 1 ? 'scope' : 'scopes'}
+                        </summary>
+                        <ul>
+                          {method.scopes.map((scope) => (
+                            <li>
+                              <code>{scope}</code>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </p>
+                  <CodeBlock code={exampleCommand(doc.name, method)} label={treeCommand(doc.name, method.id)} />
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      ))
+    }
+  </DocsShell>
+</BaseLayout>
