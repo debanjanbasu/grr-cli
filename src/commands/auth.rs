@@ -31,6 +31,11 @@ pub struct LoginArgs {
     #[arg(long)]
     pub device: bool,
 
+    /// Log in as a NAMED account (e.g. work), keeping a separate token per
+    /// account. Omit for the default account.
+    #[arg(long)]
+    pub account: Option<String>,
+
     /// Output format
     #[arg(short, long, value_enum, default_value = "json")]
     pub format: OutputFormat,
@@ -38,6 +43,10 @@ pub struct LoginArgs {
 
 #[derive(clap::Args, Debug)]
 pub struct StatusArgs {
+    /// Show the status of a NAMED account instead of the default one
+    #[arg(long)]
+    pub account: Option<String>,
+
     /// Output format
     #[arg(short, long, value_enum, default_value = "json")]
     pub format: OutputFormat,
@@ -53,13 +62,22 @@ pub async fn handle_auth_cmd(auth: &GoogleAuth, cmd: AuthCommands) -> Result<()>
         // guard so the match stays exhaustive.
         AuthCommands::Setup(_) => unreachable!("auth setup handled before client construction"),
         AuthCommands::Login(login) => {
+            // A named account rebinds to that account's own token store;
+            // the default account keeps today's exact entry naming, so an
+            // existing login is untouched. A fresh handle is built either
+            // way (a cheap store + HTTP-client construction).
+            let auth = match &login.account {
+                Some(name) => auth.with_account_store(name).await?,
+                None => auth.with_default_account_store().await?,
+            };
             if login.device {
-                return handle_device_login(auth, login.format).await;
+                return handle_device_login(&auth, login.format).await;
             }
             let storage = auth.login().await?;
             print_output(
                 &json!({
                     "authenticated": true,
+                    "account": login.account,
                     "token_backend": auth.token_backend(),
                     "token_preview": token_preview(&storage.access_token)
                 }),
@@ -68,10 +86,15 @@ pub async fn handle_auth_cmd(auth: &GoogleAuth, cmd: AuthCommands) -> Result<()>
             Ok(())
         }
         AuthCommands::Status(status) => {
-            let profile = fetch_profile(auth).await?;
+            let auth = match &status.account {
+                Some(name) => auth.with_account_store(name).await?,
+                None => auth.with_default_account_store().await?,
+            };
+            let profile = fetch_profile(&auth).await?;
             print_output(
                 &json!({
                     "authenticated": true,
+                    "account": status.account,
                     "email": field(&profile, "emailAddress"),
                     "messages_total": field(&profile, "messagesTotal"),
                     "threads_total": field(&profile, "threadsTotal"),

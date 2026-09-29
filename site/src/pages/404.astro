@@ -5,15 +5,15 @@ const base = import.meta.env.BASE_URL;
 ---
 
 <BaseLayout title="Page not found" description="The requested grr page could not be found. Start from the grr overview, or jump straight to the install commands." noindex canonicalPath="">
-  <section class="error-page">
+  <section class="error-page py-[clamp(56px,10vw,120px)]">
     <div class="container">
-      <div class="error-panel reveal">
-        <span class="error-code">404</span>
-        <h1>That route went somewhere else.</h1>
-        <p>The page you requested is not part of this static site. The command is still waiting in your terminal.</p>
-        <div class="error-actions">
-          <a class="button button-primary" href={base}>Return home <span aria-hidden="true">→</span></a>
-          <a class="button button-secondary" href={`${base}install/`}>Install grr</a>
+      <div class="error-panel mx-auto max-w-[640px] text-center reveal">
+        <span class="error-code block text-[clamp(72px,14vw,128px)] leading-none text-(--accent-text)">404</span>
+        <h1 class="mt-4 mb-2 text-[clamp(20px,3vw,30px)] leading-[1.2]">That route went somewhere else.</h1>
+        <p class="m-0 text-sm text-(--muted)">The page you requested is not part of this static site. The command is still waiting in your terminal.</p>
+        <div class="error-actions mt-6 flex flex-wrap justify-center gap-3">
+          <a class="btn btn-primary" href={base}>Return home <span aria-hidden="true">→</span></a>
+          <a class="btn btn-outline" href={`${base}install/`}>Install grr</a>
         </div>
       </div>
     </div>

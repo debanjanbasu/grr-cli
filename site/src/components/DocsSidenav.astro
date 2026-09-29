@@ -1,0 +1,50 @@
+---
+import { discoveryServices, discoveryMethodTotal } from '../data/discovery-coverage';
+
+interface Props {
+  /** The current docs route, e.g. `/docs/commands/`. Marks the active page. */
+  currentPath?: string;
+}
+
+const { currentPath = '' } = Astro.props;
+const base = import.meta.env.BASE_URL;
+
+const docPages = [
+  { href: `${base}docs/`, label: 'Docs overview' },
+  { href: `${base}docs/getting-started/`, label: 'Getting started' },
+  { href: `${base}docs/commands/`, label: 'Commands' },
+  { href: `${base}docs/discovery/`, label: 'Discovery API' },
+  { href: `${base}docs/agents/`, label: 'For agents' },
+];
+
+// The overview is active only on its own route; every other page is active on
+// itself and anything under it.
+const isActive = (href: string) =>
+  href === `${base}docs/` ? currentPath === href : currentPath.startsWith(href);
+---
+
+<aside class="docs-sidenav">
+  <ul class="menu menu-md w-full border border-base-300 bg-base-200 p-2">
+    <li class="menu-title"><span>documentation</span></li>
+    {
+      docPages.map((page) => (
+        <li>
+          <a class:list={[{ 'menu-active': isActive(page.href) }]} href={page.href} aria-current={isActive(page.href) ? 'page' : undefined}>
+            {page.label}
+          </a>
+        </li>
+      ))
+    }
+    <li class="menu-title mt-3"><span>services · {discoveryMethodTotal} methods</span></li>
+    {
+      discoveryServices.map((service) => (
+        <li>
+          <a href={`${base}docs/commands/#svc-${service.name}`}>
+            <span>{service.label}</span>
+            <span class="badge badge-ghost badge-sm ml-auto">{service.methods}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</aside>

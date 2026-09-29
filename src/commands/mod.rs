@@ -5,6 +5,7 @@
 //! the hand-written account-level commands.
 
 pub mod api;
+pub mod ask;
 pub mod auth;
 pub mod gen_dispatch;
 pub mod generated;

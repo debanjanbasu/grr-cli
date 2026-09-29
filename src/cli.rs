@@ -24,7 +24,7 @@ use anyhow::Result;
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::commands::{api, auth, gen_dispatch, generated, mcp, safety, transport};
+use crate::commands::{api, ask, auth, gen_dispatch, generated, mcp, safety, transport};
 use crate::schema;
 use auth::AuthCommands;
 
@@ -63,6 +63,11 @@ enum StaticCommands {
 
     /// Dump the full command tree as JSON (machine-readable contract)
     Schema(schema::SchemaArgs),
+
+    /// Natural-language entry point: a System One model (Jev by default)
+    /// picks the method from the discovery catalog and fills its
+    /// parameters. Prints the plan; --run executes it.
+    Ask(ask::AskArgs),
 }
 
 /// The complete parse tree: the four static commands plus every generated
@@ -166,6 +171,27 @@ pub async fn run() -> Result<()> {
         "mcp" => {
             let args = mcp::McpArgs::from_arg_matches(sub)?;
             mcp::run_mcp(args).await?;
+        }
+
+        // The ask flow plans by default (no credential needed); --run
+        // builds the auth handle and executes through the shared call
+        // path. The safety gate fires as soon as the method is resolved.
+        "ask" => {
+            let args = ask::AskArgs::from_arg_matches(sub)?;
+            let config = ConfigLoader::load().await?;
+            let auth = if args.run {
+                Some(build_auth(&config).await?)
+            } else {
+                None
+            };
+            let safety_args = safety::SafetyArgs::from_arg_matches(&matches)?;
+            ask::handle_ask(
+                &config,
+                auth.as_ref(),
+                args,
+                &safety::SafetyProfile::from_args(&safety_args),
+            )
+            .await?;
         }
 
         // A generated service. Dispatch walks the matched chain itself

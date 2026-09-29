@@ -18,53 +18,55 @@ const base = import.meta.env.BASE_URL;
 
 <section class="stats-section section" aria-labelledby="stats-title">
   <div class="container">
-    <div class="section-heading stats-heading">
+    <div class="stats-heading mb-7 flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
       <div>
         <span class="eyebrow">public pulse</span>
-        <h2 id="stats-title">Small binary.<br />Real reach.</h2>
+        <h2 id="stats-title" class="mt-1 mb-2 text-[clamp(22px,2.6vw,32px)] leading-[1.15]">Small binary.<br />Real reach.</h2>
       </div>
-      <p>Build-time numbers from the public package and release channels, with a quiet optional refresh in your browser.</p>
+      <p class="m-0 max-w-[58ch] text-sm text-(--muted)">Build-time numbers from the public package and release channels, with a quiet optional refresh in your browser.</p>
     </div>
-    <div class="stat-sparks" aria-hidden="true">
-      <span class="stat-spark stat-spark-a"></span>
-      <span class="stat-spark stat-spark-b"></span>
-      <span class="stat-spark stat-spark-c"></span>
-      <span class="stat-spark stat-spark-d"></span>
-      <span class="stat-spark stat-spark-e"></span>
-      <span class="stat-spark stat-spark-f"></span>
-    </div>
-    <div class="stats-grid" aria-live="polite">
-      <article class="stat-card">
-        <span class="stat-label">package version</span>
-        <strong class="stat-value" data-stat="version">v{stats.version}</strong>
-        <span class="stat-detail">the current published line</span>
-      </article>
-      <article class="stat-card">
-        <span class="stat-label">crates.io downloads</span>
-        <strong class="stat-value" data-stat="crateDownloads">{formatCount(stats.crateDownloads)}</strong>
-        <span class="stat-detail"><span data-stat="crateDownloads30d">{formatCount(stats.crateDownloads30d)}</span> in the last 30 days</span>
-      </article>
-      <article class="stat-card">
-        <span class="stat-label">platforms</span>
-        <strong class="stat-value">3</strong>
-        <span class="stat-detail">macOS · Linux · Windows</span>
-      </article>
-      <article class="stat-card">
-        <span class="stat-label">services</span>
-        <strong class="stat-value">6</strong>
-        <span class="stat-detail">one namespaced binary</span>
-      </article>
+    <div class="relative">
+      <div class="stats stats-vertical w-full border border-base-300 bg-base-100 sm:stats-horizontal stats-grid" aria-live="polite">
+        <div class="stat stat-card">
+          <div class="stat-title stat-label">package version</div>
+          <div class="stat-value" data-stat="version">v{stats.version}</div>
+          <div class="stat-desc">the current published line</div>
+        </div>
+        <div class="stat stat-card">
+          <div class="stat-title stat-label">crates.io downloads</div>
+          <div class="stat-value" data-stat="crateDownloads">{formatCount(stats.crateDownloads)}</div>
+          <div class="stat-desc"><span data-stat="crateDownloads30d">{formatCount(stats.crateDownloads30d)}</span> in the last 30 days</div>
+        </div>
+        <div class="stat stat-card">
+          <div class="stat-title stat-label">platforms</div>
+          <div class="stat-value">3</div>
+          <div class="stat-desc">macOS · Linux · Windows</div>
+        </div>
+        <div class="stat stat-card">
+          <div class="stat-title stat-label">services</div>
+          <div class="stat-value">6</div>
+          <div class="stat-desc">one namespaced binary</div>
+        </div>
+      </div>
+      <div class="stat-sparks" aria-hidden="true">
+        <span class="stat-spark stat-spark-a"></span>
+        <span class="stat-spark stat-spark-b"></span>
+        <span class="stat-spark stat-spark-c"></span>
+        <span class="stat-spark stat-spark-d"></span>
+        <span class="stat-spark stat-spark-e"></span>
+        <span class="stat-spark stat-spark-f"></span>
+      </div>
     </div>
     <div class="stats-release-strip" aria-label="Release snapshot">
       <div>
-        <span class="stat-label">latest release</span>
-        <strong data-stat="latestRelease">{stats.latestRelease || '—'}</strong>
-        <time data-stat="latestReleaseDate" datetime={stats.latestReleaseDate}>{formatDate(stats.latestReleaseDate)}</time>
+        <span class="stat-label mb-0.5">latest release</span>
+        <strong class="text-base font-normal" data-stat="latestRelease">{stats.latestRelease || '—'}</strong>
+        <time class="mt-0.5 block text-xs text-(--muted)" data-stat="latestReleaseDate" datetime={stats.latestReleaseDate}>{formatDate(stats.latestReleaseDate)}</time>
       </div>
       <div>
-        <span class="stat-label">GitHub asset downloads</span>
-        <strong data-stat="githubDownloads">{formatCount(stats.githubDownloads)}</strong>
-        <span>across all public releases</span>
+        <span class="stat-label mb-0.5">GitHub asset downloads</span>
+        <strong class="text-base font-normal" data-stat="githubDownloads">{formatCount(stats.githubDownloads)}</strong>
+        <span class="mt-0.5 block text-xs text-(--muted)">across all public releases</span>
       </div>
     </div>
     <div class="stats-footnote">

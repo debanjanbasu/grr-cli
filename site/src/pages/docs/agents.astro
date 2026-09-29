@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import DocsShell from '../../components/DocsShell.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
 import SectionIntro from '../../components/SectionIntro.astro';
 import { discoveryMethodTotal } from '../../data/discovery-coverage';
@@ -87,189 +88,191 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
   title="Agents and harnesses"
   description="How an AI agent or harness should drive grr: parse stdout not stderr, discover with grr schema and grr api list instead of assuming, dry-run writes, respect scopes, and use the packaged agent skill."
 >
-  <section class="page-hero section">
-    <div class="container page-hero-grid">
-      <div class="reveal">
-        <span class="eyebrow">for agents</span>
-        <h1>Drive grr like a terminal tool, not an SDK.</h1>
-        <p>grr is built to be called by something that is not a person: results on stdout, logs on stderr, JSON by default, and a discovery surface so you never have to guess whether a method exists. The same contract ships as a packaged <a href="https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md">agent skill</a>.</p>
+  <DocsShell currentPath={`${base}docs/agents/`}>
+    <section class="page-hero section">
+      <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
+        <div class="reveal">
+          <span class="eyebrow">for agents</span>
+          <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Drive grr like a terminal tool, not an SDK.</h1>
+          <p class="m-0 max-w-[62ch] text-sm text-base-content/70">grr is built to be called by something that is not a person: results on stdout, logs on stderr, JSON by default, and a discovery surface so you never have to guess whether a method exists. The same contract ships as a packaged <a href="https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md">agent skill</a>.</p>
+        </div>
+        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">stdout is data · stderr is noise · {discoveryMethodTotal} methods discoverable</div>
       </div>
-      <div class="page-hero-aside reveal">stdout is data · stderr is noise · {discoveryMethodTotal} methods discoverable</div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section" aria-labelledby="quickstart-title">
-    <div class="container">
-      <SectionIntro
-        id="quickstart-title"
-        eyebrow="quickstart"
-        title="The whole contract in one script."
-        copy="Copy this into a harness bootstrap, or read the four rules under it. Everything here is copy-pasteable and every flag in it exists in the binary."
-      />
-      <div class="container prose reveal">
-        <CodeBlock code={quickstart} label="agent quickstart · bash" />
+    <section class="section" aria-labelledby="quickstart-title">
+      <div class="container">
+        <SectionIntro
+          id="quickstart-title"
+          eyebrow="quickstart"
+          title="The whole contract in one script."
+          copy="Copy this into a harness bootstrap, or read the four rules under it. Everything here is copy-pasteable and every flag in it exists in the binary."
+        />
+        <div class="container prose reveal max-w-[68ch]">
+          <CodeBlock code={quickstart} label="agent quickstart · bash" />
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section" aria-labelledby="stdout-title">
-    <div class="container">
-      <SectionIntro
-        id="stdout-title"
-        eyebrow="rule one"
-        title="Parse stdout. Never stderr."
-        copy="This is the single most important thing to get right, and grr is explicit about it in the code rather than leaving it to convention."
-      />
+    <section class="section" aria-labelledby="stdout-title">
+      <div class="container">
+        <SectionIntro
+          id="stdout-title"
+          eyebrow="rule one"
+          title="Parse stdout. Never stderr."
+          copy="This is the single most important thing to get right, and grr is explicit about it in the code rather than leaving it to convention."
+        />
+        <div class="container prose reveal max-w-[68ch]">
+          <p class="lead">The tracing subscriber is wired to stderr at startup, deliberately, so <code>grr … | jq</code> cannot receive a log line. Data goes to stdout and only data goes to stdout.</p>
+          <p>Two commands annotate that contract in ways an agent should know about:</p>
+          <CodeBlock code={contract} label="stdout vs stderr" />
+          <ul>
+            <li><code>grr api list</code> prints its method count to stderr and the array to stdout. That is why <code>grr api list | jq</code> is valid JSON.</li>
+            <li><code>grr auth login --device</code> prints its human-readable URL and code to <strong>stdout</strong> with a plain <code>println!</code>, before the JSON result. If you are parsing the result of a device login, do not assume stdout is JSON for that one command.</li>
+            <li><code>grr transport</code> prints a plain-text report, not JSON. It is a diagnostic for a human; read it, do not parse it.</li>
+            <li>Every <code>--dry-run</code> output is JSON, on either route (generated leaf or <code>grr api call</code>), so it pipes and a <code>jq</code> assertion works on it.</li>
+            <li>Suppress logs with <code>2>/dev/null</code> when you want quiet failures, but keep them when you are debugging &mdash; the error text is where the useful detail is.</li>
+          </ul>
+          <p>Errors are not JSON either. A failed command exits non-zero with a human-readable message on stderr, and that message is written to be actionable: a 403 names the missing scope, a missing path parameter names itself, an unknown method id comes with ranked suggestions.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="format-title">
       <div class="container prose reveal">
-        <p class="lead">The tracing subscriber is wired to stderr at startup, deliberately, so <code>grr … | jq</code> cannot receive a log line. Data goes to stdout and only data goes to stdout.</p>
-        <p>Two commands annotate that contract in ways an agent should know about:</p>
-        <CodeBlock code={contract} label="stdout vs stderr" />
+        <h2 id="format-title">Ask for JSON explicitly if you like being explicit</h2>
+        <p>JSON is already the default, but <code>-f json</code> is harmless and documents intent at the call site. The four values are <code>json</code>, <code>jsonl</code>, <code>table</code>, and <code>pretty</code>.</p>
+        <p>Prefer <code>-f json</code> over <code>-f table</code> or <code>-f pretty</code> in anything automated. <code>table</code> is for humans, and its output is a rendered grid whose shape changes with the data. <code>jsonl</code> is the one to reach for when streaming a large list: one document per line, so you can process results incrementally instead of buffering the whole array.</p>
+        <p>There is no global <code>--format</code> flag, and that is not an oversight. A global flag would collide by id with per-method parameters named <code>format</code> &mdash; which is exactly why such parameters surface as <code>--param-format</code>.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="discover-title">
+      <div class="container">
+        <SectionIntro
+          id="discover-title"
+          eyebrow="rule two"
+          title="Discover capabilities. Do not assume them."
+          copy="The single biggest failure mode for an agent driving a Google CLI is confidently calling a method that does not exist, or a parameter that was renamed. Both are avoidable, and cheaply."
+        />
+        <div class="container prose reveal max-w-[68ch]">
+          <p class="lead">The discipline is fixed order: <code>grr schema</code> for the full command tree, <code>grr api list</code> to browse methods, <code>grr api describe</code> for one method&rsquo;s parameters and scopes, <code>--dry-run</code> before the call. All four work with no network and no credential &mdash; the Discovery index is compiled into the binary &mdash; so an agent can answer &ldquo;what can I do with Sheets?&rdquo; before it has a login, which is exactly the order you want to fail in.</p>
+          <p><code>grr schema</code> is the whole tree as JSON &mdash; every subcommand, every argument, whether it is required, its default, its possible values. Because the tree itself is generated from the Discovery index, schema is a faithful census of all {discoveryMethodTotal} methods, and it answers with zero configuration. The naming rule means you rarely need it twice: a method id, dots turned into spaces, is the command (<code>gmail.users.messages.list</code> &rarr; <code>grr gmail users messages list</code>), and parameter names become kebab-case flags (<code>userId</code> &rarr; <code>--user-id</code>).</p>
+          <CodeBlock code={discover} label="discovery · no network needed" />
+          <p>Two habits worth building in:</p>
+          <ul>
+            <li><strong>Read <code>describe</code> before you construct a call.</strong> The <code>parameters</code> array tells you which are <code>required</code>, which are <code>repeated</code>, and which have <code>enum</code> values. Guessing an enum string is the most common cause of a 400.</li>
+            <li><strong>Treat the method count as volatile.</strong> {discoveryMethodTotal} methods is what the embedded index holds today; the index is refreshed daily from Google&rsquo;s Discovery Service and the tree regenerates with it, so a method can appear or disappear between runs. Prefer <code>--filter</code> over a hard-coded list where you can, and handle the &ldquo;unknown method&rdquo; error as a normal outcome rather than a crash.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="dryrun-title">
+      <div class="container">
+        <SectionIntro
+          id="dryrun-title"
+          eyebrow="rule three"
+          title="Inspect a request before you send it."
+          copy="One dry-run surface, two routes into it — and both print JSON."
+        />
+        <div class="container prose reveal max-w-[68ch]">
+          <p class="lead"><code>--dry-run</code> exists on every generated leaf and on <code>grr api call</code>. It builds the request, validates the required parameters, and prints the verb, the fully resolved URL, the body, and the scopes &mdash; then sends nothing. URL construction and parameter validation both happen before the dry-run branch, so a dry run surfaces exactly the errors the real call would.</p>
+          <p>That makes the pattern &ldquo;dry run, inspect the URL, then send&rdquo; a cheap guard against the two failure modes an agent actually hits: a path parameter in the wrong place, and a body field Google rejects. A <code>jq -e '.url'</code> assertion on the dry-run output is a reasonable gate before a destructive call.</p>
+          <CodeBlock code={safe} label="dry runs · destructive calls" />
+          <p>Note the asymmetry. <code>messages trash</code> is reversible; <code>messages delete</code> is not, and Gmail&rsquo;s API has no &ldquo;really delete&rdquo; for the batch endpoints either. For anything destructive or bulk, resolve the ids first with a read, show them to the user, and only then act on the explicit list.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="scope-title">
+      <div class="container">
+        <SectionIntro
+          id="scope-title"
+          eyebrow="rule four"
+          title="Ask for the least privilege the method needs."
+          copy="grr consents to sixteen scopes. The narrowest scope each method accepts is reported, and a mismatch is named rather than swallowed."
+        />
+        <div class="container prose reveal max-w-[68ch]">
+          <p class="lead">OAuth consent is granted once, for a fixed set of scopes, at <code>grr auth login</code>. You cannot widen it later from inside an agent run &mdash; that needs a new consent, which needs a human. So scope is a design constraint, not a runtime knob.</p>
+          <p>Because every command resolves its method against the index, the scope check is the same on both routes: read <code>leastPrivilegeScope</code> from <code>grr api describe</code> before relying on a method, and treat the result as part of your plan, not an afterthought.</p>
+          <p>Two behaviours to expect, both benign, both worth not misdiagnosing:</p>
+          <ul>
+            <li>A <strong>note on stderr</strong> saying a method wants a scope outside the consented set is a warning, not a verdict. grr attempts the call anyway, because the narrow scope is often a sibling of a broader one the build does hold. Check the exit status, not the note.</li>
+            <li>A <strong>403</strong> is the real answer. grr&rsquo;s error names the specific scope and the file to edit. The common cause is a method genuinely outside the consented set &mdash; Gmail CSE keypairs, S/MIME settings, directory people, most of the Chat admin surface, and all of Tasks, which needs <code>&hellip;/auth/tasks</code>.</li>
+          </ul>
+          <p>The full breakdown, including which services work and which do not, is on <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="creds-title">
+      <div class="container">
+        <SectionIntro
+          id="creds-title"
+          eyebrow="credentials"
+          title="You will never see a token, and you should not store one."
+          copy="There is no flag that prints an access token. The credential lives in the OS keyring and grr reads it itself."
+        />
+        <div class="container prose reveal max-w-[68ch]">
+          <p class="lead">Tokens are stored in the operating system keyring &mdash; Windows Credential Manager, macOS Keychain, or the Linux Secret Service over D-Bus &mdash; under the service <code>grr</code>. On a headless machine with no keyring daemon, grr falls back to a <code>token.json</code> file under the user cache directory and imports it back into the keyring the next time one is available.</p>
+          <p>What an agent can observe is only the backend name, and only on login:</p>
+          <ul>
+            <li><code>grr auth login</code> prints <code>token_backend</code> (<code>os-keyring</code> or <code>file</code>) and a 20-character <code>token_preview</code> prefix. The preview exists so a human can confirm <em>which</em> credential was stored; it is not a usable token.</li>
+            <li>Refresh is automatic and transparent. A stored credential that has expired and has no refresh token errors with &ldquo;rerun <code>grr auth login</code>&rdquo; rather than silently opening a browser mid-call.</li>
+            <li>PKCE is always on, so there is no client secret in the request that matters, and nothing for an agent to capture from a network trace.</li>
+          </ul>
+          <p>Do not attempt to read the token out of the keyring, and do not add a flag to expose it. If a workflow needs a token for something other than grr, that something should have its own OAuth client. <code>grr auth setup</code> writes a client to <code>~/.grr/config.toml</code> (mode <code>0600</code> on unix) if you need to manage one non-interactively, and it refuses to hang on a non-TTY: pass <code>--client-id</code> and <code>--client-secret</code>, or it errors instead of prompting.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="state-title">
+      <div class="container">
+        <SectionIntro
+          id="state-title"
+          eyebrow="state"
+          title="Check auth before you check anything else."
+          copy="One cheap call, a real answer, and a history_id cursor worth keeping."
+        />
+        <div class="container prose reveal max-w-[68ch]">
+          <CodeBlock code={state} label="auth state" />
+          <p><code>grr auth status</code> makes a live Gmail <code>users.getProfile</code> request through the same shared call path as every other command, so it fails when the token is missing, revoked, or expired without a refresh token. Gate any automation on its exit status. <code>grr auth login</code> is interactive by default; <code>--device</code> is the only variant that works unattended, and it still needs a human to visit a URL and type a code.</p>
+          <p>For incremental reads, keep the <code>history_id</code> that <code>auth status</code> returns and feed it to <code>grr gmail users history list --start-history-id</code> on the next run. That is the difference between fetching a bounded window and re-reading the mailbox.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="failure-title">
+      <div class="container prose reveal max-w-[68ch]">
+        <h2 id="failure-title">Failure modes worth handling explicitly</h2>
         <ul>
-          <li><code>grr api list</code> prints its method count to stderr and the array to stdout. That is why <code>grr api list | jq</code> is valid JSON.</li>
-          <li><code>grr auth login --device</code> prints its human-readable URL and code to <strong>stdout</strong> with a plain <code>println!</code>, before the JSON result. If you are parsing the result of a device login, do not assume stdout is JSON for that one command.</li>
-          <li><code>grr transport</code> prints a plain-text report, not JSON. It is a diagnostic for a human; read it, do not parse it.</li>
-          <li>Every <code>--dry-run</code> output is JSON, on either route (generated leaf or <code>grr api call</code>), so it pipes and a <code>jq</code> assertion works on it.</li>
-          <li>Suppress logs with <code>2>/dev/null</code> when you want quiet failures, but keep them when you are debugging &mdash; the error text is where the useful detail is.</li>
+          <li><strong>Not authenticated.</strong> Exit non-zero, message names the rerun. Do not retry in a loop.</li>
+          <li><strong>Expired without a refresh token.</strong> The error says to rerun <code>grr auth login</code>. This happens if a token was stored without a refresh token; it is not transient.</li>
+          <li><strong>HTTP 403 naming a scope.</strong> The scope is outside what the build consented to. Not fixable at runtime &mdash; report it rather than retrying.</li>
+          <li><strong>Unknown method id.</strong> grr returns ranked suggestions. Treat it as &ldquo;discover again&rdquo;, not as a crash: the index is refreshed daily and the surface moves.</li>
+          <li><strong>Missing required parameter.</strong> The message names the parameter and lists the others. Re-read <code>grr api describe</code> rather than retrying variations.</li>
+          <li><strong>Empty results.</strong> A valid empty array, not an error. <code>-f table</code> renders it as a <code>(no results)</code> header; the JSON form is just <code>[]</code>.</li>
+          <li><strong>HTTP/2 fallback.</strong> <code>grr transport</code> showing <code>fell_back: true</code> means QUIC was blocked and HTTP/2 is in use. Nothing is wrong; do not retry or treat it as a fault.</li>
         </ul>
-        <p>Errors are not JSON either. A failed command exits non-zero with a human-readable message on stderr, and that message is written to be actionable: a 403 names the missing scope, a missing path parameter names itself, an unknown method id comes with ranked suggestions.</p>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section" aria-labelledby="format-title">
-    <div class="container prose reveal">
-      <h2 id="format-title">Ask for JSON explicitly if you like being explicit</h2>
-      <p>JSON is already the default, but <code>-f json</code> is harmless and documents intent at the call site. The four values are <code>json</code>, <code>jsonl</code>, <code>table</code>, and <code>pretty</code>.</p>
-      <p>Prefer <code>-f json</code> over <code>-f table</code> or <code>-f pretty</code> in anything automated. <code>table</code> is for humans, and its output is a rendered grid whose shape changes with the data. <code>jsonl</code> is the one to reach for when streaming a large list: one document per line, so you can process results incrementally instead of buffering the whole array.</p>
-      <p>There is no global <code>--format</code> flag, and that is not an oversight. A global flag would collide by id with per-method parameters named <code>format</code> &mdash; which is exactly why such parameters surface as <code>--param-format</code>.</p>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="discover-title">
-    <div class="container">
-      <SectionIntro
-        id="discover-title"
-        eyebrow="rule two"
-        title="Discover capabilities. Do not assume them."
-        copy="The single biggest failure mode for an agent driving a Google CLI is confidently calling a method that does not exist, or a parameter that was renamed. Both are avoidable, and cheaply."
-      />
-      <div class="container prose reveal">
-        <p class="lead">The discipline is fixed order: <code>grr schema</code> for the full command tree, <code>grr api list</code> to browse methods, <code>grr api describe</code> for one method&rsquo;s parameters and scopes, <code>--dry-run</code> before the call. All four work with no network and no credential &mdash; the Discovery index is compiled into the binary &mdash; so an agent can answer &ldquo;what can I do with Sheets?&rdquo; before it has a login, which is exactly the order you want to fail in.</p>
-        <p><code>grr schema</code> is the whole tree as JSON &mdash; every subcommand, every argument, whether it is required, its default, its possible values. Because the tree itself is generated from the Discovery index, schema is a faithful census of all {discoveryMethodTotal} methods, and it answers with zero configuration. The naming rule means you rarely need it twice: a method id, dots turned into spaces, is the command (<code>gmail.users.messages.list</code> &rarr; <code>grr gmail users messages list</code>), and parameter names become kebab-case flags (<code>userId</code> &rarr; <code>--user-id</code>).</p>
-        <CodeBlock code={discover} label="discovery · no network needed" />
-        <p>Two habits worth building in:</p>
+    <section class="section" aria-labelledby="harness-title">
+      <div class="container prose reveal max-w-[68ch]">
+        <h2 id="harness-title">Mapping this onto a harness</h2>
+        <p>Claude Code, Codex, Cursor, Gemini CLI, OpenClaw, and anything else that shells out can be set up from the same sources, in this order:</p>
         <ul>
-          <li><strong>Read <code>describe</code> before you construct a call.</strong> The <code>parameters</code> array tells you which are <code>required</code>, which are <code>repeated</code>, and which have <code>enum</code> values. Guessing an enum string is the most common cause of a 400.</li>
-          <li><strong>Treat the method count as volatile.</strong> {discoveryMethodTotal} methods is what the embedded index holds today; the index is refreshed daily from Google&rsquo;s Discovery Service and the tree regenerates with it, so a method can appear or disappear between runs. Prefer <code>--filter</code> over a hard-coded list where you can, and handle the &ldquo;unknown method&rdquo; error as a normal outcome rather than a crash.</li>
+          <li><a href="https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md" target="_blank" rel="noreferrer">skills/grr/SKILL.md ↗</a> &mdash; the packaged agent skill: the discovery-first discipline, the naming rule, and the output contract in one file. Install it with <code>npx skills add https://github.com/debanjanbasu/grr-cli</code>.</li>
+          <li><a href="/llms.txt">llms.txt</a> &mdash; the site&rsquo;s machine-readable index, for orientation. Fetch it once at session start.</li>
+          <li><code>grr schema</code> &mdash; the generated command tree, for building tool definitions. Regenerate it rather than hand-writing flags.</li>
+          <li><code>grr api list</code> and <code>grr api describe</code> &mdash; the method-level view of the same index, at runtime, with no network and no credential.</li>
         </ul>
+        <p>
+          The quickstart at the top of this page is the portable form of the same guidance &mdash; paste it into
+          any harness&rsquo;s system prompt or bootstrap script, or install the skill and let the harness load it.
+        </p>
       </div>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="dryrun-title">
-    <div class="container">
-      <SectionIntro
-        id="dryrun-title"
-        eyebrow="rule three"
-        title="Inspect a request before you send it."
-        copy="One dry-run surface, two routes into it — and both print JSON."
-      />
-      <div class="container prose reveal">
-        <p class="lead"><code>--dry-run</code> exists on every generated leaf and on <code>grr api call</code>. It builds the request, validates the required parameters, and prints the verb, the fully resolved URL, the body, and the scopes &mdash; then sends nothing. URL construction and parameter validation both happen before the dry-run branch, so a dry run surfaces exactly the errors the real call would.</p>
-        <p>That makes the pattern &ldquo;dry run, inspect the URL, then send&rdquo; a cheap guard against the two failure modes an agent actually hits: a path parameter in the wrong place, and a body field Google rejects. A <code>jq -e '.url'</code> assertion on the dry-run output is a reasonable gate before a destructive call.</p>
-        <CodeBlock code={safe} label="dry runs · destructive calls" />
-        <p>Note the asymmetry. <code>messages trash</code> is reversible; <code>messages delete</code> is not, and Gmail&rsquo;s API has no &ldquo;really delete&rdquo; for the batch endpoints either. For anything destructive or bulk, resolve the ids first with a read, show them to the user, and only then act on the explicit list.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="scope-title">
-    <div class="container">
-      <SectionIntro
-        id="scope-title"
-        eyebrow="rule four"
-        title="Ask for the least privilege the method needs."
-        copy="grr consents to sixteen scopes. The narrowest scope each method accepts is reported, and a mismatch is named rather than swallowed."
-      />
-      <div class="container prose reveal">
-        <p class="lead">OAuth consent is granted once, for a fixed set of scopes, at <code>grr auth login</code>. You cannot widen it later from inside an agent run &mdash; that needs a new consent, which needs a human. So scope is a design constraint, not a runtime knob.</p>
-        <p>Because every command resolves its method against the index, the scope check is the same on both routes: read <code>leastPrivilegeScope</code> from <code>grr api describe</code> before relying on a method, and treat the result as part of your plan, not an afterthought.</p>
-        <p>Two behaviours to expect, both benign, both worth not misdiagnosing:</p>
-        <ul>
-          <li>A <strong>note on stderr</strong> saying a method wants a scope outside the consented set is a warning, not a verdict. grr attempts the call anyway, because the narrow scope is often a sibling of a broader one the build does hold. Check the exit status, not the note.</li>
-          <li>A <strong>403</strong> is the real answer. grr&rsquo;s error names the specific scope and the file to edit. The common cause is a method genuinely outside the consented set &mdash; Gmail CSE keypairs, S/MIME settings, directory people, most of the Chat admin surface, and all of Tasks, which needs <code>&hellip;/auth/tasks</code>.</li>
-        </ul>
-        <p>The full breakdown, including which services work and which do not, is on <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="creds-title">
-    <div class="container">
-      <SectionIntro
-        id="creds-title"
-        eyebrow="credentials"
-        title="You will never see a token, and you should not store one."
-        copy="There is no flag that prints an access token. The credential lives in the OS keyring and grr reads it itself."
-      />
-      <div class="container prose reveal">
-        <p class="lead">Tokens are stored in the operating system keyring &mdash; Windows Credential Manager, macOS Keychain, or the Linux Secret Service over D-Bus &mdash; under the service <code>grr</code>. On a headless machine with no keyring daemon, grr falls back to a <code>token.json</code> file under the user cache directory and imports it back into the keyring the next time one is available.</p>
-        <p>What an agent can observe is only the backend name, and only on login:</p>
-        <ul>
-          <li><code>grr auth login</code> prints <code>token_backend</code> (<code>os-keyring</code> or <code>file</code>) and a 20-character <code>token_preview</code> prefix. The preview exists so a human can confirm <em>which</em> credential was stored; it is not a usable token.</li>
-          <li>Refresh is automatic and transparent. A stored credential that has expired and has no refresh token errors with &ldquo;rerun <code>grr auth login</code>&rdquo; rather than silently opening a browser mid-call.</li>
-          <li>PKCE is always on, so there is no client secret in the request that matters, and nothing for an agent to capture from a network trace.</li>
-        </ul>
-        <p>Do not attempt to read the token out of the keyring, and do not add a flag to expose it. If a workflow needs a token for something other than grr, that something should have its own OAuth client. <code>grr auth setup</code> writes a client to <code>~/.grr/config.toml</code> (mode <code>0600</code> on unix) if you need to manage one non-interactively, and it refuses to hang on a non-TTY: pass <code>--client-id</code> and <code>--client-secret</code>, or it errors instead of prompting.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="state-title">
-    <div class="container">
-      <SectionIntro
-        id="state-title"
-        eyebrow="state"
-        title="Check auth before you check anything else."
-        copy="One cheap call, a real answer, and a history_id cursor worth keeping."
-      />
-      <div class="container prose reveal">
-        <CodeBlock code={state} label="auth state" />
-        <p><code>grr auth status</code> makes a live Gmail <code>users.getProfile</code> request through the same shared call path as every other command, so it fails when the token is missing, revoked, or expired without a refresh token. Gate any automation on its exit status. <code>grr auth login</code> is interactive by default; <code>--device</code> is the only variant that works unattended, and it still needs a human to visit a URL and type a code.</p>
-        <p>For incremental reads, keep the <code>history_id</code> that <code>auth status</code> returns and feed it to <code>grr gmail users history list --start-history-id</code> on the next run. That is the difference between fetching a bounded window and re-reading the mailbox.</p>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="failure-title">
-    <div class="container prose reveal">
-      <h2 id="failure-title">Failure modes worth handling explicitly</h2>
-      <ul>
-        <li><strong>Not authenticated.</strong> Exit non-zero, message names the rerun. Do not retry in a loop.</li>
-        <li><strong>Expired without a refresh token.</strong> The error says to rerun <code>grr auth login</code>. This happens if a token was stored without a refresh token; it is not transient.</li>
-        <li><strong>HTTP 403 naming a scope.</strong> The scope is outside what the build consented to. Not fixable at runtime &mdash; report it rather than retrying.</li>
-        <li><strong>Unknown method id.</strong> grr returns ranked suggestions. Treat it as &ldquo;discover again&rdquo;, not as a crash: the index is refreshed daily and the surface moves.</li>
-        <li><strong>Missing required parameter.</strong> The message names the parameter and lists the others. Re-read <code>grr api describe</code> rather than retrying variations.</li>
-        <li><strong>Empty results.</strong> A valid empty array, not an error. <code>-f table</code> renders it as a <code>(no results)</code> header; the JSON form is just <code>[]</code>.</li>
-        <li><strong>HTTP/2 fallback.</strong> <code>grr transport</code> showing <code>fell_back: true</code> means QUIC was blocked and HTTP/2 is in use. Nothing is wrong; do not retry or treat it as a fault.</li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="harness-title">
-    <div class="container prose reveal">
-      <h2 id="harness-title">Mapping this onto a harness</h2>
-      <p>Claude Code, Codex, Cursor, Gemini CLI, OpenClaw, and anything else that shells out can be set up from the same sources, in this order:</p>
-      <ul>
-        <li><a href="https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md" target="_blank" rel="noreferrer">skills/grr/SKILL.md ↗</a> &mdash; the packaged agent skill: the discovery-first discipline, the naming rule, and the output contract in one file. Install it with <code>npx skills add https://github.com/debanjanbasu/grr-cli</code>.</li>
-        <li><a href="/llms.txt">llms.txt</a> &mdash; the site&rsquo;s machine-readable index, for orientation. Fetch it once at session start.</li>
-        <li><code>grr schema</code> &mdash; the generated command tree, for building tool definitions. Regenerate it rather than hand-writing flags.</li>
-        <li><code>grr api list</code> and <code>grr api describe</code> &mdash; the method-level view of the same index, at runtime, with no network and no credential.</li>
-      </ul>
-      <p>
-        The quickstart at the top of this page is the portable form of the same guidance &mdash; paste it into
-        any harness&rsquo;s system prompt or bootstrap script, or install the skill and let the harness load it.
-      </p>
-    </div>
-  </section>
+    </section>
+  </DocsShell>
 </BaseLayout>

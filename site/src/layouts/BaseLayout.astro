@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import '../styles/global.css';
@@ -65,16 +66,27 @@ const jsonLd = JSON.stringify({
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <ClientRouter />
     <script is:inline>
       (function () {
-        try {
-          var theme = localStorage.getItem('grr-theme');
-          if (theme === 'light' || theme === 'dark') {
-            document.documentElement.setAttribute('data-theme', theme);
+        var applyStoredTheme = function () {
+          try {
+            var theme = localStorage.getItem('grr-theme');
+            if (theme === 'bumblebee' || theme === 'dim') {
+              document.documentElement.setAttribute('data-theme', theme);
+            } else if (theme === 'light' || theme === 'dark') {
+              /* Values from the pre-DaisyUI site: map them so a returning
+                 visitor keeps the choice they already made. */
+              document.documentElement.setAttribute('data-theme', theme === 'light' ? 'bumblebee' : 'dim');
+            }
+          } catch (error) {
+            /* storage unavailable: stay on the system theme */
           }
-        } catch (error) {
-          /* storage unavailable: stay on the system theme */
-        }
+        };
+        applyStoredTheme();
+        /* The ClientRouter swaps the document on client-side navigations; the
+           stored choice is re-applied after every swap. */
+        document.addEventListener('astro:after-swap', applyStoredTheme);
       })();
     </script>
     <meta name="viewport" content="width=device-width" />
@@ -124,18 +136,27 @@ const jsonLd = JSON.stringify({
     <script is:inline type="module">
       (function () {
         var root = document.documentElement;
-        var button = document.querySelector('[data-theme-toggle]');
         var query = window.matchMedia('(prefers-color-scheme: dark)');
         var isDark = function () {
-          return root.dataset.theme === 'dark' || (query.matches && root.dataset.theme !== 'light');
+          return root.dataset.theme === 'dim' || (query.matches && root.dataset.theme !== 'bumblebee');
         };
         var sync = function () {
-          if (!button) return;
-          button.setAttribute('aria-pressed', String(isDark()));
+          var button = document.querySelector('[data-theme-toggle]');
+          if (button) button.setAttribute('aria-pressed', String(isDark()));
         };
-        if (button) {
-          button.addEventListener('click', function () {
-            var next = isDark() ? 'light' : 'dark';
+
+        /* Theme toggle — delegated on the document, so one listener covers
+           every element on the page and survives the ClientRouter body swaps:
+           the header swapped in after a client-side navigation keeps working
+           without re-binding. */
+        var initThemeToggle = function () {
+          if (window.__grrThemeBound) return;
+          window.__grrThemeBound = true;
+          document.addEventListener('click', function (event) {
+            var target = event.target;
+            var button = target && target.closest ? target.closest('[data-theme-toggle]') : null;
+            if (!button) return;
+            var next = isDark() ? 'bumblebee' : 'dim';
             root.dataset.theme = next;
             try {
               localStorage.setItem('grr-theme', next);
@@ -144,73 +165,86 @@ const jsonLd = JSON.stringify({
             }
             sync();
           });
-        }
-        if (query.addEventListener) {
-          query.addEventListener('change', sync);
-        }
-        sync();
-      })();
-
-      /* Copy-to-clipboard, delegated.
-         One listener for every code block on the page rather than a handler
-         per block: the text is read back out of the DOM, so the command is
-         never duplicated into a data attribute and the HTML stays smaller. */
-      (function () {
-        function flash(button, label) {
-          var state = button.querySelector('[data-copy-state]');
-          if (!state) return;
-          if (button.dataset.copyReset) clearTimeout(button.dataset.copyReset);
-          state.textContent = label;
-          button.classList.add('is-copied');
-          button.dataset.copyReset = setTimeout(function () {
-            state.textContent = 'Copy';
-            button.classList.remove('is-copied');
-          }, 1600);
-        }
-
-        // execCommand fallback for browsers or contexts without the async
-        // clipboard API (older Safari, non-secure origins).
-        function legacyCopy(text) {
-          var area = document.createElement('textarea');
-          area.value = text;
-          area.setAttribute('readonly', '');
-          area.style.position = 'fixed';
-          area.style.top = '-1000px';
-          area.style.opacity = '0';
-          document.body.appendChild(area);
-          area.select();
-          var ok = false;
-          try {
-            ok = document.execCommand('copy');
-          } catch (error) {
-            ok = false;
+          if (query.addEventListener) {
+            query.addEventListener('change', sync);
           }
-          document.body.removeChild(area);
-          return ok;
-        }
+        };
 
-        document.addEventListener('click', function (event) {
-          var button = event.target.closest ? event.target.closest('[data-copy]') : null;
-          if (!button) return;
-          var block = button.closest('.code-window');
-          var code = block && block.querySelector('pre code');
-          if (!code) return;
-          var text = code.textContent.replace(/\s+$/, '');
-          event.preventDefault();
-
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(
-              function () {
-                flash(button, 'Copied');
-              },
-              function () {
-                flash(button, legacyCopy(text) ? 'Copied' : 'Press Ctrl+C');
-              },
-            );
-          } else {
-            flash(button, legacyCopy(text) ? 'Copied' : 'Press Ctrl+C');
+        /* Copy-to-clipboard, delegated.
+           One listener for every code block on the page rather than a handler
+           per block: the text is read back out of the DOM, so the command is
+           never duplicated into a data attribute and the HTML stays smaller.
+           Delegated on the document, so code windows swapped in by the
+           ClientRouter keep working after a client-side navigation. */
+        var initCopy = function () {
+          if (window.__grrCopyBound) return;
+          window.__grrCopyBound = true;
+          function flash(button, label) {
+            var state = button.querySelector('[data-copy-state]');
+            if (!state) return;
+            if (button.dataset.copyReset) clearTimeout(button.dataset.copyReset);
+            state.textContent = label;
+            button.classList.add('is-copied');
+            button.dataset.copyReset = setTimeout(function () {
+              state.textContent = 'Copy';
+              button.classList.remove('is-copied');
+            }, 1600);
           }
-        });
+
+          // execCommand fallback for browsers or contexts without the async
+          // clipboard API (older Safari, non-secure origins).
+          function legacyCopy(text) {
+            var area = document.createElement('textarea');
+            area.value = text;
+            area.setAttribute('readonly', '');
+            area.style.position = 'fixed';
+            area.style.top = '-1000px';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+            var ok = false;
+            try {
+              ok = document.execCommand('copy');
+            } catch (error) {
+              ok = false;
+            }
+            document.body.removeChild(area);
+            return ok;
+          }
+
+          document.addEventListener('click', function (event) {
+            var button = event.target.closest ? event.target.closest('[data-copy]') : null;
+            if (!button) return;
+            var block = button.closest('.code-window');
+            var code = block && block.querySelector('pre code');
+            if (!code) return;
+            var text = code.textContent.replace(/\s+$/, '');
+            event.preventDefault();
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(
+                function () {
+                  flash(button, 'Copied');
+                },
+                function () {
+                  flash(button, legacyCopy(text) ? 'Copied' : 'Press Ctrl+C');
+                },
+              );
+            } else {
+              flash(button, legacyCopy(text) ? 'Copied' : 'Press Ctrl+C');
+            }
+          });
+        };
+
+        /* Idempotent inits, invoked on both the initial load and every
+           astro:page-load the ClientRouter fires after a swap. */
+        var init = function () {
+          initThemeToggle();
+          initCopy();
+          sync();
+        };
+        init();
+        document.addEventListener('astro:page-load', init);
       })();
     </script>
   </body>

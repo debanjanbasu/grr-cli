@@ -1,4 +1,4 @@
-﻿---
+---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import ArchitectureCards from '../components/ArchitectureCards.astro';
 import ApiSurface from '../components/ApiSurface.astro';
@@ -251,19 +251,19 @@ const storySteps = [
   description="grr is a zero-config Rust CLI for Google Workspace: 6 services with dedicated commands, 308 methods via grr api across 10 APIs, and clean JSON output."
 >
   <section class="hero section" aria-labelledby="hero-title">
-    <div class="container hero-grid">
+    <div class="container hero-grid grid grid-cols-1 items-center gap-[clamp(28px,4vw,64px)] lg:grid-cols-[1.02fr_0.98fr]">
       <div class="hero-copy">
         <span class="eyebrow hero-fade">Rust Rewrite · six services · one login</span>
-        <h1 id="hero-title">
+        <h1 id="hero-title" class="mt-2.5 mb-4 text-[clamp(30px,2.2rem+2.2vw,54px)] leading-[1.06]">
           <span class="hero-line"><span class="hero-line-inner">Google tools,</span></span>
           <span class="hero-line"><span class="hero-line-inner hero-line-accent">at terminal speed.</span></span>
         </h1>
-        <p class="hero-lede hero-fade">Zero-config, maximum-performance Google tools from the terminal. One binary, six services, and output that plays nicely with jq.</p>
-        <div class="hero-actions hero-fade">
-          <a class="button button-primary" href={releaseUrl} target="_blank" rel="noreferrer">GitHub releases <span aria-hidden="true">↗</span></a>
-          <a class="button button-secondary" href={`${base}install/`}>Install grr <span aria-hidden="true">→</span></a>
+        <p class="hero-lede hero-fade m-0 max-w-[44ch] text-[15px] text-base-content/70">Zero-config, maximum-performance Google tools from the terminal. One binary, six services, and output that plays nicely with jq.</p>
+        <div class="hero-actions hero-fade mt-[22px] flex flex-wrap gap-3">
+          <a class="btn btn-primary" href={releaseUrl} target="_blank" rel="noreferrer">GitHub releases <span aria-hidden="true">↗</span></a>
+          <a class="btn btn-outline" href={`${base}install/`}>Install grr <span aria-hidden="true">→</span></a>
         </div>
-        <p class="hero-note hero-fade">Release binaries ship with the OAuth client built in — <code>grr auth login</code> and you are in.</p>
+        <p class="hero-note hero-fade m-0 mt-3.5 text-[13px] text-(--muted)">Release binaries ship with the OAuth client built in — <code>grr auth login</code> and you are in.</p>
       </div>
       <div class="hero-visual">
         <div class="hero-stage">
@@ -309,7 +309,7 @@ const storySteps = [
         title="The useful parts of your Google account, namespaced."
         copy="Keep commands close to the work they support. Every data command accepts JSON, JSONL, table, or pretty output; JSON is the default."
       />
-      <div class="feature-rows">
+      <div class="feature-rows grid gap-20 lg:gap-24">
         {services.map((service, index) => <FeatureRow service={service} reverse={index % 2 === 1} />)}
       </div>
       <CommandInventory surfaces={commandSurfaces} />
@@ -319,17 +319,17 @@ const storySteps = [
 
   <section class="story-section section" aria-labelledby="story-title">
     <div class="container">
-      <div class="section-heading story-heading">
+      <div class="section-heading story-heading mb-3">
         <span class="eyebrow">scrollytelling</span>
         <h2 id="story-title">One crab, four moods.</h2>
       </div>
-      <div class="story-grid">
-        <div class="story-steps">
+      <div class="story-grid grid grid-cols-1 items-start gap-[clamp(32px,5vw,88px)] lg:grid-cols-[minmax(0,1fr)_minmax(260px,380px)]">
+        <div class="story-steps grid gap-[clamp(160px,28vh,300px)] py-[16vh] max-md:gap-[clamp(96px,18vh,180px)] max-md:py-[8vh]">
           {storySteps.map((step) => (
-            <div class="story-step">
-              <span class="story-step-index" aria-hidden="true">// {step.index}</span>
-              <h3>{step.title}</h3>
-              <p>{step.copy}</p>
+            <div class="story-step max-w-[36ch]">
+              <span class="story-step-index block text-[13px] text-(--accent-text)" aria-hidden="true">// {step.index}</span>
+              <h3 class="mt-1.5 mb-2 text-[clamp(19px,2.2vw,24px)] leading-[1.2]">{step.title}</h3>
+              <p class="m-0 text-sm text-base-content/70">{step.copy}</p>
             </div>
           ))}
         </div>
@@ -341,7 +341,7 @@ const storySteps = [
             <span class="story-tick story-tick-sleep"></span>
             <span class="story-tick story-tick-celebrate"></span>
           </div>
-          <p class="story-captions" aria-hidden="true">
+          <p class="story-captions m-0" aria-hidden="true">
             <span class="story-cap story-cap-wave">hi</span>
             <span class="story-cap story-cap-idle">your terminal, your data</span>
             <span class="story-cap story-cap-sleep">zero config, zero noise</span>
@@ -353,11 +353,11 @@ const storySteps = [
   </section>
 
   <section class="crate-section section" aria-labelledby="library-title">
-    <div class="container crate-grid">
+    <div class="container crate-grid grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
       <div class="crate-copy reveal">
         <span class="eyebrow">use it as a library</span>
-        <h2 id="library-title">One crate. Only the services you need.</h2>
-        <p>The published package is <code>grr-cli</code>. Its default features are <code>default = ["cli", "http3"]</code>; the <code>cli</code> feature enables the complete binary and all six services (the <code>grr</code> binary uses <code>required-features = ["cli"]</code>), while <code>gmail</code>, <code>calendar</code>, <code>drive</code>, <code>people</code>, <code>chat</code>, and <code>forms</code> can be selected independently. With <code>default-features = false</code>, the library builds on stable Rust over HTTP/2. HTTP/3 is the <code>http3</code> feature and needs nightly Rust plus the <code>reqwest_unstable</code> cfg.</p>
+        <h2 id="library-title" class="mt-1.5 mb-2 text-[clamp(22px,2.6vw,32px)] leading-[1.15]">One crate. Only the services you need.</h2>
+        <p class="m-0 text-sm text-base-content/70">The published package is <code>grr-cli</code>. Its default features are <code>default = ["cli", "http3"]</code>; the <code>cli</code> feature enables the complete binary and all six services (the <code>grr</code> binary uses <code>required-features = ["cli"]</code>), while <code>gmail</code>, <code>calendar</code>, <code>drive</code>, <code>people</code>, <code>chat</code>, and <code>forms</code> can be selected independently. With <code>default-features = false</code>, the library builds on stable Rust over HTTP/2. HTTP/3 is the <code>http3</code> feature and needs nightly Rust plus the <code>reqwest_unstable</code> cfg.</p>
       </div>
       <div class="code-slab reveal">
         <CodeBlock code={libraryExample} label="cargo · library" />
@@ -367,18 +367,18 @@ const storySteps = [
 
   <section class="architecture-section section" aria-labelledby="features-title">
     <div class="container">
-      <div class="architecture-heading reveal">
+      <div class="architecture-heading reveal max-w-[62ch]">
         <span class="eyebrow">built for the shell</span>
-        <h2 id="features-title">Less glue.<br />More signal.</h2>
-        <p>grr is deliberately small at the interface: predictable commands, fast transport, and no hidden service setup.</p>
+        <h2 id="features-title" class="mt-1.5 mb-2 text-[clamp(24px,3vw,36px)] leading-[1.12]">Less glue.<br />More signal.</h2>
+        <p class="m-0 text-sm text-(--muted)">grr is deliberately small at the interface: predictable commands, fast transport, and no hidden service setup.</p>
       </div>
       <ArchitectureCards cards={architecture} />
-      <div class="session-panel">
+      <div class="session-panel mt-12 grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
         <div class="session-copy reveal">
           <span class="eyebrow">one clean session</span>
-          <h3>From inbox to insight, without the tab.</h3>
-          <p>Search a message, fetch a bounded body, and keep the output parseable. The command tree is available as JSON for agents with <code>grr schema</code>.</p>
-          <a class="button button-secondary" href="https://github.com/debanjanbasu/grr-cli#usage-highlights" target="_blank" rel="noreferrer">Browse command examples <span aria-hidden="true">↗</span></a>
+          <h3 class="mt-1.5 mb-2 text-[clamp(19px,2.2vw,24px)] leading-[1.2]">From inbox to insight, without the tab.</h3>
+          <p class="m-0 text-sm text-base-content/70">Search a message, fetch a bounded body, and keep the output parseable. The command tree is available as JSON for agents with <code>grr schema</code>.</p>
+          <a class="btn btn-outline mt-4" href="https://github.com/debanjanbasu/grr-cli#usage-highlights" target="_blank" rel="noreferrer">Browse command examples <span aria-hidden="true">↗</span></a>
         </div>
         <div class="session-terminal reveal">
           <CodeBlock code={sessionExample} label="terminal · grr" />
@@ -388,11 +388,11 @@ const storySteps = [
   </section>
 
   <section class="machine-section section" aria-labelledby="session-title">
-    <div class="container machine-grid">
+    <div class="container machine-grid grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
       <div class="machine-copy reveal">
         <span class="eyebrow">machine-friendly by default</span>
-        <h2 id="session-title">Your shell is the API client.</h2>
-        <p>Use a human-readable table when you need it, or keep the default JSON and let the next tool take it from there.</p>
+        <h2 id="session-title" class="mt-1.5 mb-2 text-[clamp(22px,2.6vw,32px)] leading-[1.15]">Your shell is the API client.</h2>
+        <p class="m-0 text-sm text-base-content/70">Use a human-readable table when you need it, or keep the default JSON and let the next tool take it from there.</p>
       </div>
       <div class="machine-terminal reveal">
         <CodeBlock code={pipeExample} label="pipe-friendly output" />
@@ -406,35 +406,35 @@ const storySteps = [
         <span class="eyebrow">go deeper</span>
         <h2 id="links-title">The source is the docs.</h2>
       </div>
-      <div class="link-grid">
+      <div class="link-grid mt-7 grid grid-cols-1 gap-5 md:grid-cols-3">
         <a class="link-card reveal" href="https://crates.io/crates/grr-cli" target="_blank" rel="noreferrer">
-          <strong>crates.io ↗</strong>
-          <span>Package metadata, versions, and the published crate.</span>
+          <strong class="mb-1.5 block text-[15px] text-(--accent-text)">crates.io ↗</strong>
+          <span class="text-xs text-(--muted)">Package metadata, versions, and the published crate.</span>
         </a>
         <a class="link-card reveal" href="https://docs.rs/grr-cli" target="_blank" rel="noreferrer">
-          <strong>docs.rs ↗</strong>
-          <span>Generated API documentation for the published crates.</span>
+          <strong class="mb-1.5 block text-[15px] text-(--accent-text)">docs.rs ↗</strong>
+          <span class="text-xs text-(--muted)">Generated API documentation for the published crates.</span>
         </a>
         <a class="link-card reveal" href="https://github.com/debanjanbasu/grr-cli" target="_blank" rel="noreferrer">
-          <strong>GitHub ↗</strong>
-          <span>README, releases, source, and the issue tracker.</span>
+          <strong class="mb-1.5 block text-[15px] text-(--accent-text)">GitHub ↗</strong>
+          <span class="text-xs text-(--muted)">README, releases, source, and the issue tracker.</span>
         </a>
       </div>
     </div>
   </section>
 
   <section class="faq-section section" aria-labelledby="faq-title">
-    <div class="container faq-grid">
+    <div class="container faq-grid grid grid-cols-1 gap-10 lg:grid-cols-2">
       <div class="faq-heading reveal">
         <span class="eyebrow">questions, answered</span>
-        <h2 id="faq-title">No mystery meat.</h2>
-        <p>The short version of the things people usually want to know before putting a Google account behind a terminal tool.</p>
+        <h2 id="faq-title" class="mt-1.5 mb-2 text-[clamp(22px,2.6vw,32px)] leading-[1.15]">No mystery meat.</h2>
+        <p class="m-0 text-sm text-(--muted)">The short version of the things people usually want to know before putting a Google account behind a terminal tool.</p>
       </div>
-      <div class="faq-list">
+      <div class="faq-list grid">
         {faqs.map((faq) => (
-          <details class="faq-item reveal">
-            <summary>{faq.question}</summary>
-            <div class="faq-answer">{faq.answer}</div>
+          <details class="faq-item collapse collapse-arrow reveal rounded-none border-t border-base-300 last:border-b">
+            <summary class="collapse-title min-h-12 px-1 text-sm">{faq.question}</summary>
+            <div class="faq-answer collapse-content max-w-[64ch] px-1 text-[13px] leading-[1.7] text-(--muted)">{faq.answer}</div>
           </details>
         ))}
       </div>
@@ -442,15 +442,15 @@ const storySteps = [
   </section>
 
   <section class="cta-section section" aria-labelledby="cta-title">
-    <div class="container cta-grid">
+    <div class="container cta-grid grid grid-cols-1 items-center gap-12 lg:grid-cols-2">
       <div class="cta-copy reveal">
-        <h2 id="cta-title">Your Google workflows deserve a better terminal.</h2>
-        <p>Grab a binary, point it at your own OAuth client, and let grr get out of the way.</p>
-        <div class="hero-actions">
-          <a class="button button-primary" href={`${base}install/`}>Choose your install path <span aria-hidden="true">→</span></a>
-          <a class="button button-secondary" href={releaseUrl} target="_blank" rel="noreferrer">GitHub releases <span aria-hidden="true">↗</span></a>
+        <h2 id="cta-title" class="m-0 mb-3 text-[clamp(24px,3vw,36px)] leading-[1.12]">Your Google workflows deserve a better terminal.</h2>
+        <p class="m-0 text-sm text-base-content/70">Grab a binary, point it at your own OAuth client, and let grr get out of the way.</p>
+        <div class="hero-actions mt-5 flex flex-wrap gap-3">
+          <a class="btn btn-primary" href={`${base}install/`}>Choose your install path <span aria-hidden="true">→</span></a>
+          <a class="btn btn-outline" href={releaseUrl} target="_blank" rel="noreferrer">GitHub releases <span aria-hidden="true">↗</span></a>
         </div>
-        <p class="legal-note">grr is an independent project and is not affiliated with, sponsored by, or endorsed by Google LLC.</p>
+        <p class="legal-note m-0 mt-4 text-xs text-(--quiet)">grr is an independent project and is not affiliated with, sponsored by, or endorsed by Google LLC.</p>
       </div>
       <div class="cta-visual reveal">
         <div class="install-slab" role="img" aria-label="A floating card showing the cargo install command for grr">

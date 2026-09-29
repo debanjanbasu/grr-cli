@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import DocsShell from '../../components/DocsShell.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
 import SectionIntro from '../../components/SectionIntro.astro';
 
@@ -188,137 +189,149 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
   title="Commands"
   description="The full grr command surface: ten services, one generated tree — the naming rule that predicts any command from its method id, typed flags per method, and the account-level commands."
 >
-  <section class="page-hero section">
-    <div class="container page-hero-grid">
-      <div class="reveal">
-        <span class="eyebrow">commands</span>
-        <h1>Ten services, one generated tree.</h1>
-        <p>Every service command is generated from Google&rsquo;s Discovery Service at build time &mdash; 308 methods, 839 typed flags, zero hand-written per-service commands. That makes the tree predictable instead of memorized. For the flat, id-based view of the same index, see <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
+  <DocsShell currentPath={`${base}docs/commands/`}>
+    <section class="page-hero section">
+      <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
+        <div class="reveal">
+          <span class="eyebrow">commands</span>
+          <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Ten services, one generated tree.</h1>
+          <p class="m-0 max-w-[62ch] text-sm text-base-content/70">Every service command is generated from Google&rsquo;s Discovery Service at build time &mdash; 308 methods, 839 typed flags, zero hand-written per-service commands. That makes the tree predictable instead of memorized. For the flat, id-based view of the same index, see <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
+        </div>
+        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">308 methods · 10 services · generated, not curated</div>
       </div>
-      <div class="page-hero-aside reveal">308 methods · 10 services · generated, not curated</div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section" aria-labelledby="naming-title">
-    <div class="container">
-      <SectionIntro
-        id="naming-title"
-        eyebrow="the naming rule"
-        title="Predict any command from its method id."
-        copy="There is nothing to memorize: a Discovery method id, with dots turned into spaces, is the command. The same rule generates every flag."
-      />
-      <div class="container prose reveal">
-        <CodeBlock code={naming} label="method id → command" />
-        <p>Top level: <code>grr auth</code>, <code>grr api</code>, <code>grr schema</code>, <code>grr transport</code>, plus one subcommand per service. The tree is emitted into <code>src/commands/generated.rs</code> by a generator that reads the committed Discovery index, and a daily workflow opens a PR when Google adds a method &mdash; so new surface arrives without a grr release.</p>
-        <p>Flag names come from the same ids, camelCase collapsed to kebab-case, typed by what Discovery declares:</p>
-        <ul>
-          <li><strong>Integers</strong> are parsed as numbers: <code>--max-results 10</code>.</li>
-          <li><strong>Booleans</strong> are presence flags: <code>--include-spam-trash</code>, not <code>--include-spam-trash true</code>.</li>
-          <li><strong>Repeated parameters repeat</strong>: <code>--label-ids INBOX --label-ids UNREAD</code>. (Single-string parameters that take comma lists inside the value, like Drive&rsquo;s <code>--order-by</code>, are passed through as-is.)</li>
-          <li><strong>Enum parameters validate</strong> their values; a bad one is caught before anything is sent.</li>
-          <li><strong>Required parameters are enforced</strong> by clap &mdash; you cannot build a request missing <code>--user-id</code>.</li>
-          <li><strong>Bodies are untyped, deliberately.</strong> Discovery&rsquo;s request schemas are not part of the distilled index, so <code>POST</code>/<code>PATCH</code>/<code>PUT</code> bodies pass through <code>--params</code> (a JSON object) or <code>--body-file</code> (a file, or <code>-</code> for stdin) verbatim. Typed flags win over <code>--params</code> on conflict.</li>
-        </ul>
-        <CodeBlock code={flags} label="typed flags · collision rule · bodies" />
-        <p>Every leaf also carries the same escape hatches <code>grr api call</code> has: <code>--params</code>, <code>--body-file</code>, repeatable <code>--query KEY=VALUE</code> for raw query pairs, <code>--dry-run</code>, and <code>-f/--format</code>. Dispatch resolves the leaf&rsquo;s id against the embedded index and funnels into one shared call path &mdash; the two routes below produce byte-identical output:</p>
-        <CodeBlock code={pipes} label="piping · dry runs · parity" />
+    <section class="section" aria-labelledby="naming-title">
+      <div class="container">
+        <SectionIntro
+          id="naming-title"
+          eyebrow="the naming rule"
+          title="Predict any command from its method id."
+          copy="There is nothing to memorize: a Discovery method id, with dots turned into spaces, is the command. The same rule generates every flag."
+        />
+        <div class="container prose reveal max-w-[68ch]">
+          <CodeBlock code={naming} label="method id → command" />
+          <p>Top level: <code>grr auth</code>, <code>grr api</code>, <code>grr schema</code>, <code>grr transport</code>, plus one subcommand per service. The tree is emitted into <code>src/commands/generated.rs</code> by a generator that reads the committed Discovery index, and a daily workflow opens a PR when Google adds a method &mdash; so new surface arrives without a grr release.</p>
+          <p>Flag names come from the same ids, camelCase collapsed to kebab-case, typed by what Discovery declares:</p>
+          <ul>
+            <li><strong>Integers</strong> are parsed as numbers: <code>--max-results 10</code>.</li>
+            <li><strong>Booleans</strong> are presence flags: <code>--include-spam-trash</code>, not <code>--include-spam-trash true</code>.</li>
+            <li><strong>Repeated parameters repeat</strong>: <code>--label-ids INBOX --label-ids UNREAD</code>. (Single-string parameters that take comma lists inside the value, like Drive&rsquo;s <code>--order-by</code>, are passed through as-is.)</li>
+            <li><strong>Enum parameters validate</strong> their values; a bad one is caught before anything is sent.</li>
+            <li><strong>Required parameters are enforced</strong> by clap &mdash; you cannot build a request missing <code>--user-id</code>.</li>
+            <li><strong>Bodies are untyped, deliberately.</strong> Discovery&rsquo;s request schemas are not part of the distilled index, so <code>POST</code>/<code>PATCH</code>/<code>PUT</code> bodies pass through <code>--params</code> (a JSON object) or <code>--body-file</code> (a file, or <code>-</code> for stdin) verbatim. Typed flags win over <code>--params</code> on conflict.</li>
+          </ul>
+          <CodeBlock code={flags} label="typed flags · collision rule · bodies" />
+          <p>Every leaf also carries the same escape hatches <code>grr api call</code> has: <code>--params</code>, <code>--body-file</code>, repeatable <code>--query KEY=VALUE</code> for raw query pairs, <code>--dry-run</code>, and <code>-f/--format</code>. Dispatch resolves the leaf&rsquo;s id against the embedded index and funnels into one shared call path &mdash; the two routes below produce byte-identical output:</p>
+          <CodeBlock code={pipes} label="piping · dry runs · parity" />
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section" aria-labelledby="surface-title">
-    <div class="container">
-      <SectionIntro
-        id="surface-title"
-        eyebrow="the services"
-        title="Every service, a few real commands."
-        copy="Verified against the binary and the committed index. Run grr <service> --help for the authoritative version of any branch — these are samples, not the census."
-      />
-      <div class="install-grid">
-        {services.map((service) => (
-          <article class="install-card install-card-wide">
-            <h2>{service.name}</h2>
-            <p>{service.description}</p>
-            <CodeBlock code={service.commands} label={service.namespace} />
-          </article>
-        ))}
+    <section class="section" aria-labelledby="surface-title">
+      <div class="container">
+        <SectionIntro
+          id="surface-title"
+          eyebrow="the services"
+          title="Every service, a few real commands."
+          copy="Verified against the binary and the committed index. Run grr <service> --help for the authoritative version of any branch — these are samples, not the census."
+        />
+        <div class="install-grid mt-7 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {services.map((service) => (
+            <article id={`svc-${service.name.toLowerCase()}`} class="install-card install-card-wide card card-border border-base-300 bg-base-100">
+              <div class="card-body gap-1 p-5">
+                <h2 class="card-title m-0 text-base">{service.name}</h2>
+                <p class="m-0 text-[13px] text-base-content/70">{service.description}</p>
+                <CodeBlock code={service.commands} label={service.namespace} />
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section" aria-labelledby="format-title">
-    <div class="container">
-      <SectionIntro
-        id="format-title"
-        eyebrow="output"
-        title="Four formats, one flag."
-        copy="Every command takes -f/--format, including the generated leaves. There is no global --format flag: it would collide by id with per-method parameters named format."
-      />
-    </div>
-    <div class="container prose reveal">
+    <section class="section" aria-labelledby="format-title">
+      <div class="container">
+        <SectionIntro
+          id="format-title"
+          eyebrow="output"
+          title="Four formats, one flag."
+          copy="Every command takes -f/--format, including the generated leaves. There is no global --format flag: it would collide by id with per-method parameters named format."
+        />
+      </div>
+      <div class="container prose reveal max-w-[68ch]">
         <p class="lead"><code>json</code> (default), <code>jsonl</code>, <code>table</code>, <code>pretty</code>. JSON is the default because the common consumer is a pipe, not a person.</p>
         <p><code>jsonl</code> emits one JSON document per line for array results, which is what you want when streaming into <code>jq</code> without loading everything. <code>table</code> renders arrays as one row per element with the union of keys as columns, a single object as a Field/Value table, and nested values as compact JSON inside a cell.</p>
         <CodeBlock code={formats} label="output formats" />
       </div>
     </section>
 
-  <section class="section" aria-labelledby="account-title">
-    <div class="container">
-      <SectionIntro
-        id="account-title"
-        eyebrow="account level"
-        title="The four commands that are not a service."
-        copy="These sit at the top level because they are not about one API. grr schema is the one to build against."
-      />
-      <div class="install-grid">
-        <article class="install-card">
-          <h2><code>grr auth</code></h2>
-          <p><code>login</code> runs the PKCE browser flow, or the device flow with <code>--device</code>. <code>status</code> makes a live profile call through the shared path and reports the account plus the <code>history_id</code> cursor. <code>setup</code> creates and stores your own OAuth client.</p>
-        </article>
-        <article class="install-card">
-          <h2><code>grr transport</code></h2>
-          <p>Prints the negotiated protocol, whether HTTP/3 was requested and effective, whether it fell back, the core count, and io_uring support. Plain text, not JSON &mdash; it is a diagnostic, not data.</p>
-        </article>
-        <article class="install-card">
-          <h2><code>grr schema</code></h2>
-          <p>Dumps the entire command tree as JSON: every subcommand, every argument, whether it is required, whether it takes a value, its default, and its possible values. Because the tree itself is generated from the index, schema is a faithful census of all 308 methods.</p>
-        </article>
-        <article class="install-card">
-          <h2><code>grr api</code></h2>
-          <p><code>list</code>, <code>describe</code>, <code>call</code>, and <code>refresh</code> against the embedded Discovery index &mdash; the flat escape hatch that reaches any method by id. Same index, same call path as the tree.</p>
-        </article>
+    <section class="section" aria-labelledby="account-title">
+      <div class="container">
+        <SectionIntro
+          id="account-title"
+          eyebrow="account level"
+          title="The four commands that are not a service."
+          copy="These sit at the top level because they are not about one API. grr schema is the one to build against."
+        />
+        <div class="install-grid mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base"><code>grr auth</code></h2>
+              <p class="m-0 text-[13px] text-base-content/70"><code>login</code> runs the PKCE browser flow, or the device flow with <code>--device</code>. <code>status</code> makes a live profile call through the shared path and reports the account plus the <code>history_id</code> cursor. <code>setup</code> creates and stores your own OAuth client.</p>
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base"><code>grr transport</code></h2>
+              <p class="m-0 text-[13px] text-base-content/70">Prints the negotiated protocol, whether HTTP/3 was requested and effective, whether it fell back, the core count, and io_uring support. Plain text, not JSON &mdash; it is a diagnostic, not data.</p>
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base"><code>grr schema</code></h2>
+              <p class="m-0 text-[13px] text-base-content/70">Dumps the entire command tree as JSON: every subcommand, every argument, whether it is required, whether it takes a value, its default, and its possible values. Because the tree itself is generated from the index, schema is a faithful census of all 308 methods.</p>
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base"><code>grr api</code></h2>
+              <p class="m-0 text-[13px] text-base-content/70"><code>list</code>, <code>describe</code>, <code>call</code>, and <code>refresh</code> against the embedded Discovery index &mdash; the flat escape hatch that reaches any method by id. Same index, same call path as the tree.</p>
+            </div>
+          </article>
+        </div>
       </div>
-    </div>
-    <div class="container prose reveal">
-      <CodeBlock code={account} label="account · transport · schema" />
-      <p><code>grr schema</code> is the canonical reference. It is honest about its own size: roughly 290 KB of valid JSON, emitted in well under 100 ms, with zero configuration and before any OAuth exists. Generate a wrapper or an agent tool definition from it &mdash; because it is derived from the same tree the binary dispatches on, it cannot drift from the commands that actually exist.</p>
-      <CodeBlock code={schemaBlock} label="grr schema · the canonical reference" />
-    </div>
-  </section>
+      <div class="container prose reveal max-w-[68ch] mt-8">
+        <CodeBlock code={account} label="account · transport · schema" />
+        <p><code>grr schema</code> is the canonical reference. It is honest about its own size: roughly 290 KB of valid JSON, emitted in well under 100 ms, with zero configuration and before any OAuth exists. Generate a wrapper or an agent tool definition from it &mdash; because it is derived from the same tree the binary dispatches on, it cannot drift from the commands that actually exist.</p>
+        <CodeBlock code={schemaBlock} label="grr schema · the canonical reference" />
+      </div>
+    </section>
 
-  <section class="section" aria-labelledby="conventions-title">
-    <div class="container prose reveal">
-      <h2 id="conventions-title">Conventions worth knowing</h2>
-      <ul>
-        <li><strong>Results on stdout, logs on stderr.</strong> The tracing subscriber is wired to stderr explicitly, so <code>grr … | jq</code> never receives a log line. The one stdout exception is <code>grr auth login --device</code>, which prints its human-readable URL and code before the final JSON.</li>
-        <li><strong>Paging is yours to drive.</strong> The tree does not follow page tokens: <code>--max-results</code> is the API&rsquo;s own page size, and <code>--page-token</code> takes the <code>nextPageToken</code> from the previous response. That keeps a list command from turning into an unbounded crawl.</li>
-        <li><strong>Booleans are presence flags</strong> (<code>--include-spam-trash</code>), a deliberate change from value-taking booleans: a flag is either passed or absent, so a script never has to guess.</li>
-        <li><strong>Errors are actionable.</strong> A 403 names the missing scope, an unknown method id returns ranked suggestions, a missing required parameter names itself. Non-zero exit on failure, always.</li>
-        <li><strong>Two commands print plain text, not JSON:</strong> <code>grr transport</code> and the device-login line above. <code>--dry-run</code> output <em>is</em> JSON, so it pipes.</li>
-        <li><strong>Timestamps are RFC 3339</strong> (<code>--time-min 2026-10-01T00:00:00Z</code>), or a bare <code>YYYY-MM-DD</code> where the API accepts a date.</li>
-      </ul>
-    </div>
-  </section>
+    <section class="section" aria-labelledby="conventions-title">
+      <div class="container prose reveal max-w-[68ch]">
+        <h2 id="conventions-title">Conventions worth knowing</h2>
+        <ul>
+          <li><strong>Results on stdout, logs on stderr.</strong> The tracing subscriber is wired to stderr explicitly, so <code>grr … | jq</code> never receives a log line. The one stdout exception is <code>grr auth login --device</code>, which prints its human-readable URL and code before the final JSON.</li>
+          <li><strong>Paging is yours to drive.</strong> The tree does not follow page tokens: <code>--max-results</code> is the API&rsquo;s own page size, and <code>--page-token</code> takes the <code>nextPageToken</code> from the previous response. That keeps a list command from turning into an unbounded crawl.</li>
+          <li><strong>Booleans are presence flags</strong> (<code>--include-spam-trash</code>), a deliberate change from value-taking booleans: a flag is either passed or absent, so a script never has to guess.</li>
+          <li><strong>Errors are actionable.</strong> A 403 names the missing scope, an unknown method id returns ranked suggestions, a missing required parameter names itself. Non-zero exit on failure, always.</li>
+          <li><strong>Two commands print plain text, not JSON:</strong> <code>grr transport</code> and the device-login line above. <code>--dry-run</code> output <em>is</em> JSON, so it pipes.</li>
+          <li><strong>Timestamps are RFC 3339</strong> (<code>--time-min 2026-10-01T00:00:00Z</code>), or a bare <code>YYYY-MM-DD</code> where the API accepts a date.</li>
+        </ul>
+      </div>
+    </section>
 
-  <section class="section" aria-labelledby="next-title">
-    <div class="container prose reveal">
-      <h2 id="next-title">Where the tree comes from</h2>
-      <p>Every leaf above is generated from the committed Discovery index at build time and refreshed daily by a workflow PR. The same index drives the flat <code>grr api</code> surface, so the census never splits in two.</p>
-      <ul>
-        <li><a href={`${base}docs/discovery/`}>Discovery API — the index behind the whole tree</a></li>
-        <li><a href={`${base}docs/agents/`}>Agents and harnesses — output contract and discovery discipline</a></li>
-        <li><a href={`${base}docs/getting-started/`}>Getting started — install, login, and verify</a></li>
-      </ul>
-    </div>
-  </section>
+    <section class="section" aria-labelledby="next-title">
+      <div class="container prose reveal max-w-[68ch]">
+        <h2 id="next-title">Where the tree comes from</h2>
+        <p>Every leaf above is generated from the committed Discovery index at build time and refreshed daily by a workflow PR. The same index drives the flat <code>grr api</code> surface, so the census never splits in two.</p>
+        <ul>
+          <li><a href={`${base}docs/discovery/`}>Discovery API — the index behind the whole tree</a></li>
+          <li><a href={`${base}docs/agents/`}>Agents and harnesses — output contract and discovery discipline</a></li>
+          <li><a href={`${base}docs/getting-started/`}>Getting started — install, login, and verify</a></li>
+        </ul>
+      </div>
+    </section>
+  </DocsShell>
 </BaseLayout>

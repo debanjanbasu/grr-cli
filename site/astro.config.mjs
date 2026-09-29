@@ -8,10 +8,12 @@ export default defineConfig({
   trailingSlash: 'always',
   build: {
     format: 'directory',
-    // Inline the whole stylesheet into every document: the site ships a single
-    // CSS bundle, so inlining removes the last render-blocking request and lets
-    // the first paint happen on the HTML round trip alone.
-    inlineStylesheets: 'always',
+    // Emit the stylesheet as a separate cached file rather than inlining it:
+    // the Tailwind + DaisyUI bundle is ~140KB, so inlining it would make every
+    // document carry it and delay first paint until the whole HTML lands. As
+    // a <link> it downloads in parallel with the HTML, is fetched once, and
+    // the ClientRouter reuses it across every client-side navigation.
+    inlineStylesheets: 'auto',
   },
   prefetch: {
     // Every page is same-origin and static, so hovering any link can safely

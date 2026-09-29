@@ -24,24 +24,27 @@ interface Props {
 const { service, reverse = false } = Astro.props;
 ---
 
-<article class:list={['feature-row', { 'feature-row-reverse': reverse }]} style={`--service-accent: ${service.accent}`}>
+<article
+  class:list={['feature-row', 'grid', 'items-start', 'gap-8', 'lg:grid-cols-2', 'lg:gap-[clamp(28px,4vw,64px)]', { 'feature-row-reverse': reverse }]}
+  style={`--service-accent: ${service.accent}`}
+>
   <div class="feature-row-copy reveal">
     <span class="eyebrow">{service.eyebrow}</span>
-    <h3>{service.name}</h3>
-    <p>{service.description}</p>
-    <ul class="feature-points">
-      {service.subfeatures.map((feature) => <li>{feature}</li>)}
+    <h3 class="mt-1.5 mb-2 text-[clamp(19px,2.2vw,24px)] leading-[1.2]">{service.name}</h3>
+    <p class="m-0 text-sm text-base-content/70">{service.description}</p>
+    <ul class="feature-points m-0 mt-3 list-none p-0">
+      {service.subfeatures.map((feature) => <li class="relative pl-5 text-sm text-base-content/70 before:absolute before:top-1/2 before:left-0 before:-mt-[3px] before:h-1.5 before:w-1.5 before:bg-primary">{feature}</li>)}
     </ul>
   </div>
   <div class="feature-row-visual reveal">
-    <div class="art-stage">
-      <img class="service-art" src={service.art.src} alt={`${service.name} illustration`} width="480" height="360" loading="lazy" decoding="async" />
+    <div class="art-stage relative mb-4 border-t-2 border-(--service-accent) pt-4">
+      <img class="service-art block w-full" src={service.art.src} alt={`${service.name} illustration`} width="480" height="360" loading="lazy" decoding="async" />
     </div>
     <CodeBlock code={service.command} label={`grr ${service.name.toLowerCase()}`} />
-    <details class="service-command-details">
-      <summary>More verified commands</summary>
-      <ul>
-        {service.commands.map((command) => <li><code>{command}</code></li>)}
+    <details class="service-command-details collapse collapse-arrow mt-2 rounded-none">
+      <summary class="collapse-title min-h-12 px-1 text-sm">More verified commands</summary>
+      <ul class="collapse-content m-0 list-none px-1">
+        {service.commands.map((command) => <li class="pb-1"><code>{command}</code></li>)}
       </ul>
     </details>
   </div>

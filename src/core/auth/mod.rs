@@ -1,5 +1,9 @@
-﻿//! OAuth2 authentication: PKCE loopback flow (RFC 8252) with an RFC 8628
+//! OAuth2 authentication: PKCE loopback flow (RFC 8252) with an RFC 8628
 //! device-flow fallback, tokens in the OS keyring.
+//!
+//! Multi-account: one OAuth client, one token per Google account. An auth
+//! handle is bound to one account's store entry (the default account keeps
+//! the legacy naming byte-for-byte); named accounts log in independently.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -62,21 +66,40 @@ pub(crate) fn scopes_joined() -> String {
 }
 
 /// OAuth2 client with PKCE support
+#[derive(Clone)]
 pub struct GoogleAuth {
     config: OAuthConfig,
     http_client: HttpClient,
     token_storage: Arc<RwLock<Option<TokenStorage>>>,
     store: TokenStore,
     token_endpoint: String,
+    /// The named account this handle is bound to, if any (`None` = the
+    /// default account, whose store entry keeps the legacy naming).
+    account: Option<String>,
 }
 
 impl GoogleAuth {
     /// Create new GoogleAuth from config
     pub async fn new(config: OAuthConfig) -> Result<Self> {
-        Self::with_store(config, TokenStore::auto().await?).await
+        Self::with_store(config, TokenStore::auto().await?, None).await
     }
 
-    async fn with_store(config: OAuthConfig, store: TokenStore) -> Result<Self> {
+    /// Create an auth handle bound to one named account's own token
+    /// (multi-account support). Same OAuth client and scopes; every store
+    /// read and write targets that account's keyring entry / fallback file
+    /// exclusively. The name is validated and normalized here (rejects
+    /// spaces, colons, and path separators; lowercased).
+    pub async fn new_for(config: OAuthConfig, account: impl Into<String>) -> Result<Self> {
+        let account = store::validate_account_name(account.into().as_str())?;
+        let store = TokenStore::auto_named(&account).await?;
+        Self::with_store(config, store, Some(account)).await
+    }
+
+    async fn with_store(
+        config: OAuthConfig,
+        store: TokenStore,
+        account: Option<String>,
+    ) -> Result<Self> {
         let http_client = HttpClient::builder()
             .timeout(Duration::from_secs(30))
             .build()
@@ -89,7 +112,42 @@ impl GoogleAuth {
             token_storage: Arc::new(RwLock::new(token_storage)),
             store,
             token_endpoint: GOOGLE_TOKEN_URL.to_string(),
+            account,
         })
+    }
+
+    /// The named account this handle is bound to, if any. `None` means the
+    /// default account (no `--account`); `Some` means every store
+    /// operation targets that account's own token.
+    pub fn account(&self) -> Option<&str> {
+        self.account.as_deref()
+    }
+
+    /// A handle bound to `account`'s own token store, reusing this handle's
+    /// config (and thus the same OAuth client). The token cache is NOT
+    /// shared: the new handle loads the named account's stored token.
+    ///
+    /// This is what `commands/auth.rs` uses to rebind a default handle when
+    /// a per-command `--account` is present; see
+    /// [`AuthConfigBuilder::with_account`] for the owner's global-flag
+    /// wire-up seam.
+    pub async fn with_account_store(&self, account: impl Into<String>) -> Result<Self> {
+        Self::new_for(self.config.clone(), account).await
+    }
+
+    /// A fresh handle on the DEFAULT account's store — today's exact entry
+    /// naming, no account suffix.
+    ///
+    /// `grr auth login`/`status` rebuild their handle through this so a
+    /// named `--account` and the default take the same code path; without
+    /// an account it is behavior-identical to the original construction.
+    pub async fn with_default_account_store(&self) -> Result<Self> {
+        Self::with_store(
+            self.config.clone(),
+            TokenStore::default_named().await?,
+            None,
+        )
+        .await
     }
 
     /// Token storage backend in use (for logs and `auth login` output).
@@ -114,7 +172,7 @@ impl GoogleAuth {
     /// entirely until a test explicitly installs a token path.
     #[doc(hidden)]
     pub async fn with_token(config: OAuthConfig, storage: TokenStorage) -> Result<Self> {
-        let this = Self::with_store(config, TokenStore::Memory).await?;
+        let this = Self::with_store(config, TokenStore::Memory, None).await?;
         *this.token_storage.write().await = Some(storage);
         Ok(this)
     }

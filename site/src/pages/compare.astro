@@ -116,6 +116,20 @@ interface Cell {
   kind?: 'yes' | 'no' | 'gap' | 'na';
 }
 
+const cellClass = (kind: Cell['kind']) => {
+  switch (kind) {
+    case 'yes':
+      return 'text-base-content';
+    case 'gap':
+      return 'font-bold text-(--accent-text)';
+    case 'no':
+    case 'na':
+      return 'text-(--quiet)';
+    default:
+      return 'text-base-content/70';
+  }
+};
+
 const matrix: { label: string; cells: [Cell, Cell, Cell, Cell] }[] = [
   {
     label: 'Coverage',
@@ -208,17 +222,17 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
   description="Startup, schema-dump and api-index timings plus binary sizes for grr, gog and gws, measured daily in CI without credentials, and a feature matrix verified against each project's own docs."
 >
   <section class="section page-hero">
-    <div class="container page-hero-grid">
+    <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
       <div class="reveal">
         <span class="eyebrow">honest comparison</span>
-        <h1>Compare</h1>
-        <p>
+        <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Compare</h1>
+        <p class="m-0 max-w-[62ch] text-sm text-base-content/70">
           grr measured against the other Google Workspace CLIs. Every number below was actually run —
           no vendor benchmarks, no estimates. Where grr is behind, the table says so; where a claim
           could not be verified, it says that instead.
         </p>
       </div>
-      <p class="page-hero-aside reveal">
+      <p class="page-hero-aside reveal m-0 pb-1 text-xs whitespace-nowrap text-(--quiet)">
         snapshot <time datetime={generatedAt}>{generatedLabel}</time>
       </p>
     </div>
@@ -232,7 +246,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           <h2 id="read-title">How to read this</h2>
         </div>
       </div>
-      <div class="compare-read">
+      <div class="compare-read max-w-[72ch]">
         <p>
           Measured metrics are credential-free by design: process startup (<code>--version</code>), the
           <code>grr schema</code> JSON contract dump, the <code>grr api list</code> method index and
@@ -256,26 +270,26 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           confirmed nor denied.
         </p>
       </div>
-      <dl class="compare-env">
+      <dl class="compare-env mt-5 flex flex-wrap gap-x-10 gap-y-3 border border-base-300 bg-base-100 p-4">
         <div>
-          <dt>measured on</dt>
-          <dd>{environment?.platform ?? 'unknown'} / {environment?.arch ?? 'unknown'}</dd>
+          <dt class="text-[11px] uppercase text-(--quiet)">measured on</dt>
+          <dd class="m-0 mt-1 text-[13px]">{environment?.platform ?? 'unknown'} / {environment?.arch ?? 'unknown'}</dd>
         </div>
         <div>
-          <dt>grr binary</dt>
-          <dd>{environment?.binaryKind ?? 'none'}{environment?.grrVersion ? ` · ${environment.grrVersion}` : ''}</dd>
+          <dt class="text-[11px] uppercase text-(--quiet)">grr binary</dt>
+          <dd class="m-0 mt-1 text-[13px]">{environment?.binaryKind ?? 'none'}{environment?.grrVersion ? ` · ${environment.grrVersion}` : ''}</dd>
         </div>
         <div>
-          <dt>latest releases</dt>
-          <dd>{latestReleases || 'unknown'}</dd>
+          <dt class="text-[11px] uppercase text-(--quiet)">latest releases</dt>
+          <dd class="m-0 mt-1 text-[13px]">{latestReleases || 'unknown'}</dd>
         </div>
         <div>
-          <dt>node</dt>
-          <dd>{environment?.nodeVersion ?? 'unknown'}</dd>
+          <dt class="text-[11px] uppercase text-(--quiet)">node</dt>
+          <dd class="m-0 mt-1 text-[13px]">{environment?.nodeVersion ?? 'unknown'}</dd>
         </div>
         <div>
-          <dt>warm-up</dt>
-          <dd>{protocol?.warmupRunsDiscarded ?? 1} run discarded per metric</dd>
+          <dt class="text-[11px] uppercase text-(--quiet)">warm-up</dt>
+          <dd class="m-0 mt-1 text-[13px]">{protocol?.warmupRunsDiscarded ?? 1} run discarded per metric</dd>
         </div>
       </dl>
     </div>
@@ -291,22 +305,22 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
         <p>Medians of {protocol?.runs ?? 15} runs on the machine named above. A missing card value means the command is not present in the measured binary — the reason is printed, never padded.</p>
       </div>
 
-      <div class="stats-grid">
+      <div class="stats stats-vertical w-full border border-base-300 bg-base-100 sm:stats-horizontal">
         {
           cards.map((card) => (
-            <article class="stat-card">
-              <span class="stat-label">{card.label}</span>
-              <strong class="stat-value">{card.value}</strong>
-              <span class="stat-detail">{card.detail}</span>
-            </article>
+            <div class="stat stat-card">
+              <div class="stat-title stat-label">{card.label}</div>
+              <div class="stat-value">{card.value}</div>
+              <div class="stat-desc">{card.detail}</div>
+            </div>
           ))
         }
       </div>
 
       {
         columns.length > 1 ? (
-          <div class="compare-table-wrap">
-            <table class="compare-table">
+          <div class="compare-table-wrap mt-7 overflow-x-auto border border-base-300 bg-base-100">
+            <table class="compare-table table table-zebra">
               <caption class="stat-label">
                 startup time (<code>--version</code>) and unpacked binary size, identical protocol per tool
               </caption>
@@ -324,7 +338,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
                   <tr>
                     <th scope="row">
                       {column.name}
-                      {column.version && <span class="compare-version">{column.version}</span>}
+                      {column.version && <span class="compare-version mt-0.5 block text-[11px] font-normal text-(--quiet)">{column.version}</span>}
                     </th>
                     <td>{ms(column.startup?.available ? column.startup?.medianMs : undefined)}</td>
                     <td>{ms(column.startup?.available ? column.startup?.p95Ms : undefined)}</td>
@@ -336,7 +350,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
             </table>
           </div>
         ) : (
-          <p class="compare-absent">
+          <p class="compare-absent m-0 mt-6 max-w-[72ch] text-sm text-base-content/70">
             No competitor tool could be obtained and run for this snapshot, so the numeric comparison
             shows grr alone. Nothing was invented for tools that could not run — that is the point.
             The benchmark keeps trying on every daily run and the table appears as soon as one does.
@@ -346,7 +360,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
 
       {
         unavailableCompetitors.length > 0 && (
-          <ul class="compare-unavailable">
+          <ul class="compare-unavailable m-0 mt-3.5 list-disc pl-5 text-xs text-(--quiet)">
             {unavailableCompetitors.map((row) => (
               <li>
                 <code>{row.tool}</code> unavailable for this snapshot — {row.reason}
@@ -385,8 +399,8 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
         </p>
       </div>
 
-      <div class="compare-table-wrap">
-        <table class="compare-table compare-matrix">
+      <div class="compare-table-wrap mt-7 overflow-x-auto border border-base-300 bg-base-100">
+        <table class="compare-table compare-matrix table table-zebra">
           <thead>
             <tr>
               <th scope="col">feature</th>
@@ -399,9 +413,9 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
             {
               matrix.map((row) => (
                 <tr>
-                  <th scope="row">{row.label}</th>
+                  <th scope="row" class="font-normal">{row.label}</th>
                   {row.cells.map((cell) => (
-                    <td class={cell.kind ? `is-${cell.kind}` : undefined}>{cell.text}</td>
+                    <td class={cell.kind ? cellClass(cell.kind) : 'text-base-content/70'}>{cell.text}</td>
                   ))}
                 </tr>
               ))
@@ -409,7 +423,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           </tbody>
         </table>
       </div>
-      <div class="compare-read">
+      <div class="compare-read mt-6 max-w-[72ch]">
         <p>
           Where the others win: <a href="https://github.com/steipete/gogcli">gog</a> covers 27
           services — including Classroom, Meet and Analytics, which grr does not touch yet — and it
@@ -430,7 +444,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           and a machine-readable <code>schema</code> contract for agents. An MCP server and agent
           skills are on the roadmap, not on this page.
         </p>
-        <p class="compare-sources">
+        <p class="compare-sources text-(--quiet)">
           Sources: gog cells from its README (quick start, accounts, MCP guide) plus
           <code>gog auth services</code> and <code>gog --help</code> on the v0.42.0 release binary;
           gws cells from its README and <code>gws --help</code> / <code>gws auth --help</code> on the
@@ -442,132 +456,3 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
     </div>
   </section>
 </BaseLayout>
-
-<style>
-  .compare-read {
-    max-width: 72ch;
-  }
-
-  .compare-read p {
-    margin: 0 0 14px;
-    color: var(--ink-soft);
-    font-size: 14px;
-    line-height: 1.75;
-  }
-
-  .compare-read a {
-    color: var(--accent-text);
-  }
-
-  .compare-env {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px 40px;
-    margin: 22px 0 0;
-    padding: 14px 16px;
-    border: 1px solid var(--line);
-    background: var(--surface);
-  }
-
-  .compare-env dt {
-    color: var(--muted);
-    font-size: 11px;
-    text-transform: uppercase;
-  }
-
-  .compare-env dd {
-    margin: 4px 0 0;
-    font-size: 13px;
-    color: var(--ink);
-  }
-
-  .compare-table-wrap {
-    margin-top: 28px;
-    overflow-x: auto;
-    border: 1px solid var(--line);
-    background: var(--surface);
-  }
-
-  .compare-table {
-    width: 100%;
-    min-width: 640px;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-
-  .compare-table caption {
-    text-align: left;
-    padding: 14px 16px 0;
-  }
-
-  .compare-table th,
-  .compare-table td {
-    padding: 10px 14px;
-    border-top: 1px solid var(--line);
-    text-align: left;
-    vertical-align: top;
-    line-height: 1.55;
-    color: var(--ink-soft);
-  }
-
-  .compare-table thead th {
-    border-top: none;
-    color: var(--muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
-  /* Row labels read as labels, not data. */
-  .compare-table tbody th[scope='row'] {
-    color: var(--ink);
-    white-space: nowrap;
-  }
-
-  .compare-matrix tbody th[scope='row'] {
-    font-weight: normal;
-  }
-
-  .compare-version {
-    display: block;
-    margin-top: 2px;
-    color: var(--quiet);
-    font-size: 11px;
-    font-weight: normal;
-    white-space: normal;
-  }
-
-  .compare-table td.is-yes {
-    color: var(--ink);
-  }
-
-  .compare-table td.is-gap {
-    color: var(--accent-text);
-    font-weight: bold;
-  }
-
-  .compare-table td.is-no,
-  .compare-table td.is-na {
-    color: var(--muted);
-  }
-
-  .compare-absent {
-    margin: 24px 0 0;
-    max-width: 72ch;
-    color: var(--ink-soft);
-    font-size: 14px;
-    line-height: 1.75;
-  }
-
-  .compare-unavailable {
-    margin: 14px 0 0;
-    padding: 0 0 0 18px;
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.7;
-  }
-
-  .compare-sources {
-    color: var(--quiet);
-  }
-</style>

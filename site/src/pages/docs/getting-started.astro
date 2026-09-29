@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import DocsShell from '../../components/DocsShell.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
 import SectionIntro from '../../components/SectionIntro.astro';
 
@@ -59,149 +60,165 @@ const scopes = `$ grr api call gmail.users.messages.list --param userId=me --dry
   title="Getting started"
   description="Install grr on macOS, Linux, and Windows, log in once with grr auth login, run your first command, and verify auth status and the HTTP/3 transport."
 >
-  <section class="page-hero section">
-    <div class="container page-hero-grid">
-      <div class="reveal">
-        <span class="eyebrow">getting started</span>
-        <h1>Install, log in once, and read some mail.</h1>
-        <p>Four platforms, one login, and output you can pipe. This page is the whole first-run path; everything after it lives in <a href={`${base}docs/commands/`}>Commands</a> and <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
+  <DocsShell currentPath={`${base}docs/getting-started/`}>
+    <section class="page-hero section">
+      <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
+        <div class="reveal">
+          <span class="eyebrow">getting started</span>
+          <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Install, log in once, and read some mail.</h1>
+          <p class="m-0 max-w-[62ch] text-sm text-base-content/70">Four platforms, one login, and output you can pipe. This page is the whole first-run path; everything after it lives in <a href={`${base}docs/commands/`}>Commands</a> and <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
+        </div>
+        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">release binaries are zero-config · no OAuth setup needed</div>
       </div>
-      <div class="page-hero-aside reveal">release binaries are zero-config · no OAuth setup needed</div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section" aria-labelledby="install-title">
-    <div class="container">
-      <SectionIntro
-        id="install-title"
-        eyebrow="step one"
-        title="Install the binary."
-        copy="The published executable is named grr, even though the crates.io package is grr-cli because the short crate name was already taken."
-      />
-      <div class="install-grid">
-        <article class="install-card install-card-wide">
-          <h2>macOS (Apple silicon) and Linux (x86_64)</h2>
-          <p>The project&rsquo;s Homebrew tap serves arm64 macOS and x86_64 Linux builds. Tap it, trust it, then install by formula name.</p>
-          <p class="install-note">Since Homebrew 4.4 third-party taps are untrusted by default, so <code>brew trust</code> is <strong>required</strong> before Homebrew will install a formula from the tap. Skipping it fails the install, it is not a warning.</p>
-          <CodeBlock code={homebrew} label="homebrew" />
-        </article>
-        <article class="install-card">
-          <h2>Windows (x64 and ARM64)</h2>
-          <p>Both Windows architectures are available through winget, and both are also published as release archives.</p>
-          <CodeBlock code={winget} label="winget" />
-        </article>
-        <article class="install-card">
-          <h2>Prebuilt archives</h2>
-          <p>Four targets are published: <code>macos-aarch64</code> and <code>linux-x86_64</code> as <code>.tar.zst</code> (zstd level 22), and <code>windows-x86_64</code> and <code>windows-aarch64</code> as <code>.zip</code>. Archives ship a <code>SHA256SUMS</code> file.</p>
-          <p class="install-note">Windows keeps <code>.zip</code> deliberately: Explorer&rsquo;s built-in extractor only reads deflate, so an lzma2-in-zip archive would be unopenable without 7-Zip.</p>
-          <a class="button button-primary" href={releaseUrl} target="_blank" rel="noreferrer">Open GitHub Releases <span aria-hidden="true">↗</span></a>
-        </article>
-        <article class="install-card">
-          <h2>crates.io</h2>
-          <p>The default CLI enables HTTP/3, and reqwest&rsquo;s QUIC support is gated behind Rust nightly plus the <code>reqwest_unstable</code> cfg, so a source install needs both.</p>
-          <CodeBlock code={cargo} label="cargo · unix" />
-          <CodeBlock code={cargoPs} label="cargo · powershell" />
-        </article>
-        <article class="install-card">
-          <h2>From a local clone</h2>
-          <p>The repository pins nightly in <code>rust-toolchain.toml</code> and its Cargo config already sets the unstable cfg and build-std flags, so a clone builds without extra ceremony.</p>
-          <CodeBlock code={source} label="local clone" />
-        </article>
+    <section class="section" aria-labelledby="install-title">
+      <div class="container">
+        <SectionIntro
+          id="install-title"
+          eyebrow="step one"
+          title="Install the binary."
+          copy="The published executable is named grr, even though the crates.io package is grr-cli because the short crate name was already taken."
+        />
+        <div class="install-grid mt-7 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <article class="install-card install-card-wide card card-border border-base-300 bg-base-100 lg:col-span-2">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base">macOS (Apple silicon) and Linux (x86_64)</h2>
+              <p class="m-0 text-[13px] text-base-content/70">The project&rsquo;s Homebrew tap serves arm64 macOS and x86_64 Linux builds. Tap it, trust it, then install by formula name.</p>
+              <p class="install-note m-0 mt-2 text-xs text-(--quiet)">Since Homebrew 4.4 third-party taps are untrusted by default, so <code>brew trust</code> is <strong>required</strong> before Homebrew will install a formula from the tap. Skipping it fails the install, it is not a warning.</p>
+              <CodeBlock code={homebrew} label="homebrew" />
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base">Windows (x64 and ARM64)</h2>
+              <p class="m-0 text-[13px] text-base-content/70">Both Windows architectures are available through winget, and both are also published as release archives.</p>
+              <CodeBlock code={winget} label="winget" />
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base">Prebuilt archives</h2>
+              <p class="m-0 text-[13px] text-base-content/70">Four targets are published: <code>macos-aarch64</code> and <code>linux-x86_64</code> as <code>.tar.zst</code> (zstd level 22), and <code>windows-x86_64</code> and <code>windows-aarch64</code> as <code>.zip</code>. Archives ship a <code>SHA256SUMS</code> file.</p>
+              <p class="install-note m-0 mt-2 text-xs text-(--quiet)">Windows keeps <code>.zip</code> deliberately: Explorer&rsquo;s built-in extractor only reads deflate, so an lzma2-in-zip archive would be unopenable without 7-Zip.</p>
+              <a class="btn btn-primary btn-sm mt-3 w-fit" href={releaseUrl} target="_blank" rel="noreferrer">Open GitHub Releases <span aria-hidden="true">↗</span></a>
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base">crates.io</h2>
+              <p class="m-0 text-[13px] text-base-content/70">The default CLI enables HTTP/3, and reqwest&rsquo;s QUIC support is gated behind Rust nightly plus the <code>reqwest_unstable</code> cfg, so a source install needs both.</p>
+              <CodeBlock code={cargo} label="cargo · unix" />
+              <CodeBlock code={cargoPs} label="cargo · powershell" />
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base">From a local clone</h2>
+              <p class="m-0 text-[13px] text-base-content/70">The repository pins nightly in <code>rust-toolchain.toml</code> and its Cargo config already sets the unstable cfg and build-std flags, so a clone builds without extra ceremony.</p>
+              <CodeBlock code={source} label="local clone" />
+            </div>
+          </article>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="section" aria-labelledby="auth-title">
-    <div class="container">
-      <SectionIntro
-        id="auth-title"
-        eyebrow="step two"
-        title="Log in once. One credential, ten services."
-        copy="Release binaries are compiled with a Google OAuth client, so there is nothing to configure. Source builds ship no client and need grr auth setup first."
-      />
-    </div>
-    <div class="container prose reveal">
-      <p class="lead">PKCE is always enabled. The browser flow binds a loopback listener on port 3434 and completes when Google redirects back; <code>--device</code> prints a URL and a code instead, for SSH sessions and containers.</p>
-      <p>Tokens are written to the operating system keyring &mdash; Windows Credential Manager, macOS Keychain, or the Linux Secret Service over D-Bus. On a headless machine with no keyring daemon, grr falls back to <code>&lt;cache dir&gt;/grr/token.json</code> and imports it back into the keyring later. Check which one you got from the <code>token_backend</code> field that <code>grr auth login</code> prints.</p>
-      <CodeBlock code={firstRun} label="first run" />
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="verify-title">
-    <div class="container">
-      <SectionIntro
-        id="verify-title"
-        eyebrow="step three"
-        title="Verify before you automate."
-        copy="Two commands tell you whether the install is healthy: grr auth status proves the credential, grr transport proves the wire."
-      />
-      <div class="install-grid">
-        <article class="install-card">
-          <h2><code>grr auth status</code></h2>
-          <p>Makes a live Gmail <code>users.getProfile</code> call, so it fails loudly when the token is missing, expired without a refresh token, or revoked. The exit status is the signal, not the prose.</p>
-          <p class="install-note">Returns <code>authenticated</code>, <code>email</code>, <code>messages_total</code>, <code>threads_total</code>, and <code>history_id</code>. Save <code>history_id</code>: it is the cursor for <code>grr gmail users history list</code>.</p>
-        </article>
-        <article class="install-card">
-          <h2><code>grr transport</code></h2>
-          <p>Reports the negotiated protocol and the runtime features detected on this machine. HTTP/3 is always requested and always compiled in; <code>fell_back</code> tells you whether QUIC was actually used.</p>
-          <p class="install-note">This is the one command that prints a plain-text report rather than JSON, so do not pipe it into a JSON parser.</p>
-        </article>
+    <section class="section" aria-labelledby="auth-title">
+      <div class="container">
+        <SectionIntro
+          id="auth-title"
+          eyebrow="step two"
+          title="Log in once. One credential, ten services."
+          copy="Release binaries are compiled with a Google OAuth client, so there is nothing to configure. Source builds ship no client and need grr auth setup first."
+        />
       </div>
-    </div>
-    <div class="container prose reveal">
-      <CodeBlock code={transport} label="grr transport" />
-      <p>A <code>negotiated_protocol</code> of <code>HTTP_3</code> means QUIC worked end to end. <code>HTTP_2</code> with <code>fell_back: true</code> is normal behind a proxy or on a network that blocks UDP; nothing is broken, you are just on the fallback path.</p>
-    </div>
-  </section>
+      <div class="container prose reveal">
+        <p class="lead">PKCE is always enabled. The browser flow binds a loopback listener on port 3434 and completes when Google redirects back; <code>--device</code> prints a URL and a code instead, for SSH sessions and containers.</p>
+        <p>Tokens are written to the operating system keyring &mdash; Windows Credential Manager, macOS Keychain, or the Linux Secret Service over D-Bus. On a headless machine with no keyring daemon, grr falls back to <code>&lt;cache dir&gt;/grr/token.json</code> and imports it back into the keyring later. Check which one you got from the <code>token_backend</code> field that <code>grr auth login</code> prints.</p>
+        <CodeBlock code={firstRun} label="first run" />
+      </div>
+    </section>
 
-  <section class="section" aria-labelledby="headless-title">
-    <div class="container prose reveal">
-      <h2 id="headless-title">Headless and CI</h2>
-      <p>Two commands behave differently when there is no terminal, and both refuse to hang rather than block forever on a prompt.</p>
-      <ul>
-        <li><code>grr auth login --device</code> prints the verification URL and a user code, then polls until you approve. It is the only login path that works over plain SSH.</li>
-        <li><code>grr auth setup</code> needs <code>--client-id</code> and <code>--client-secret</code> when stdin is not a TTY, and exits with an error instead of waiting for input. Add <code>--print-only</code> to get the recipe and the config path without writing anything.</li>
-        <li><code>grr auth setup --force</code> overwrites an existing <code>~/.grr/config.toml</code>. Without it, an existing file is never replaced.</li>
-        <li><code>--enable-apis</code> shells out to <code>gcloud services enable</code> for the ten service APIs (gmail, calendar-json, drive, people, chat, forms, tasks, docs, sheets, slides) when <code>gcloud</code> is on <code>PATH</code>. It is best-effort: a failure warns and setup still succeeds.</li>
-      </ul>
-      <CodeBlock code={agentic} label="headless · setup" />
-      <p>Client ids are shape-checked before anything is written: the value must end in <code>.apps.googleusercontent.com</code> and the secret must be at least ten characters. A truncated paste is caught immediately rather than becoming an opaque 400 from Google&rsquo;s token endpoint later.</p>
-    </div>
-  </section>
+    <section class="section" aria-labelledby="verify-title">
+      <div class="container">
+        <SectionIntro
+          id="verify-title"
+          eyebrow="step three"
+          title="Verify before you automate."
+          copy="Two commands tell you whether the install is healthy: grr auth status proves the credential, grr transport proves the wire."
+        />
+        <div class="install-grid mt-7 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base"><code>grr auth status</code></h2>
+              <p class="m-0 text-[13px] text-base-content/70">Makes a live Gmail <code>users.getProfile</code> call, so it fails loudly when the token is missing, expired without a refresh token, or revoked. The exit status is the signal, not the prose.</p>
+              <p class="install-note m-0 mt-2 text-xs text-(--quiet)">Returns <code>authenticated</code>, <code>email</code>, <code>messages_total</code>, <code>threads_total</code>, and <code>history_id</code>. Save <code>history_id</code>: it is the cursor for <code>grr gmail users history list</code>.</p>
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base"><code>grr transport</code></h2>
+              <p class="m-0 text-[13px] text-base-content/70">Reports the negotiated protocol and the runtime features detected on this machine. HTTP/3 is always requested and always compiled in; <code>fell_back</code> tells you whether QUIC was actually used.</p>
+              <p class="install-note m-0 mt-2 text-xs text-(--quiet)">This is the one command that prints a plain-text report rather than JSON, so do not pipe it into a JSON parser.</p>
+            </div>
+          </article>
+        </div>
+      </div>
+      <div class="container prose reveal mt-8">
+        <CodeBlock code={transport} label="grr transport" />
+        <p>A <code>negotiated_protocol</code> of <code>HTTP_3</code> means QUIC worked end to end. <code>HTTP_2</code> with <code>fell_back: true</code> is normal behind a proxy or on a network that blocks UDP; nothing is broken, you are just on the fallback path.</p>
+      </div>
+    </section>
 
-  <section class="section" aria-labelledby="config-title">
-    <div class="container prose reveal">
-      <h2 id="config-title">Where configuration comes from</h2>
-      <p>Three sources, highest priority first:</p>
-      <ul>
-        <li>Environment variables: <code>GRR_OAUTH__CLIENT_ID</code> and <code>GRR_OAUTH__CLIENT_SECRET</code> (double underscore nests, single underscore becomes a dash).</li>
-        <li><code>~/.grr/config.toml</code>, or whatever <code>GRR_CONFIG_PATH</code> points at.</li>
-        <li>The OAuth client compiled into the binary at build time. This is the zero-config path, and it only applies when nothing else supplied a client id.</li>
-      </ul>
-      <p>There is no transport, concurrency, or output setting to tune. Those are compile-time constants; the only runtime knob is the OAuth client.</p>
-    </div>
-  </section>
+    <section class="section" aria-labelledby="headless-title">
+      <div class="container prose reveal">
+        <h2 id="headless-title">Headless and CI</h2>
+        <p>Two commands behave differently when there is no terminal, and both refuse to hang rather than block forever on a prompt.</p>
+        <ul>
+          <li><code>grr auth login --device</code> prints the verification URL and a user code, then polls until you approve. It is the only login path that works over plain SSH.</li>
+          <li><code>grr auth setup</code> needs <code>--client-id</code> and <code>--client-secret</code> when stdin is not a TTY, and exits with an error instead of waiting for input. Add <code>--print-only</code> to get the recipe and the config path without writing anything.</li>
+          <li><code>grr auth setup --force</code> overwrites an existing <code>~/.grr/config.toml</code>. Without it, an existing file is never replaced.</li>
+          <li><code>--enable-apis</code> shells out to <code>gcloud services enable</code> for the ten service APIs (gmail, calendar-json, drive, people, chat, forms, tasks, docs, sheets, slides) when <code>gcloud</code> is on <code>PATH</code>. It is best-effort: a failure warns and setup still succeeds.</li>
+        </ul>
+        <CodeBlock code={agentic} label="headless · setup" />
+        <p>Client ids are shape-checked before anything is written: the value must end in <code>.apps.googleusercontent.com</code> and the secret must be at least ten characters. A truncated paste is caught immediately rather than becoming an opaque 400 from Google&rsquo;s token endpoint later.</p>
+      </div>
+    </section>
 
-  <section class="section" aria-labelledby="scope-title">
-    <div class="container prose reveal">
-      <h2 id="scope-title">Know which scopes you actually hold</h2>
-      <p class="lead">A release build consents to sixteen scopes. That set does not cover everything in the Discovery index — and every method reports the narrowest scope it accepts, so you can check before you rely on one.</p>
-      <p>Before a write, <code>grr api call … --dry-run</code> prints the exact URL, body, and scopes the method declares without sending anything. It is the cheapest way to find out whether a method is inside your consent boundary before you rely on it.</p>
-      <CodeBlock code={scopes} label="grr api call · --dry-run" />
-      <p>Tasks is the one service that needs a scope this build does not hold (<code>…/auth/tasks</code>), so its methods are visible in <code>grr api list</code> and describable, but will not authorize until the scope set is extended and you re-run <code>grr auth login</code>. <a href={`${base}docs/discovery/`}>Discovery API</a> has the full breakdown.</p>
-    </div>
-  </section>
+    <section class="section" aria-labelledby="config-title">
+      <div class="container prose reveal">
+        <h2 id="config-title">Where configuration comes from</h2>
+        <p>Three sources, highest priority first:</p>
+        <ul>
+          <li>Environment variables: <code>GRR_OAUTH__CLIENT_ID</code> and <code>GRR_OAUTH__CLIENT_SECRET</code> (double underscore nests, single underscore becomes a dash).</li>
+          <li><code>~/.grr/config.toml</code>, or whatever <code>GRR_CONFIG_PATH</code> points at.</li>
+          <li>The OAuth client compiled into the binary at build time. This is the zero-config path, and it only applies when nothing else supplied a client id.</li>
+        </ul>
+        <p>There is no transport, concurrency, or output setting to tune. Those are compile-time constants; the only runtime knob is the OAuth client.</p>
+      </div>
+    </section>
 
-  <section class="section" aria-labelledby="next-title">
-    <div class="container prose reveal">
-      <h2 id="next-title">Where to go next</h2>
-      <ul>
-        <li><a href={`${base}docs/commands/`}>Commands — the generated tree: naming rule, typed flags, and per-service examples</a></li>
-        <li><a href={`${base}docs/discovery/`}>Discovery API — the index behind the whole tree: 308 methods across ten APIs</a></li>
-        <li><a href={`${base}docs/agents/`}>Agents and harnesses — the output contract for driving grr programmatically</a></li>
-        <li><a href={`${base}install/`}>Install page — archive sizes and channel details</a></li>
-      </ul>
-      <p>And when you are ready to check a flag rather than trust a page: <code>grr schema</code> dumps the whole command tree as JSON, and <code>grr &lt;service&gt; --help</code> is authoritative.</p>
-    </div>
-  </section>
+    <section class="section" aria-labelledby="scope-title">
+      <div class="container prose reveal">
+        <h2 id="scope-title">Know which scopes you actually hold</h2>
+        <p class="lead">A release build consents to sixteen scopes. That set does not cover everything in the Discovery index — and every method reports the narrowest scope it accepts, so you can check before you rely on one.</p>
+        <p>Before a write, <code>grr api call … --dry-run</code> prints the exact URL, body, and scopes the method declares without sending anything. It is the cheapest way to find out whether a method is inside your consent boundary before you rely on it.</p>
+        <CodeBlock code={scopes} label="grr api call · --dry-run" />
+        <p>Tasks is the one service that needs a scope this build does not hold (<code>…/auth/tasks</code>), so its methods are visible in <code>grr api list</code> and describable, but will not authorize until the scope set is extended and you re-run <code>grr auth login</code>. <a href={`${base}docs/discovery/`}>Discovery API</a> has the full breakdown.</p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="next-title">
+      <div class="container prose reveal">
+        <h2 id="next-title">Where to go next</h2>
+        <ul>
+          <li><a href={`${base}docs/commands/`}>Commands — the generated tree: naming rule, typed flags, and per-service examples</a></li>
+          <li><a href={`${base}docs/discovery/`}>Discovery API — the index behind the whole tree: 308 methods across ten APIs</a></li>
+          <li><a href={`${base}docs/agents/`}>Agents and harnesses — the output contract for driving grr programmatically</a></li>
+          <li><a href={`${base}install/`}>Install page — archive sizes and channel details</a></li>
+        </ul>
+        <p>And when you are ready to check a flag rather than trust a page: <code>grr schema</code> dumps the whole command tree as JSON, and <code>grr &lt;service&gt; --help</code> is authoritative.</p>
+      </div>
+    </section>
+  </DocsShell>
 </BaseLayout>

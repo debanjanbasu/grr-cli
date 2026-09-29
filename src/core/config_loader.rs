@@ -74,6 +74,12 @@ impl ConfigLoader {
     fn env_provider() -> impl Provider {
         Env::raw().filter_map(|key| {
             let key = key.as_str();
+            // TYPESAFE_API_KEY -> systemone.api-key: the standard env route
+            // for the System One key, mirroring the OAuth secret's
+            // discipline (a key in a config file can leak with the file).
+            if key.eq_ignore_ascii_case("TYPESAFE_API_KEY") {
+                return Some("systemone.api-key".into());
+            }
             if let Some(stripped) = key.strip_prefix("GRR_") {
                 // GRR_OAUTH__CLIENT_ID -> oauth.client-id
                 // First replace __ with . for nesting, then _ with - for field names
@@ -118,6 +124,7 @@ mod resolution_order_tests {
                 client_id: id.to_owned(),
                 client_secret: secret.map(str::to_owned),
             },
+            ..GrrConfig::default()
         }
     }
 

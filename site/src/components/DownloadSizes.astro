@@ -31,20 +31,20 @@ const release = String(stats.latestRelease || `v${stats.version}`).replace(/^v/,
 const rows = platforms.map(({ key, label }) => ({ label, size: formatMegabytes(sizes[key]) }));
 ---
 
-<div class="download-sizes">
-  <div class="download-sizes-head">
+<div class="download-sizes mt-4">
+  <div class="download-sizes-head mb-1 flex items-center justify-between gap-4">
     <span class="stat-label">download sizes</span>
-    <span class="download-sizes-release">v{release}</span>
+    <span class="badge badge-secondary badge-sm">v{release}</span>
   </div>
-  <dl class="download-sizes-grid">
+  <dl class="download-sizes-grid grid grid-cols-2 gap-x-6 gap-y-3 m-0 sm:grid-cols-4">
     {
       rows.map((row) => (
         <div class="download-sizes-cell">
-          <dt>{row.label}</dt>
-          <dd class={row.size === '—' ? 'is-pending' : undefined}>{row.size}</dd>
+          <dt class="text-xs text-(--muted)">{row.label}</dt>
+          <dd class="m-0 mt-0.5 text-lg">{row.size}</dd>
         </div>
       ))
     }
   </dl>
-  {note && <p class="download-sizes-note">{note}</p>}
+  {note && <p class="download-sizes-note m-0 mt-3 text-xs text-(--quiet)">{note}</p>}
 </div>
