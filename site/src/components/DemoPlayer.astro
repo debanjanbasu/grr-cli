@@ -6,6 +6,14 @@
 // .cast fetch only load when this section scrolls near the viewport, so the
 // page's LCP is untouched. Astro's ClientRouter re-hydrates this component
 // after a client-side navigation, so the mount logic is idempotent.
+//
+// The player's CSS is imported HERE (the frontmatter), not inside the
+// client script: Astro bundles frontmatter CSS into the page, but an import
+// inside a client script is silently dropped — which once left the terminal
+// without `white-space: pre`, so the cast's newlines collapsed and the text
+// rendered as a scattered staircase.
+import 'asciinema-player/dist/bundle/asciinema-player.css';
+
 interface Props {
   src?: string;
   duration?: string;
@@ -25,7 +33,6 @@ const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = 
 
 <script>
   import { create } from 'asciinema-player';
-  import 'asciinema-player/dist/bundle/asciinema-player.css';
 
   function mount() {
     document.querySelectorAll<HTMLElement>('[data-demo-stage]').forEach((stage) => {
@@ -37,8 +44,11 @@ const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = 
         create(src, stage, {
           loop: true,
           autoPlay: true,
-          // The brand font: the demo renders in the same 3270 the site uses.
-          terminalFontFamily: "'IBM3270', 'IBM3270 Fallback', monospace",
+          // An explicit font-size: the player's auto sizing computes a cell
+          // width that drifts ~2.5% from the font's real advance, and over
+          // 80 columns that drift scatters the words across the canvas. A
+          // fixed size keeps the cell grid on the font's actual advance.
+          fontSize: '14px',
           theme: 'asciinema',
         });
       } catch (error) {
