@@ -18,7 +18,7 @@
 //! contract), a protocol failure a JSON-RPC error object.
 //!
 //! ```text
-//! {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}
+//! {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}
 //! {"jsonrpc":"2.0","method":"notifications/initialized"}
 //! {"jsonrpc":"2.0","id":2,"method":"tools/list"}
 //! {"jsonrpc":"2.0","id":3,"method":"tools/call",
@@ -34,10 +34,18 @@ use serde_json::{Map, Value, json};
 /// The protocol version this server speaks. A client asking for a version
 /// we understand gets it echoed; anything else gets this one — MCP's
 /// negotiation rule makes the server's answer authoritative.
-pub(crate) const PROTOCOL_VERSION: &str = "2025-06-18";
+///
+/// `2025-11-25` is the latest revision the official TypeScript SDK ships
+/// (`LATEST_PROTOCOL_VERSION` in @modelcontextprotocol/sdk 1.31.0), and
+/// its handshake is byte-compatible with this server's surface. The newer
+/// spec revision `2026-07-28` REMOVED the `initialize` handshake in favor
+/// of `server/discover` plus per-request version metadata — a different
+/// handshake shape this server does not implement, so it is deliberately
+/// not in the list: echoing it would promise a surface we cannot serve.
+pub(crate) const PROTOCOL_VERSION: &str = "2025-11-25";
 
 /// Versions understood well enough to echo verbatim.
-const SUPPORTED_VERSIONS: [&str; 2] = ["2024-11-05", "2025-06-18"];
+const SUPPORTED_VERSIONS: [&str; 3] = ["2024-11-05", "2025-06-18", "2025-11-25"];
 
 /// JSON-RPC 2.0 error codes.
 const PARSE_ERROR: i64 = -32700;
@@ -440,8 +448,12 @@ mod tests {
         let response = server.handle_line(&line).await.unwrap();
         assert_eq!(response["result"]["protocolVersion"], "2025-06-18");
 
+        let line = request(2, "initialize", r#"{"protocolVersion":"2025-11-25"}"#);
+        let response = server.handle_line(&line).await.unwrap();
+        assert_eq!(response["result"]["protocolVersion"], "2025-11-25");
+
         // An unknown version: the server's answer is authoritative.
-        let line = request(2, "initialize", r#"{"protocolVersion":"1999-01-01"}"#);
+        let line = request(3, "initialize", r#"{"protocolVersion":"1999-01-01"}"#);
         let response = server.handle_line(&line).await.unwrap();
         assert_eq!(response["result"]["protocolVersion"], PROTOCOL_VERSION);
     }
