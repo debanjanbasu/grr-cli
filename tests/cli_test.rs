@@ -31,6 +31,31 @@ fn configured_grr() -> Command {
 }
 
 #[test]
+fn version_output_is_a_banner_with_the_semver_on_the_first_line() {
+    // `--version` prints a banner: `grr <semver>`, the mascot crab, then
+    // the tagline. The first line must stay exactly `grr <semver>` —
+    // scripts/benchmark.ts parses it as the measured version and its gate
+    // compares it against Cargo.toml — while the Homebrew formula only
+    // needs the version as a substring anywhere in the output.
+    grr()
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with(concat!(
+            "grr ",
+            env!("CARGO_PKG_VERSION"),
+            "\n"
+        )))
+        // the mascot rides along: wide-set glossy eyes, small smile
+        .stdout(predicate::str::contains("(o) (o)"))
+        .stdout(predicate::str::contains("\\_/"))
+        // the tagline is the crate's about line — factual, no marketing
+        .stdout(predicate::str::contains(
+            "Google tools from the terminal, at maximum performance",
+        ));
+}
+
+#[test]
 fn top_level_help_lists_static_commands_and_every_service() {
     grr()
         .arg("--help")

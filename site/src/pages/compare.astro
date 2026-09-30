@@ -104,6 +104,19 @@ const columns = [
   ...availableCompetitors.map((row) => ({ name: row.tool, version: row.version ?? '', startup: row.startup, binary: row.binary })),
 ];
 
+// The binary-size row of the feature matrix reads the same measured snapshot
+// as the numeric table above, so the two can never disagree.
+const gogRow = competitors.find((row) => row.tool === 'gog');
+const gwsRow = competitors.find((row) => row.tool === 'gws');
+const unpackedSize = (binary: Binary | undefined) =>
+  typeof binary?.bytes === 'number' && Number.isFinite(binary.bytes) ? megabytes(binary.bytes) : '—';
+const grrBytes = grr.binary?.bytes;
+const measuredBytes = [grrBytes, gogRow?.binary?.bytes, gwsRow?.binary?.bytes].filter(
+  (bytes): bytes is number => typeof bytes === 'number' && Number.isFinite(bytes),
+);
+const grrSmallest =
+  typeof grrBytes === 'number' && measuredBytes.length === 3 && Math.min(...measuredBytes) >= grrBytes;
+
 // ---------------------------------------------------------------------------
 // Feature matrix. Every cell cites the project's own documentation or a
 // running release binary (sources listed under the table). Cells we could
@@ -134,16 +147,73 @@ const matrix: { label: string; cells: [Cell, Cell, Cell, Cell] }[] = [
   {
     label: 'Coverage',
     cells: [
-      { text: '308 methods across 10 APIs — generated from a Discovery index committed to the repo, works offline', kind: 'yes' },
+      {
+        text: '401 methods across the 14 consumer Workspace APIs — every Workspace API a consumer account can actually authorise (domain-locked services like Classroom and Meet are deliberately out of scope) — generated from a Discovery index committed to the repo, works offline',
+        kind: 'yes',
+      },
       { text: '27 services, incl. Classroom, Meet, Analytics, Ads, YouTube', kind: 'yes' },
       { text: 'Every Workspace API — command surface built from Google’s live Discovery Service at runtime', kind: 'yes' },
       { text: 'n/a — fixed per-product toolsets', kind: 'na' },
     ],
   },
   {
+    label: 'Natural-language entry',
+    cells: [
+      {
+        text: 'Yes — grr ask "<request>": a System One model (Jev by default, provider-agnostic config) picks service → method and fills each required parameter from code-supplied candidates via one typed question; the plan prints by default, --run executes it. Neither competitor documents an equivalent',
+        kind: 'yes',
+      },
+      { text: 'Not documented', kind: 'na' },
+      { text: 'Not documented', kind: 'na' },
+      { text: 'n/a — the MCP client is the interface', kind: 'na' },
+    ],
+  },
+  {
+    label: 'MCP server',
+    cells: [
+      {
+        text: 'Yes — grr mcp: all 401 methods as typed MCP tools over stdio (inputSchema from Discovery); --readonly for a read-only server; tools/call runs the same call path as grr api call',
+        kind: 'yes',
+      },
+      { text: 'Yes — gog mcp, typed stdio, read-only by default', kind: 'yes' },
+      { text: 'No — v0.22.5 has no mcp command; no MCP section in its README', kind: 'no' },
+      { text: 'Is one — hosted remote servers (Developer Preview)', kind: 'yes' },
+    ],
+  },
+  {
+    label: 'Agent skills',
+    cells: [
+      {
+        text: 'Yes — packaged skills/grr/SKILL.md (discover-first discipline, the naming rule, the output contract); npx skills add https://github.com/debanjanbasu/grr-cli',
+        kind: 'yes',
+      },
+      { text: 'Yes — schema, reference pages and skills generated from the same command tree', kind: 'yes' },
+      { text: 'Yes — 100+ SKILL.md files, one per API, plus 50 curated recipes', kind: 'yes' },
+      { text: 'n/a — agents connect directly via MCP', kind: 'na' },
+    ],
+  },
+  {
+    label: 'Multi-account',
+    cells: [
+      { text: 'Yes — named accounts (--account work) keep a separate token each in the OS keyring', kind: 'yes' },
+      { text: 'Yes — accounts, aliases, keyring-stored tokens', kind: 'yes' },
+      { text: 'Not documented', kind: 'na' },
+      { text: 'n/a', kind: 'na' },
+    ],
+  },
+  {
+    label: 'Safety profiles',
+    cells: [
+      { text: 'Global --readonly, --deny-service and --deny-verb flags, honored by every entry point: the command tree, grr api call, grr ask and grr mcp', kind: 'yes' },
+      { text: 'Global --readonly and --no-input, exact command allowlists, Gmail no-send policy, dry-run plans; build-time Safety Profiles documented', kind: 'yes' },
+      { text: 'Not documented', kind: 'na' },
+      { text: 'n/a — per-server OAuth scopes', kind: 'na' },
+    ],
+  },
+  {
     label: 'HTTP/3 (QUIC)',
     cells: [
-      { text: 'Always on, HTTP/2 fallback', kind: 'yes' },
+      { text: 'Always on, HTTP/2 fallback — the only tool in this table that documents HTTP/3', kind: 'yes' },
       { text: 'Not documented', kind: 'na' },
       { text: 'Not documented', kind: 'na' },
       { text: 'n/a', kind: 'na' },
@@ -152,7 +222,7 @@ const matrix: { label: string; cells: [Cell, Cell, Cell, Cell] }[] = [
   {
     label: 'Zero-config OAuth',
     cells: [
-      { text: 'Yes — release binaries ship the client compiled in (source builds run grr auth setup)', kind: 'yes' },
+      { text: 'Yes — release binaries ship the client compiled in (source builds run grr auth setup) — the only one in this table', kind: 'yes' },
       { text: 'No — create your own Desktop OAuth client in Google Cloud', kind: 'no' },
       { text: 'No — GCP project + OAuth client required (auth setup)', kind: 'no' },
       { text: 'No — own GCP project, OAuth consent screen and Web client per server', kind: 'no' },
@@ -163,35 +233,17 @@ const matrix: { label: string; cells: [Cell, Cell, Cell, Cell] }[] = [
     cells: [
       { text: 'None — single static binary', kind: 'yes' },
       { text: 'None — single binary', kind: 'yes' },
-      { text: 'None installed — but the command surface is built from live Discovery at runtime', kind: 'yes' },
+      { text: 'Node 18+ for npm install; pre-built binaries also published' },
       { text: 'No CLI to install — any MCP client', kind: 'na' },
     ],
   },
   {
-    label: 'MCP server',
+    label: 'Binary size (unpacked)',
     cells: [
-      { text: 'Not yet', kind: 'gap' },
-      { text: 'Yes — gog mcp, typed stdio, read-only by default', kind: 'yes' },
-      { text: 'Not documented', kind: 'na' },
-      { text: 'Is one — hosted remote servers (Developer Preview)', kind: 'yes' },
-    ],
-  },
-  {
-    label: 'Agent skills',
-    cells: [
-      { text: 'Not yet', kind: 'gap' },
-      { text: 'Yes — schema, reference pages and skills generated from the same command tree', kind: 'yes' },
-      { text: 'Yes — 100+ SKILL.md files, one per API, plus 50 curated recipes', kind: 'yes' },
-      { text: 'n/a — agents connect directly via MCP', kind: 'na' },
-    ],
-  },
-  {
-    label: 'Multi-account',
-    cells: [
-      { text: 'Not yet', kind: 'gap' },
-      { text: 'Yes — accounts, aliases, keyring-stored tokens', kind: 'yes' },
-      { text: 'Not documented', kind: 'na' },
-      { text: 'n/a', kind: 'na' },
+      { text: `${unpackedSize(grr.binary)}${grrSmallest ? ' — smallest of the three' : ''}`, kind: 'yes' },
+      { text: unpackedSize(gogRow?.binary) },
+      { text: unpackedSize(gwsRow?.binary) },
+      { text: 'n/a — hosted service', kind: 'na' },
     ],
   },
   {
@@ -394,8 +446,9 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           <h2 id="matrix-title">What each tool actually offers</h2>
         </div>
         <p>
-          Verified against each project's own documentation and release binaries. grr's gaps are
-          marked as gaps — they are real.
+          Verified against each project’s own documentation and running binaries — grr’s cells
+          were re-verified against the current build. Where grr trails, the row says so; where it
+          leads, the row says that too.
         </p>
       </div>
 
@@ -425,31 +478,47 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
       </div>
       <div class="compare-read mt-6 max-w-[72ch]">
         <p>
-          Where the others win: <a href="https://github.com/steipete/gogcli">gog</a> covers 27
-          services — including Classroom, Meet and Analytics, which grr does not touch yet — and it
-          already ships an MCP server (<code>gog mcp</code>) and multi-account routing today.
-          <a href="https://github.com/googleworkspace/cli">gws</a> rebuilds its entire command
-          surface from Google's live Discovery Service — when Google adds a method, gws has it
-          without a release — and ships 100+ agent skills. Google's
+          Where the others still win: <a href="https://github.com/steipete/gogcli">gog</a> covers 27
+          services — including domain-locked enterprise APIs like Classroom and Meet that a consumer
+          account cannot authorise and that grr deliberately leaves out.
+          <a href="https://github.com/googleworkspace/cli">gws</a> covers every Workspace API, not
+          just the consumer 14 — its command surface is rebuilt from Google's live Discovery
+          Service, so when Google adds a method, gws has it without a release — and it ships 100+
+          agent skills. Google's
           <a href="https://developers.google.com/workspace/guides/configure-mcp-servers">
             remote MCP servers
           </a>
           need no local install at all.
         </p>
         <p>
-          Where grr bets differently: the full 308-method surface is generated from a Discovery
-          index that is committed to the repository — reviewable in a diff, working offline — rather
-          than fetched at runtime; HTTP/3 as the only transport, OAuth compiled into release
-          binaries so first run is zero-config, a small static binary with no runtime dependencies,
-          and a machine-readable <code>schema</code> contract for agents. An MCP server and agent
-          skills are on the roadmap, not on this page.
+          Where grr goes further: <code>grr ask</code> takes a request in plain words; a System One
+          model (Jev by default) classifies the service and the method, then fills each required
+          parameter by asking one typed question with every candidate code-supplied — the model can
+          only select. Neither competitor documents anything like it. <code>grr mcp</code> exposes
+          all 401 methods as typed MCP tools and runs them through the same call path as
+          <code>grr api call</code>, behind the same <code>--readonly</code>,
+          <code>--deny-service</code> and <code>--deny-verb</code> gates as the rest of the CLI.
+          Named accounts keep separate tokens in the OS keyring. HTTP/3 is always on with HTTP/2
+          fallback, release binaries ship the OAuth client compiled in so the first run is
+          zero-config, and the measured binary is the smallest of the three — the size row above is
+          computed from the same snapshot, not typed by hand.
+        </p>
+        <p>
+          The original bet is unchanged: the command tree is generated from a Discovery index
+          committed to the repository — reviewable in a diff, working offline, refreshed by a
+          daily workflow — rather than rebuilt from live Discovery at runtime.
         </p>
         <p class="compare-sources text-(--quiet)">
-          Sources: gog cells from its README (quick start, accounts, MCP guide) plus
+          Sources: gog cells from its README (quick start, accounts, MCP guide, safety) plus
           <code>gog auth services</code> and <code>gog --help</code> on the v0.42.0 release binary;
           gws cells from its README and <code>gws --help</code> / <code>gws auth --help</code> on the
-          0.22.5 release binary and its LICENSE file; Google server cells from Google's
-          configure-mcp-servers guide (Developer Preview); grr cells from this repository.
+          0.22.5 release binary — which answers "Unknown service mcp" to <code>gws mcp</code> — and
+          its LICENSE file; Google server cells from Google's configure-mcp-servers guide
+          (Developer Preview). grr cells re-verified against the current binary:
+          <code>grr mcp --help</code>, a live initialize + tools/list handshake (401 tools, each
+          with an inputSchema), <code>grr ask --help</code>, <code>grr auth login --help</code>,
+          <code>grr auth status --help</code>, and <code>--readonly</code> / <code>--deny-verb</code>
+          refusal checks. The binary-size row reads the same measured snapshot as the table above.
           Unverifiable claims are labelled "Not documented" rather than guessed.
         </p>
       </div>

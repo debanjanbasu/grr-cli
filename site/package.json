@@ -13,13 +13,13 @@
     "update-stats": "node scripts/update-stats.ts"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.4",
+    "@astrojs/check": "^0.9.10",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "^24.19.0",
+    "@types/node": "^26.6.3",
     "astro": "^7.3.5",
-    "daisyui": "^5.7.46",
+    "daisyui": "^5.7.47",
     "tailwindcss": "^4.3.3",
-    "typescript": "^5.7.0"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "asciinema-player": "3.17.0"

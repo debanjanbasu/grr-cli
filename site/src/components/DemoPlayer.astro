@@ -44,10 +44,11 @@ const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = 
         create(src, stage, {
           loop: true,
           autoPlay: true,
-          // An explicit font-size: the player's auto sizing computes a cell
-          // width that drifts ~2.5% from the font's real advance, and over
-          // 80 columns that drift scatters the words across the canvas. A
-          // fixed size keeps the cell grid on the font's actual advance.
+          // The brand font — the demo renders in the same IBM 3270 the site
+          // uses, at the same size as the site's body text. (The earlier
+          // scatter was never the font: it was bare \n in the cast — see
+          // scripts/generate-demo.ts.)
+          terminalFontFamily: "'IBM3270', 'IBM3270 Fallback', monospace",
           fontSize: '14px',
           theme: 'asciinema',
         });

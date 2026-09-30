@@ -542,7 +542,12 @@ function buildCast(frames: Frame[], closing: string): { events: Array<[number, '
     if (i > 0) t += SEGMENT_GAP;
     if (f.kind === 'note') {
       t += NOTE_PAUSE;
-      ev.push([r3(t), 'o', `\u001b[2m${f.text}\u001b[0m\n`]);
+      // \r\n, never a bare \n: asciinema-player's canvas terminal treats a
+      // bare LF as "next row, SAME column" (strict LF, no implicit CR), so a
+      // synthesized cast with bare \n renders as a staircase — each line
+      // starting where the previous one ended. Real recordings carry \r\n
+      // from the TTY, which is why only synthesized casts ever broke.
+      ev.push([r3(t), 'o', `\u001b[2m${f.text}\u001b[0m\r\n`]);
       t += lineDelay(f.text.length);
       continue;
     }
@@ -555,21 +560,21 @@ function buildCast(frames: Frame[], closing: string): { events: Array<[number, '
       ? `\u001b[36m${BASH_PROMPT_USER}@${BASH_PROMPT_HOST}:~$\u001b[0m ${seg.display}`
       : `\u001b[36m$\u001b[0m ${seg.display}`;
     for (const l of wrapLine(echo)) {
-      ev.push([r3(t), 'o', l + '\n']);
+      ev.push([r3(t), 'o', l + '\r\n']);
       t += 0.02;
     }
     t += EXEC_DELAY;
     const delay = seg.kind === 'agent' ? agentLineDelay : lineDelay;
     for (const line of seg.lines) {
       for (const l of wrapLine(line)) {
-        ev.push([r3(t), 'o', l + '\n']);
+        ev.push([r3(t), 'o', l + '\r\n']);
         t += delay(l.length);
       }
       if (seg.kind === 'agent') t += 0.06;
     }
   }
   t += SEGMENT_GAP;
-  ev.push([r3(t), 'o', `\u001b[2m${closing}\u001b[0m\n`]);
+  ev.push([r3(t), 'o', `\u001b[2m${closing}\u001b[0m\r\n`]);
   return { events: ev, duration: t };
 }
 
@@ -764,6 +769,11 @@ async function main(): Promise<number> {
   let versionLine = '';
   try {
     versionLine = sanitize((await spawnCapture(grrBin, ['--version'], { timeoutMs: CMD_TIMEOUT_MS })).stdout.trim());
+    // `--version` is a banner (semver first, then the mascot crab and the
+    // tagline); only the `grr <semver>` line is the version proper, and it
+    // is the only part that belongs in the closing note below.
+    const semverLine = versionLine.match(/^grr \d+\.\d+\.\d+$/m)?.[0];
+    if (semverLine) versionLine = semverLine;
     console.log(`  grr version: ${versionLine}`);
   } catch (e) {
     console.error(`  FAIL: grr is not runnable (${e instanceof Error ? e.message : String(e)})`);
