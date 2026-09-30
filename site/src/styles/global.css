@@ -202,6 +202,11 @@
 @layer base {
   html {
     min-width: 320px;
+    /* Reserve the scrollbar gutter from the first paint: on long pages (the
+       79-method reference is the extreme) the scrollbar arrives after the
+       first layout, shrinking the viewport and shifting every element —
+       the CLS Lighthouse measured on a cold load. */
+    scrollbar-gutter: stable;
   }
 
   body {

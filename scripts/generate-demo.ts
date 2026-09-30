@@ -45,9 +45,13 @@ const DEFAULT_OUT = resolve(ROOT, 'demo', 'demo.cast');
 
 // Matches the site's terminal aesthetic. Demo lines are hard-wrapped a little
 // inside this so nothing clips at the edge.
-const WIDTH = 100;
+// 80 cols, not 100: the player's effective terminal width is its `ch` unit
+// (the "0" glyph's advance), which is narrower than 100 x the actual 0.54em
+// advance in the 3270 font — a 100-col cast wrapped at ~83 chars mid-token,
+// scattering the text. 80 keeps every line inside the real cell grid.
+const WIDTH = 80;
 const HEIGHT = 30;
-const WRAP = 92;
+const WRAP = 76;
 
 // Deterministic pacing, tuned so the full cast plays in ~30-60s. Fixed delays
 // scaled by line length: 40-120ms for command output, a little slower for the
@@ -231,11 +235,22 @@ function cleanLines(text: string): string[] {
 
 function wrapLine(line: string): string[] {
   if (line.length <= WRAP) return [line];
+  // Wrap at SPACES, never mid-token: the fixed-width slices this once used
+  // broke JSON keys and values across lines ("messa | ges"), which is the
+  // single ugliest thing a terminal demo can do.
   const out: string[] = [];
   let rest = line;
   while (rest.length > WRAP) {
-    out.push(rest.slice(0, WRAP));
-    rest = rest.slice(WRAP);
+    const window = rest.slice(0, WRAP + 1);
+    const lastSpace = window.lastIndexOf(' ');
+    if (lastSpace <= 0) {
+      // One token longer than the wrap: hard-break it rather than loop.
+      out.push(rest.slice(0, WRAP));
+      rest = rest.slice(WRAP);
+    } else {
+      out.push(rest.slice(0, lastSpace));
+      rest = rest.slice(lastSpace + 1);
+    }
   }
   if (rest.length > 0) out.push(rest);
   return out;
@@ -268,7 +283,54 @@ function findGrr(): string {
   return 'grr';
 }
 
+// ---------------------------------------------------------------------------
+// the shell the demo shows
+// ---------------------------------------------------------------------------
+
+// WSL on Windows gives the Unix bash aesthetic — the real prompt, /bin/bash
+// in the header — while grr.exe runs through WSL's Windows interop with
+// byte-identical output. On by default for local runs on Windows (the
+// machine has WSL2 Ubuntu); CI has no WSL, so it stays powershell there.
+// Override with --shell=wsl / --shell=powershell.
+const USE_WSL: boolean = process.argv.includes('--shell=powershell')
+  ? false
+  : process.argv.includes('--shell=wsl')
+    ? true
+    : process.platform === 'win32' && process.argv.includes('--local');
+
+/** A Windows path as WSL sees it: /mnt/c/... */
+function toWslPath(windowsPath: string): string {
+  const m = /^([A-Za-z]):[\\/](.*)$/.exec(windowsPath);
+  if (!m) return windowsPath;
+  const rest = m[2].replace(/\\/g, '/');
+  return `/mnt/${m[1].toLowerCase()}/${rest}`;
+}
+
+const BASH_PROMPT_USER = 'debanjanbasu';
+const BASH_PROMPT_HOST = 'grr';
+
+/** POSIX shell quote: only values with metacharacters need it. */
+function shellQuote(value: string): string {
+  return /^[A-Za-z0-9_@%+=:,./-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
 async function runGrr(grrBin: string, args: string[]): Promise<string> {
+  // WSL mode: the command runs through bash so the demo shows the Unix
+  // shell; the binary path becomes the /mnt/c form WSL understands. The
+  // display stays `grr ...` — the .exe suffix is a Windows-interop detail,
+  // and on every other platform the tool is `grr`.
+  if (USE_WSL) {
+    const chain = `${toWslPath(grrBin)} ${args.map(shellQuote).join(' ')}`;
+    const r = await spawnCapture(
+      'wsl.exe',
+      ['-d', 'Ubuntu', '--', 'bash', '-lc', chain],
+      { timeoutMs: CMD_TIMEOUT_MS },
+    );
+    if (r.code !== 0) {
+      throw new Error(`wsl bash -lc "${chain}" exited with code ${r.code}${r.killed ? ' (timed out)' : ''}`);
+    }
+    return r.stdout;
+  }
   const r = await spawnCapture(grrBin, args, { timeoutMs: CMD_TIMEOUT_MS });
   if (r.code !== 0) {
     throw new Error(`${grrBin} ${args.join(' ')} exited with code ${r.code}${r.killed ? ' (timed out)' : ''}`);
@@ -488,7 +550,10 @@ function buildCast(frames: Frame[], closing: string): { events: Array<[number, '
     // The typed command, as an input event, then its echoed prompt line.
     ev.push([r3(t), 'i', seg.display]);
     t += TYPE_DELAY;
-    const echo = `\u001b[36m$\u001b[0m ${seg.display}`;
+    // WSL mode shows the real bash prompt shape; otherwise the plain `$`.
+    const echo = USE_WSL
+      ? `\u001b[36m${BASH_PROMPT_USER}@${BASH_PROMPT_HOST}:~$\u001b[0m ${seg.display}`
+      : `\u001b[36m$\u001b[0m ${seg.display}`;
     for (const l of wrapLine(echo)) {
       ev.push([r3(t), 'o', l + '\n']);
       t += 0.02;
@@ -518,7 +583,9 @@ function writeCast(path: string, events: Array<[number, 'o' | 'i', string]>, dur
     duration: r3(duration),
     title: 'grr — Google tools from the terminal',
     env: {
-      SHELL: process.env.SHELL ?? (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash'),
+      SHELL: USE_WSL
+    ? '/bin/bash'
+    : process.env.SHELL ?? (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash'),
       TERM: 'xterm-256color',
     },
   };
