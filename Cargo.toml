@@ -1,9 +1,9 @@
-[workspace]
+﻿[workspace]
 resolver = "2"
 
 [package]
 name = "grr-cli"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2024"
 license = "MIT"
 authors = ["Debanjan Basu <debanjanbasu2006@gmail.com>"]
@@ -61,7 +61,7 @@ predicates = "3.1"
 default = ["cli"]
 # The typed service clients and their per-service features are gone: the
 # command tree is generated from the embedded Discovery index, and the CLI
-# needs only the engine — core (auth/HTTP), discovery, output formatting.
+# needs only the engine â€” core (auth/HTTP), discovery, output formatting.
 cli = ["dep:tracing-subscriber"]
 
 [profile.dev]
