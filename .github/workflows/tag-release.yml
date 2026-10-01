@@ -1,0 +1,51 @@
+name: Tag release
+
+# The other half of self-publishing: when a version-bump PR merges, the
+# version in Cargo.toml no longer has a matching tag. This workflow sees
+# that, creates and pushes the tag — and the tag is the trigger the binary
+# release and crates.io publish both listen for.
+#
+# Tags are not branch-protected, so the repository GITHUB_TOKEN can push
+# them (unlike main — see auto-release.yml for that half of the design).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Cargo.toml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tag-release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: tag the merged version
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        timeout-minutes: 2
+        with:
+          fetch-tags: true
+
+      - name: Tag when the version has no tag
+        timeout-minutes: 3
+        run: |
+          VERSION="$(grep -m1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')"
+          TAG="v$VERSION"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "$TAG already exists — nothing to do."
+            exit 0
+          fi
+          echo "Cargo.toml is at $VERSION with no $TAG — tagging $GITHUB_SHA."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "$TAG"
+          echo "Pushed $TAG — release-binaries.yml (5 platforms) and publish.yml (crates.io) fire on it."

@@ -8,7 +8,7 @@ import { discoveryMethodTotal, discoveryServices } from '../../data/discovery-co
 const base = import.meta.env.BASE_URL;
 
 const intro = `$ grr api list
-308 methods                                  # to stderr
+401 methods                                  # to stderr
 [{"id":"calendar.acl.delete","http":"DELETE","summary":"Deletes an access control rule."}, ...]
 
 $ grr api list --service sheets
@@ -114,7 +114,7 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
 
 <BaseLayout
   title="Discovery API"
-  description="One Discovery index embedded in the grr binary drives the entire generated command tree and the flat grr api surface: list, describe, call, dry runs, and per-method scopes across 308 methods in 10 APIs."
+  description="One Discovery index embedded in the grr binary drives the entire generated command tree and the flat grr api surface: list, describe, call, dry runs, and per-method scopes across 401 methods in 14 APIs."
 >
   <DocsShell currentPath={`${base}docs/discovery/`}>
     <section class="page-hero section">
@@ -124,14 +124,14 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
           <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">The index behind the whole tree.</h1>
           <p class="m-0 max-w-[62ch] text-sm text-base-content/70">Every service command grr runs is generated from a machine-readable description of Google&rsquo;s APIs, distilled into an index and compiled into the binary. <code>grr api</code> is the same index read flat, by method id.</p>
         </div>
-        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">{discoveryMethodTotal} methods · 10 APIs · works offline</div>
+        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">{discoveryMethodTotal} methods · 14 APIs · works offline</div>
       </div>
     </section>
 
     <section class="section" aria-labelledby="why-title">
       <div class="container prose reveal">
         <h2 id="why-title">Why this exists</h2>
-        <p class="lead">A hand-written command tree can never keep up with a Google Workspace API. There are 308 methods across ten services, and Google adds more without asking.</p>
+        <p class="lead">A hand-written command tree can never keep up with a Google Workspace API. There are 401 methods across ten services, and Google adds more without asking.</p>
         <p>So grr does not hand-write one. The committed Discovery index is the single source of truth for the entire surface: a build-time generator compiles it into the namespaced command tree (<code>grr gmail users messages list</code> &mdash; see <a href={`${base}docs/commands/`}>Commands</a>), and <code>grr api</code> reads the same index flat by method id. A method released after this build of grr existed reaches the tree through the daily refresh PR &mdash; no code change, no new release, no upgrade step.</p>
         <p>Two properties make this more than a thin passthrough:</p>
         <ul>
