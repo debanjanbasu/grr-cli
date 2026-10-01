@@ -639,13 +639,19 @@
     background: var(--terminal-bg);
     border-top: 2px solid var(--accent);
     box-shadow: 0 24px 64px -32px color-mix(in oklab, var(--accent) 28%, transparent);
-    /* The cast is 100 cols x 30 rows; the player scales its font with the
-       container width, so the player's height/width ratio is fixed for a
-       fixed rows/cols count — 732/937 measured in the 3270 font. Reserving
-       that exact aspect (plus the bar) means the lazy mount causes zero
-       layout shift: the shell is already the right height when the player
-       arrives. */
-    aspect-ratio: 937 / 769;
+    /* A laptop-shaped terminal: the cast is 130 cols x 34 rows, so at the
+       shell's width the player's fit-to-width math renders ~13.4px text —
+       site-body size — and this 16:10 reserve matches its natural shape,
+       so the lazy mount causes no layout shift. */
+    aspect-ratio: 16 / 10;
+  }
+
+  .demo-visual {
+    /* Cap the shell so the fitted font never exceeds ~site size on huge
+       screens; the grid column can be wider than 960px past ~1900px. */
+    max-width: 960px;
+    width: 100%;
+    margin-inline: auto;
   }
 
   .demo-bar {

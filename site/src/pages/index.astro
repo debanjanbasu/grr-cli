@@ -187,12 +187,17 @@ const pipeExample = `$ grr gmail message search "from:github.com" --max 10 | jq 
 
 $ grr transport
 {"http_version":"h3","fallback":"h2"}`;
-const libraryExample = `[dependencies]
-grr-cli = { version = "0.4.0", default-features = false, features = ["gmail"] }`;
+const askPlan = `$ grr ask "show my unread gmail"
+{"body":null,"confidence":0.88,"dryRun":true,"httpMethod":"GET",
+ "leastPrivilegeScope":"https://www.googleapis.com/auth/gmail.readonly",
+ "lowConfidence":false,"method":"gmail.users.messages.list",
+ "params":{"userId":"me"},"service":"gmail","serviceConfidence":1.0,
+ "url":"https://gmail.googleapis.com/gmail/v1/users/me/messages"}
+# nothing was sent — rerun with --run to execute this request`;
 const faqs = [
   {
     question: 'What is grr?',
-    answer: 'grr is a Rust CLI for Google services from the terminal. One generated command tree covers 308 methods across 10 Google APIs — Gmail, Calendar, Drive, Contacts, Chat, Forms, Tasks, Docs, Sheets and Slides — in one namespaced binary with machine-readable output and a single OAuth login.',
+    answer: 'grr is a Rust CLI for Google services from the terminal. One generated command tree covers 401 methods across the 14 consumer Google Workspace APIs — Gmail, Calendar, Drive, Contacts, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics and Search Console — in one namespaced binary with machine-readable output and a single OAuth login.',
   },
   {
     question: 'How does OAuth work?',
@@ -324,6 +329,36 @@ const storySteps = [
     </div>
   </section>
 
+  <section class="ask-section section" aria-labelledby="ask-title">
+    <div class="container demo-grid">
+      <div class="ask-visual reveal">
+        <CodeBlock code={askPlan} label="grr ask · the plan" copyable={true} />
+      </div>
+      <div class="demo-copy reveal">
+        <span class="eyebrow">the only one you can just ask</span>
+        <h2 id="ask-title">Plain English in. A typed plan out.</h2>
+        <p>
+          <code>grr ask "show my unread gmail"</code> is all it takes. A System One model —
+          TypeSafe's Jev by default, any provider speaking the same contract works by config —
+          classifies the request hierarchically: the service (14 options), then the method
+          (&le;79), then one typed question per required parameter. Every candidate comes from
+          the discovery index, so the model can only <em>select</em>. It can never invent a
+          method, a flag, or a value.
+        </p>
+        <p>
+          What you get back is a plan, not a guess: the resolved method, the parameters, the
+          URL, the scopes, the confidence — as JSON. Nothing is sent until you say
+          <code>--run</code>. No other Google Workspace CLI does this; for an AI agent it is
+          the fastest path from intent to a verifiable request.
+        </p>
+        <p class="demo-note">
+          The safety gate fires the moment the method resolves — <code>--readonly</code> and
+          friends cover <code>grr ask</code> like everything else.
+        </p>
+      </div>
+    </div>
+  </section>
+
   <section class="services-section section" id="services" aria-labelledby="services-title">
     <div class="container">
       <SectionIntro
@@ -371,19 +406,6 @@ const storySteps = [
             <span class="story-cap story-cap-celebrate">ship it</span>
           </p>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="crate-section section" aria-labelledby="library-title">
-    <div class="container crate-grid grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
-      <div class="crate-copy reveal">
-        <span class="eyebrow">use it as a library</span>
-        <h2 id="library-title" class="mt-1.5 mb-2 text-[clamp(22px,2.6vw,32px)] leading-[1.15]">One crate. Only the services you need.</h2>
-        <p class="m-0 text-sm text-base-content/70">The published package is <code>grr-cli</code>. Its default features are <code>default = ["cli", "http3"]</code>; the <code>cli</code> feature enables the complete binary and all six services (the <code>grr</code> binary uses <code>required-features = ["cli"]</code>), while <code>gmail</code>, <code>calendar</code>, <code>drive</code>, <code>people</code>, <code>chat</code>, and <code>forms</code> can be selected independently. With <code>default-features = false</code>, the library builds on stable Rust over HTTP/2. HTTP/3 is the <code>http3</code> feature and needs nightly Rust plus the <code>reqwest_unstable</code> cfg.</p>
-      </div>
-      <div class="code-slab reveal">
-        <CodeBlock code={libraryExample} label="cargo · library" />
       </div>
     </div>
   </section>

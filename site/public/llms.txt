@@ -5,6 +5,7 @@
 ## Agent skill
 
 - [skills/grr/SKILL.md](https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md): The packaged agent skill — the discovery-first discipline (`grr schema` → `grr api list` → `grr api describe` → `--dry-run`), the method-id naming rule, the typed-flag rules, and the output contract. Install into any harness with `npx skills add https://github.com/debanjanbasu/grr-cli`.
+- [skills/<service>/SKILL.md](https://github.com/debanjanbasu/grr-cli/tree/main/skills): One generated skill per service (14) - load progressively alongside the core skill; each covers its method surface, examples, and scope caveats, baked from the same discovery index.
 
 ## Agent surfaces
 
