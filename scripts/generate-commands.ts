@@ -414,7 +414,10 @@ async function main(): Promise<void> {
   lines.push('');
 
   const content = lines.join('\n');
-  const previous = await readFile(OUT_FILE, 'utf8').catch(() => null);
+  // Compare line-ending-independently: a Windows CI runner checks this file
+  // out with CRLF (autocrlf), while the generator always writes LF. A raw
+  // byte compare would cry "stale" on every fresh Windows checkout.
+  const previous = (await readFile(OUT_FILE, 'utf8').catch(() => null))?.replace(/\r\n/g, '\n') ?? null;
 
   if (CHECK_ONLY) {
     if (previous !== content) {
