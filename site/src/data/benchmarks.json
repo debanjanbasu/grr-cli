@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-09-30T21:49:39.960Z",
+  "generatedAt": "2026-10-01T10:21:27.577Z",
   "environment": {
-    "platform": "win32",
-    "arch": "x64",
-    "nodeVersion": "v26.7.0",
+    "platform": "linux",
+    "arch": "arm64",
+    "nodeVersion": "v24.21.0",
     "binaryKind": "release",
-    "binaryPath": "target/release/grr.exe",
+    "binaryPath": "target/release/grr",
     "grrVersion": "grr 0.5.0"
   },
   "versions": {
@@ -14,8 +14,8 @@
       "latestTag": "v0.5.0"
     },
     "gog": {
-      "local": "v0.42.0 (792107a3 2026-09-25T22:01:52Z)",
-      "latestTag": "v0.42.0"
+      "local": null,
+      "latestTag": "v0.43.0"
     },
     "gws": {
       "local": "gws 0.22.5",
@@ -31,25 +31,23 @@
   "grr": {
     "startup": {
       "available": true,
-      "medianMs": 24.4,
-      "p95Ms": 35.2,
-      "minMs": 23.6
+      "medianMs": 5,
+      "p95Ms": 6.7,
+      "minMs": 4.4
     },
     "schemaDump": {
       "available": true,
-      "medianMs": 33.6,
-      "p95Ms": 34.6,
-      "minMs": 32.7
+      "medianMs": 17.8,
+      "p95Ms": 18.3,
+      "minMs": 17.6
     },
     "apiList": {
-      "available": true,
-      "medianMs": 31.4,
-      "p95Ms": 32.6,
-      "minMs": 30.3
+      "available": false,
+      "reason": "exit status 1 for `grr api list`"
     },
     "binary": {
-      "bytes": 9675776,
-      "source": "target/release/grr.exe",
+      "bytes": 10442360,
+      "source": "target/release/grr",
       "form": "binary"
     }
   },
@@ -58,37 +56,25 @@
       "tool": "gog",
       "project": "steipete/gogcli",
       "url": "https://github.com/steipete/gogcli",
-      "available": true,
-      "obtainedVia": "github-release-download",
-      "version": "v0.42.0 (792107a3 2026-09-25T22:01:52Z)",
-      "startup": {
-        "available": true,
-        "medianMs": 66.1,
-        "p95Ms": 68.9,
-        "minMs": 63.8
-      },
-      "binary": {
-        "bytes": 45392896,
-        "source": "gogcli_0.42.0_windows_amd64.zip",
-        "form": "binary"
-      }
+      "available": false,
+      "reason": "obtained via path but `--version` failed: exit status 2"
     },
     {
       "tool": "gws",
       "project": "googleworkspace/cli",
       "url": "https://github.com/googleworkspace/cli",
       "available": true,
-      "obtainedVia": "github-release-download",
+      "obtainedVia": "path",
       "version": "gws 0.22.5",
       "startup": {
         "available": true,
-        "medianMs": 22.4,
-        "p95Ms": 23.6,
-        "minMs": 21
+        "medianMs": 33.9,
+        "p95Ms": 36.2,
+        "minMs": 32.8
       },
       "binary": {
-        "bytes": 16743424,
-        "source": "google-workspace-cli-x86_64-pc-windows-msvc.zip",
+        "bytes": 852,
+        "source": "installed on PATH",
         "form": "binary"
       }
     }
