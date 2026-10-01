@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- 0.6.0 release stats - 5-platform binary sizes
+
+## [0.6.0] - 2026-10-02
+
 ### Added
 
 - cover the full consumer Workspace family - 14 APIs, 401 methods
@@ -41,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **demo:** the scattered rendering was bare \\\\n in the cast frames
 - **ci:** the generated-artifact gates and the demo recording are cross-platform
 - **api:** list/describe/refresh work with zero configuration
+- **release:** update Cargo.lock for v0.6.0
 
 ### Documentation
 
@@ -50,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- 1 internal commit (chore 1)
+- 7 internal commits (chore 2, ci 5)
 
 ### Other
 
@@ -161,7 +168,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.5.0...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.2.0...v0.3.0
