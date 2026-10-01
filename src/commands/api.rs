@@ -131,17 +131,30 @@ pub struct ApiCallArgs {
 }
 
 pub async fn handle_api_cmd(
-    auth: &GoogleAuth,
+    auth: Option<&GoogleAuth>,
     cmd: ApiCommands,
     profile: &SafetyProfile,
 ) -> Result<()> {
     match cmd {
-        ApiCommands::List(args) => handle_list(args),
-        ApiCommands::Describe(args) => handle_describe(args),
-        ApiCommands::Call(args) => handle_call(auth, args, profile).await,
+        // Introspection over the embedded index: no credential involved.
+        ApiCommands::List(args) => handle_list(args)?,
+        ApiCommands::Describe(args) => handle_describe(args)?,
+        ApiCommands::Call(args) => {
+            // The only arm that talks to Google: require the credential
+            // here rather than at the `api` gate, so list/describe/refresh
+            // work on a machine with no OAuth client configured at all.
+            let auth = auth.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "this command needs a Google credential, but none is configured.\n\n{}",
+                    crate::core::config::NO_CLIENT_HELP
+                )
+            })?;
+            handle_call(auth, args, profile).await?
+        }
         // The refresh needs no credential: Discovery documents are public.
-        ApiCommands::Refresh(args) => handle_refresh(args).await,
+        ApiCommands::Refresh(args) => handle_refresh(args).await?,
     }
+    Ok(())
 }
 
 async fn handle_refresh(args: ApiRefreshArgs) -> Result<()> {

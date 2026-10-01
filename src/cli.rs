@@ -178,14 +178,26 @@ pub async fn run() -> Result<()> {
 
         "api" => {
             let cmd = api::ApiCommands::from_arg_matches(sub)?;
-            // Needs an auth handle but no typed service client: every URL
-            // comes from the Discovery index at call time. The safety
-            // profile comes from the same global flags as the tree.
-            let safety_args = safety::SafetyArgs::from_arg_matches(&matches)?;
-            let config = ConfigLoader::load().await?;
-            let auth = build_auth(&config).await?;
-            api::handle_api_cmd(&auth, cmd, &safety::SafetyProfile::from_args(&safety_args))
+            // `api list` / `describe` / `refresh` are pure introspection over
+            // the embedded index: they must work with zero configuration —
+            // a fresh CI runner has no OAuth client, and these commands
+            // would otherwise die at the client gate before doing anything.
+            // Only `call` needs the credential.
+            let needs_auth = matches!(cmd, api::ApiCommands::Call(_));
+            if !needs_auth {
+                // Permissive profile: list/describe/refresh cannot write.
+                api::handle_api_cmd(None, cmd, &safety::SafetyProfile::PERMISSIVE).await?;
+            } else {
+                let config = ConfigLoader::load().await?;
+                let auth = build_auth(&config).await?;
+                let safety_args = safety::SafetyArgs::from_arg_matches(&matches)?;
+                api::handle_api_cmd(
+                    Some(&auth),
+                    cmd,
+                    &safety::SafetyProfile::from_args(&safety_args),
+                )
                 .await?;
+            }
         }
 
         // The MCP server is self-contained: it loads the config, builds its
