@@ -19,7 +19,7 @@
     "astro": "^7.3.5",
     "daisyui": "^5.7.47",
     "tailwindcss": "^4.3.3",
-    "typescript": "^7.0.2"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "asciinema-player": "3.17.0"

@@ -45,13 +45,12 @@ const DEFAULT_OUT = resolve(ROOT, 'demo', 'demo.cast');
 
 // Matches the site's terminal aesthetic. Demo lines are hard-wrapped a little
 // inside this so nothing clips at the edge.
-// 80 cols, not 100: the player's effective terminal width is its `ch` unit
-// (the "0" glyph's advance), which is narrower than 100 x the actual 0.54em
-// advance in the 3270 font — a 100-col cast wrapped at ~83 chars mid-token,
-// scattering the text. 80 keeps every line inside the real cell grid.
-const WIDTH = 80;
-const HEIGHT = 30;
-const WRAP = 76;
+// 130 cols × 34 rows: a laptop-shaped terminal. At the shell's max width
+// (~937px) the player's fit-to-width maths lands the font at ~13.4px — the
+// same size as the site's body text — with a natural ~16:10 aspect.
+const WIDTH = 130;
+const HEIGHT = 34;
+const WRAP = 126;
 
 // Deterministic pacing, tuned so the full cast plays in ~30-60s. Fixed delays
 // scaled by line length: 40-120ms for command output, a little slower for the
@@ -289,14 +288,16 @@ function findGrr(): string {
 
 // WSL on Windows gives the Unix bash aesthetic — the real prompt, /bin/bash
 // in the header — while grr.exe runs through WSL's Windows interop with
-// byte-identical output. On by default for local runs on Windows (the
-// machine has WSL2 Ubuntu); CI has no WSL, so it stays powershell there.
-// Override with --shell=wsl / --shell=powershell.
+// byte-identical output. On Linux/macOS the shell IS bash, so the bash
+// prompt applies there natively (CI runs Linux). Override with
+// --shell=powershell / --shell=wsl.
 const USE_WSL: boolean = process.argv.includes('--shell=powershell')
   ? false
   : process.argv.includes('--shell=wsl')
     ? true
-    : process.platform === 'win32' && process.argv.includes('--local');
+    : process.platform === 'win32'
+      ? process.argv.includes('--local')
+      : true;
 
 /** A Windows path as WSL sees it: /mnt/c/... */
 function toWslPath(windowsPath: string): string {
@@ -306,7 +307,9 @@ function toWslPath(windowsPath: string): string {
   return `/mnt/${m[1].toLowerCase()}/${rest}`;
 }
 
-const BASH_PROMPT_USER = 'debanjanbasu';
+// The prompt shows the real user: debanjanbasu locally (WSL), whatever the
+// CI runner reports otherwise (GitHub runners are 'runner').
+const BASH_PROMPT_USER = process.platform === 'win32' ? 'debanjanbasu' : process.env.USER || process.env.LOGNAME || 'runner';
 const BASH_PROMPT_HOST = 'grr';
 
 /** POSIX shell quote: only values with metacharacters need it. */
@@ -415,6 +418,63 @@ function truncateAgent(lines: string[]): string[] {
   return [...head, `# ... ${omitted} lines omitted`, ...tail];
 }
 
+/**
+ * The committed cast's agent segment, extracted for carry-forward.
+ *
+ * CI (`--ci-record`) regenerates the cast from source. It can run the live
+ * agent segment when opencode works there (free default models or
+ * credentials in the environment); when it cannot, this salvages the
+ * previously recorded segment from the committed cast so a CI regeneration
+ * never strips the agent demo from the site.
+ */
+function carryAgentSegment(castPath: string): { seg: PreparedAgent; report: SegmentReport } | null {
+  let raw: string;
+  try {
+    raw = readFileSync(castPath, 'utf8');
+  } catch {
+    return null;
+  }
+  const lines: string[] = [];
+  let inAgent = false;
+  for (const line of raw.split('\n')) {
+    if (line.length === 0) continue;
+    let event: unknown;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (!Array.isArray(event) || event.length !== 3) continue;
+    const [, type, text] = event as [number, string, string];
+    if (typeof text !== 'string') continue;
+    const plain = text.replace(/\u001b\[[0-9;]*m/g, '');
+    if (type === 'o' && plain.includes('opencode agent driving')) {
+      inAgent = true;
+      continue;
+    }
+    if (inAgent) {
+      // The closing note ("# grr <semver> — N segments recorded…") ends the
+      // segment; narration prompts for other commands start with "$ ".
+      if (plain.startsWith('# grr ') || plain.startsWith('$ ')) break;
+      for (const l of plain.split('\r\n')) {
+        const trimmed = l.replace(/\r/g, '');
+        if (trimmed.length > 0) lines.push(trimmed);
+      }
+    }
+  }
+  if (lines.length === 0) return null;
+  return {
+    seg: { kind: 'agent', mode: 'local', display: `opencode run "${AGENT_PROMPT}"`, lines },
+    report: {
+      display: 'opencode run "<prompt>"',
+      kind: 'agent',
+      status: 'ran',
+      lines: lines.length,
+      note: 'carried forward from the committed cast (live agent run unavailable)',
+    },
+  };
+}
+
 async function prepAgent(): Promise<{ seg: PreparedAgent | null; report: SegmentReport }> {
   const skipped = (note: string): { seg: null; report: SegmentReport } => ({
     seg: null,
@@ -461,13 +521,22 @@ async function prepAgent(): Promise<{ seg: PreparedAgent | null; report: Segment
   };
 }
 
-async function buildSegments(mode: 'ci' | 'local'): Promise<{ segs: Prepared[]; reports: SegmentReport[] }> {
+async function buildSegments(mode: 'ci' | 'local' | 'ci-record'): Promise<{ segs: Prepared[]; reports: SegmentReport[] }> {
   const segs: Prepared[] = [];
   const reports: SegmentReport[] = [];
   const push = async (p: Promise<PreparedCommand>, display: string): Promise<void> => {
     const seg = await p;
     segs.push(seg);
     reports.push({ display, kind: 'command', status: 'ran', lines: seg.lines.length, note: 'real output, captured' });
+  };
+  // A command that may legitimately fail (e.g. `grr ask` with no key on a
+  // given runner): skip with a report instead of aborting the recording.
+  const tryPush = async (p: Promise<PreparedCommand>, display: string, skipNote: string): Promise<void> => {
+    try {
+      await push(p, display);
+    } catch {
+      reports.push({ display, kind: 'command', status: 'skipped', lines: 0, note: skipNote });
+    }
   };
 
   await push(prepCommand('ci', 'grr --version', ['--version']), 'grr --version');
@@ -515,6 +584,44 @@ async function buildSegments(mode: 'ci' | 'local'): Promise<{ segs: Prepared[]; 
       reports.push(agent.report);
     } else {
       reports.push(agent.report);
+    }
+  } else if (mode === 'ci-record') {
+    // Self-maintenance mode: CI regenerates the cast from source. It has no
+    // Google token (transport stays local-only), but with a TYPESAFE_API_KEY
+    // secret it records the real natural-language plan, and opencode's free
+    // default models (or credentials via env secrets) may allow a LIVE agent
+    // segment — with carry-forward from the committed cast as the safety net,
+    // so a CI regeneration never strips the agent demo from the site.
+    reports.push({
+      display: 'grr transport',
+      kind: 'command',
+      status: 'skipped',
+      lines: 0,
+      note: 'needs a Google token; recorded by --local runs only',
+    });
+    await tryPush(
+      prepCommand('local', 'grr ask "show my unread messages" --dry-run', ['ask', 'show my unread messages', '--dry-run']),
+      'grr ask "show my unread messages" --dry-run',
+      'no System One key in the environment (set the TYPESAFE_API_KEY secret)',
+    );
+    const liveAgent = await prepAgent();
+    if (liveAgent.seg) {
+      segs.push(liveAgent.seg);
+      reports.push(liveAgent.report);
+    } else {
+      const carried = carryAgentSegment(DEFAULT_OUT);
+      if (carried) {
+        segs.push(carried.seg);
+        reports.push(carried.report);
+      } else {
+        reports.push({
+          display: 'opencode run "<prompt>"',
+          kind: 'agent',
+          status: 'skipped',
+          lines: 0,
+          note: `agent run failed (${liveAgent.report.note}) and no committed segment to carry forward`,
+        });
+      }
     }
   } else {
     reports.push({
@@ -741,19 +848,22 @@ function fmtKB(bytes: number): string {
 async function main(): Promise<number> {
   const args = process.argv.slice(2);
   let local = false;
+  let ciRecord = false;
   let outPath = DEFAULT_OUT;
   let validatePath: string | null = null;
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--local') {
       local = true;
+    } else if (a === '--ci-record') {
+      ciRecord = true;
     } else if (a === '--out' && i + 1 < args.length) {
       outPath = resolve(ROOT, args[++i]);
     } else if (a === '--validate') {
       validatePath = i + 1 < args.length && !args[i + 1].startsWith('--') ? resolve(ROOT, args[++i]) : DEFAULT_OUT;
     } else {
       console.error(`unknown argument: ${a}`);
-      console.error('usage: node scripts/generate-demo.ts [--local] [--out <path>] [--validate [<path>]]');
+      console.error('usage: node scripts/generate-demo.ts [--local] [--ci-record] [--out <path>] [--validate [<path>]]');
       return 2;
     }
   }
@@ -763,7 +873,7 @@ async function main(): Promise<number> {
   }
 
   const grrBin = findGrr();
-  const mode: 'ci' | 'local' = local ? 'local' : 'ci';
+  const mode: 'ci' | 'local' | 'ci-record' = ciRecord ? 'ci-record' : local ? 'local' : 'ci';
   console.log('demo generation report');
   console.log(`  grr binary: ${grrBin}`);
   let versionLine = '';

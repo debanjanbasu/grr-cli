@@ -1,7 +1,7 @@
 //! OAuth authorization flow with PKCE (RFC 7636), always on.
 
 use base64::Engine;
-use rand::RngCore;
+use rand::Rng;
 use sha2::{Digest, Sha256};
 use tracing::{info, warn};
 use url::Url;
@@ -14,13 +14,13 @@ impl super::GoogleAuth {
     /// Run full OAuth2 flow with PKCE
     pub(crate) async fn run_oauth_flow(&self) -> Result<TokenStorage> {
         let mut verifier_bytes = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut verifier_bytes);
+        rand::rng().fill_bytes(&mut verifier_bytes);
         let verifier = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(verifier_bytes);
         let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(Sha256::digest(verifier.as_bytes()).as_slice());
 
         let mut state_bytes = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut state_bytes);
+        rand::rng().fill_bytes(&mut state_bytes);
         let state = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(state_bytes);
 
         let mut auth_url = Url::parse("https://accounts.google.com/o/oauth2/v2/auth")?;

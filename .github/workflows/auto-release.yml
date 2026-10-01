@@ -1,0 +1,123 @@
+name: Auto release
+
+# The software publishes itself. The changelog generator already computes
+# the next version from the conventional-commit history since the last tag;
+# this workflow acts on that recommendation: bump Cargo.toml, bake the
+# changelog, tag, and push. The tag fires release.yml (5-platform binaries)
+# and publish.yml (crates.io); the site picks the new version up on its next
+# build via the stats/changelog refresh below.
+#
+# Safety: a release only happens when the recommendation is a real bump
+# (feat -> minor, fix/perf -> patch, breaking -> major). "none" exits clean.
+# The `approved` input on workflow_dispatch is the human gate for a manual
+# run; the weekly cron is the hands-free path.
+
+on:
+  schedule:
+    # 04:31 UTC Fridays — lets the week's merged work ship before the weekend.
+    - cron: "31 4 * * 5"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Release even when the recommendation is 'none'"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: bump, tag, publish
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        timeout-minutes: 2
+        with:
+          # Full history: the version recommendation diffs commits since
+          # the last tag, and the changelog needs the tag list.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: actions/setup-node@v5
+        timeout-minutes: 5
+        with:
+          node-version: "24"
+
+      - name: Compute the next version
+        id: version
+        timeout-minutes: 5
+        # One run, one capture: the generator both prints the key=value
+        # recommendation lines (stdout) and bakes CHANGELOG.md + the site
+        # changelog.json — the very files the release commit carries. The
+        # written output is only committed when the decide step says go.
+        run: |
+          OUT="$(node scripts/generate-changelog.ts 2>&1)"
+          echo "$OUT" | grep -E '^changelog:' || true
+          BUMP="$(echo "$OUT" | grep -E 'changelog:recommended-bump=' | head -1 | cut -d= -f2)"
+          NEXT="$(echo "$OUT" | grep -E 'changelog:recommended-version=' | head -1 | cut -d= -f2)"
+          CURRENT="$(grep -m1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')"
+          echo "bump=${BUMP:-none}" >> "$GITHUB_OUTPUT"
+          echo "next=${NEXT:-$CURRENT}" >> "$GITHUB_OUTPUT"
+          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "recommendation: bump=${BUMP:-none} next=${NEXT:-$CURRENT} current=$CURRENT"
+
+      - name: Decide whether to release
+        id: decide
+        timeout-minutes: 2
+        env:
+          BUMP: ${{ steps.version.outputs.bump }}
+          NEXT: ${{ steps.version.outputs.next }}
+          CURRENT: ${{ steps.version.outputs.current }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [ "$BUMP" != "none" ] || [ "$FORCE" = "true" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing to release (recommendation: none, current $CURRENT)."
+          fi
+
+      - name: Bump Cargo.toml
+        if: steps.decide.outputs.go == 'true'
+        timeout-minutes: 2
+        env:
+          NEXT: ${{ steps.version.outputs.next }}
+        run: |
+          sed -i "s/^version = \".*\"/version = \"$NEXT\"/" Cargo.toml
+          grep -m1 '^version' Cargo.toml
+
+      - name: Verify generated artifacts are current
+        if: steps.decide.outputs.go == 'true'
+        timeout-minutes: 5
+        # The compute step already baked CHANGELOG.md + changelog.json with
+        # the Unreleased section; the tag's own section is added by
+        # changelog.yml when the release event fires. These gates just
+        # prove the other generated files ride along unchanged.
+        run: |
+          node scripts/generate-commands.ts --check
+          node scripts/generate-skills.ts --check
+
+      - name: Commit and tag
+        if: steps.decide.outputs.go == 'true'
+        timeout-minutes: 5
+        env:
+          NEXT: ${{ steps.version.outputs.next }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock CHANGELOG.md site/src/data/changelog.json 2>/dev/null || git add -A
+          git commit -m "chore(release): grr v$NEXT"
+          git tag "v$NEXT"
+          git push origin "HEAD:main" "v$NEXT"
+
+      - name: Nothing further
+        if: steps.decide.outputs.go == 'false'
+        run: echo "The tag push above triggers release.yml (binaries) and publish.yml (crates.io). The site refreshes stats on its next build."

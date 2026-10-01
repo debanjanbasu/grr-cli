@@ -45,11 +45,13 @@ const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = 
           loop: true,
           autoPlay: true,
           // The brand font — the demo renders in the same IBM 3270 the site
-          // uses, at the same size as the site's body text. (The earlier
-          // scatter was never the font: it was bare \n in the cast — see
-          // scripts/generate-demo.ts.)
+          // uses. (The earlier scatter was never the font: it was bare \n in
+          // the cast — see scripts/generate-demo.ts.)
           terminalFontFamily: "'IBM3270', 'IBM3270 Fallback', monospace",
-          fontSize: '14px',
+          // fit: width scales the 130-col terminal to the shell's width;
+          // at the shell's max (~937px) the font lands at ~13.4px — the
+          // same size as the site's body text — with a laptop 16:10 shape.
+          fit: 'width',
           theme: 'asciinema',
         });
       } catch (error) {

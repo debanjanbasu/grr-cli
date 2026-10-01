@@ -22,9 +22,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- cover the full consumer Workspace family - 14 APIs, 401 methods
+- grr mcp server + safety profiles (--readonly, --deny-service, --deny-verb)
+- grr ask - natural language to a typed method + params via System One
+- terminal demo - asciinema cast with a real opencode agent segment
+- linux-aarch64 release target (5th platform) + ARM runners everywhere GA
+- demo embed + docs for mcp/ask/safety/account
+- the API reference - all 401 methods documented, baked from the index
+
+### Fixed
+
+- the demo player renders correctly - three stacked fixes
+- **demo:** the scattered rendering was bare \\\\n in the cast frames
+
 ### Documentation
 
 - 0.5.0 release stats - 4-platform binary sizes
+- **changelog:** regenerate for v0.5.0
 
 ## [0.5.0] - 2026-09-28
 

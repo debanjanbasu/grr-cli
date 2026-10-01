@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T21:29:51.295Z",
+  "generatedAt": "2026-10-01T09:48:43.812Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -8,12 +8,66 @@
       "unreleased": true,
       "sections": [
         {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "cover the full consumer Workspace family - 14 APIs, 401 methods",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "grr mcp server + safety profiles (--readonly, --deny-service, --deny-verb)",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "grr ask - natural language to a typed method + params via System One",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "terminal demo - asciinema cast with a real opencode agent segment",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "linux-aarch64 release target (5th platform) + ARM runners everywhere GA",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "demo embed + docs for mcp/ask/safety/account",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "the API reference - all 401 methods documented, baked from the index",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
           "key": "fixed",
           "heading": "Fixed",
           "items": [
             {
-              "description": "restore the linux io\\_uring deps the transport probe still needs",
+              "description": "the demo player renders correctly - three stacked fixes",
               "scope": null,
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "the scattered rendering was bare \\\\\\\\n in the cast frames",
+              "scope": "demo",
               "type": "fix",
               "note": null
             }
@@ -24,8 +78,14 @@
           "heading": "Documentation",
           "items": [
             {
-              "description": "0.5.0 changelog + refreshed stats",
+              "description": "0.5.0 release stats - 4-platform binary sizes",
               "scope": null,
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "regenerate for v0.5.0",
+              "scope": "changelog",
               "type": "docs",
               "note": null
             }
@@ -63,11 +123,47 @@
           ]
         },
         {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "restore the linux io\\_uring deps the transport probe still needs",
+              "scope": null,
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "UPX windows step - drop disabled add-path, fix GITHUB\\_ENV format",
+              "scope": "release",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "GITHUB\\_PATH takes effect for later steps, not the install step itself",
+              "scope": "release",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "pack a copy and verify before replacing - UPX segfaults on the ARM64 PE",
+              "scope": "release",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
           "key": "documentation",
           "heading": "Documentation",
           "items": [
             {
               "description": "0.4.0 is live - release stats + packaging status",
+              "scope": null,
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "0.5.0 changelog + refreshed stats",
               "scope": null,
               "type": "docs",
               "note": null

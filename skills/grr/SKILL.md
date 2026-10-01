@@ -1,11 +1,15 @@
 ---
 name: grr
-description: Use grr, a fast Rust CLI for Google Workspace (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides), whenever the user wants to read or write Google data from a terminal, script, or agent. Discover methods before calling, predict command names from method ids, and parse JSON from stdout.
+description: Use grr, a fast Rust CLI for Google Workspace (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics, Search Console), whenever the user wants to read or write Google data from a terminal, script, or agent. Discover methods before calling, predict command names from method ids, and parse JSON from stdout.
 ---
 
 # grr — Google Workspace from the terminal
 
-One binary, one OAuth login, **308 methods across 10 Google APIs**, JSON on stdout. The entire command tree is generated from Google's Discovery Service, so the move is always the same: discover what exists, then call it.
+One binary, one OAuth login, **401 methods across 14 Google APIs**, JSON on stdout. The entire command tree is generated from Google's Discovery Service, so the move is always the same: discover what exists, then call it.
+
+## Progressive loading
+
+This is the CORE skill. When the work concentrates on one service, also load that service's generated skill — `skills/gmail/SKILL.md`, `skills/calendar/SKILL.md`, … (14 total) — for its method surface, verified examples, and scope caveats. Load this core first; pull a service skill only when needed.
 
 ## Golden rule: DISCOVER FIRST
 

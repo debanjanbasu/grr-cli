@@ -10,7 +10,9 @@
     "check:discovery": "node scripts/fetch-discovery.ts --check",
     "check:commands": "node scripts/generate-commands.ts --check",
     "check:changelog": "node scripts/generate-changelog.ts --check",
-    "demo": "node scripts/generate-demo.ts --local"
+    "demo": "node scripts/generate-demo.ts --local",
+    "skills": "node scripts/generate-skills.ts",
+    "check:skills": "node scripts/generate-skills.ts --check"
   },
   "devDependencies": {
     "@types/node": "^24.19.0",

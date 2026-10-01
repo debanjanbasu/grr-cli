@@ -50,10 +50,12 @@ jobs:
         timeout-minutes: 5
         run: |
           node scripts/fetch-discovery.ts
-          # The CLI command tree is generated from the index, so an index
-          # change must carry its regenerated tree in the same PR.
+          # The CLI command tree AND the agent skills are generated from the
+          # index, so an index change must carry its regenerated tree and
+          # skills in the same PR — the three can never drift apart.
           node scripts/generate-commands.ts
-          if git diff --quiet -- src/discovery src/commands/generated.rs; then
+          node scripts/generate-skills.ts
+          if git diff --quiet -- src/discovery src/commands/generated.rs skills; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Discovery index is already current."
           else
