@@ -182,21 +182,22 @@ pub async fn run() -> Result<()> {
             // the embedded index: they must work with zero configuration —
             // a fresh CI runner has no OAuth client, and these commands
             // would otherwise die at the client gate before doing anything.
-            // Only `call` needs the credential.
-            let needs_auth = matches!(cmd, api::ApiCommands::Call(_));
-            if !needs_auth {
-                // Permissive profile: list/describe/refresh cannot write.
-                api::handle_api_cmd(None, cmd, &safety::SafetyProfile::PERMISSIVE).await?;
-            } else {
-                let config = ConfigLoader::load().await?;
-                let auth = build_auth(&config).await?;
+            // `call` is credential-OPTIONAL the same way: --dry-run is a
+            // plan-only operation, and a real send with no client reports
+            // the actionable help from the call path.
+            if matches!(cmd, api::ApiCommands::Call(_)) {
                 let safety_args = safety::SafetyArgs::from_arg_matches(&matches)?;
+                let config = ConfigLoader::load().await?;
+                let auth = build_auth(&config).await.ok();
                 api::handle_api_cmd(
-                    Some(&auth),
+                    auth.as_ref(),
                     cmd,
                     &safety::SafetyProfile::from_args(&safety_args),
                 )
                 .await?;
+            } else {
+                // Permissive profile: list/describe/refresh cannot write.
+                api::handle_api_cmd(None, cmd, &safety::SafetyProfile::PERMISSIVE).await?;
             }
         }
 
@@ -232,13 +233,19 @@ pub async fn run() -> Result<()> {
         // (the deepest subcommand's name IS the full dotted method id),
         // so it gets the full root matches. The safety profile comes from
         // the global --readonly/--deny-service/--deny-verb flags.
+        //
+        // The credential is OPTIONAL: --dry-run plans never consult it
+        // (call_method requires it only when actually sending), so a fresh
+        // CI runner — no OAuth client, no config — can exercise the whole
+        // tree offline. A real send with no client gets the actionable
+        // NO_CLIENT_HELP from the call path.
         _ => {
             let safety_args = safety::SafetyArgs::from_arg_matches(&matches)?;
             let config = ConfigLoader::load().await?;
-            let auth = build_auth(&config).await?;
+            let auth = build_auth(&config).await.ok();
             gen_dispatch::dispatch_with_profile(
                 &matches,
-                &auth,
+                auth.as_ref(),
                 &safety::SafetyProfile::from_args(&safety_args),
             )
             .await?;
