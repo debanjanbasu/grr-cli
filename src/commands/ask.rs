@@ -738,7 +738,7 @@ pub async fn handle_ask(
         resolution.plan.verb, resolution.plan.url
     );
     let payload = call_method(
-        auth,
+        Some(auth),
         resolution.service,
         resolution.method,
         resolution.params,

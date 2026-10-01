@@ -117,7 +117,14 @@ async fn fetch_profile(auth: &GoogleAuth) -> Result<Value> {
         .map_err(|message| anyhow::anyhow!("{message}"))?;
     let mut params = serde_json::Map::new();
     params.insert("userId".into(), json!("me"));
-    api::call_method(auth, service, method, params, api::CallOptions::default()).await
+    api::call_method(
+        Some(auth),
+        service,
+        method,
+        params,
+        api::CallOptions::default(),
+    )
+    .await
 }
 
 fn field(profile: &Value, key: &str) -> Value {

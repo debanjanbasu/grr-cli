@@ -140,15 +140,10 @@ pub async fn handle_api_cmd(
         ApiCommands::List(args) => handle_list(args)?,
         ApiCommands::Describe(args) => handle_describe(args)?,
         ApiCommands::Call(args) => {
-            // The only arm that talks to Google: require the credential
-            // here rather than at the `api` gate, so list/describe/refresh
-            // work on a machine with no OAuth client configured at all.
-            let auth = auth.ok_or_else(|| {
-                anyhow::anyhow!(
-                    "this command needs a Google credential, but none is configured.\n\n{}",
-                    crate::core::config::NO_CLIENT_HELP
-                )
-            })?;
+            // The credential check lives in the call path (call_method),
+            // not here: --dry-run is a plan-only operation that must work
+            // with no OAuth client at all, while a real send reports the
+            // actionable NO_CLIENT_HELP. Pass the Option straight through.
             handle_call(auth, args, profile).await?
         }
         // The refresh needs no credential: Discovery documents are public.
@@ -307,7 +302,11 @@ fn handle_describe(args: ApiDescribeArgs) -> Result<()> {
     Ok(())
 }
 
-async fn handle_call(auth: &GoogleAuth, args: ApiCallArgs, profile: &SafetyProfile) -> Result<()> {
+async fn handle_call(
+    auth: Option<&GoogleAuth>,
+    args: ApiCallArgs,
+    profile: &SafetyProfile,
+) -> Result<()> {
     let (service, method) = discovery::resolve(&args.method).map_err(|message| {
         anyhow::anyhow!(
             "{message}\n\nRun `grr api list {}` to see what is available.",
@@ -490,7 +489,7 @@ pub(crate) fn dry_run_payload(method: &Method, plan: &RequestPlan) -> Value {
 /// Returns the payload for the caller to print with its chosen format: a
 /// dry-run returns its plan payload, a live call the parsed response body.
 pub(crate) async fn call_method(
-    auth: &GoogleAuth,
+    auth: Option<&GoogleAuth>,
     service: &Service,
     method: &Method,
     params: serde_json::Map<String, Value>,
@@ -506,8 +505,14 @@ pub(crate) async fn call_method(
     )?;
 
     if options.dry_run {
+        // The plan is the whole answer: no credential is consulted, so a
+        // fresh CI runner (or a first-time user exploring with --dry-run)
+        // sees the exact request without any OAuth client configured.
         return Ok(dry_run_payload(method, &plan));
     }
+
+    // Sending is the first moment a credential exists at all.
+    let auth = auth.ok_or_else(|| anyhow::anyhow!("{}", crate::core::config::NO_CLIENT_HELP))?;
 
     // Authorise what this method declares. grr's credential is consented
     // for the union in SCOPES; a method needing something outside that set
@@ -847,7 +852,7 @@ mod tests {
             dry_run: true,
             format: OutputFormat::Json,
         };
-        let err = handle_call(&auth, args, &SafetyProfile::readonly())
+        let err = handle_call(Some(&auth), args, &SafetyProfile::readonly())
             .await
             .unwrap_err()
             .to_string();
@@ -870,7 +875,7 @@ mod tests {
             format: OutputFormat::Json,
         };
         let profile = SafetyProfile::new(false, vec!["gmail".to_owned()], vec![]);
-        let err = handle_call(&auth, args, &profile)
+        let err = handle_call(Some(&auth), args, &profile)
             .await
             .unwrap_err()
             .to_string();
@@ -887,7 +892,7 @@ mod tests {
             format: OutputFormat::Json,
         };
         let profile = SafetyProfile::new(false, vec![], vec!["get".to_owned()]);
-        let err = handle_call(&auth, args, &profile)
+        let err = handle_call(Some(&auth), args, &profile)
             .await
             .unwrap_err()
             .to_string();
@@ -909,7 +914,7 @@ mod tests {
         };
         // A GET is not a write: the dry-run returns instead of refusing.
         assert!(
-            handle_call(&auth, args, &SafetyProfile::readonly())
+            handle_call(Some(&auth), args, &SafetyProfile::readonly())
                 .await
                 .is_ok()
         );

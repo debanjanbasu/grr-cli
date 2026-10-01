@@ -74,7 +74,7 @@ pub(crate) fn kebab_case(name: &str) -> String {
 /// `--readonly`/`--deny-service`/`--deny-verb` args, or a flattened
 /// [`SafetyArgs`](crate::commands::safety::SafetyArgs)) into `cli.rs` and
 /// switches to [`dispatch_with_profile`].
-pub async fn dispatch(matches: &ArgMatches, auth: &GoogleAuth) -> Result<()> {
+pub async fn dispatch(matches: &ArgMatches, auth: Option<&GoogleAuth>) -> Result<()> {
     dispatch_with_profile(matches, auth, &SafetyProfile::PERMISSIVE).await
 }
 
@@ -82,7 +82,7 @@ pub async fn dispatch(matches: &ArgMatches, auth: &GoogleAuth) -> Result<()> {
 /// gate the `grr api call` flags and the `grr mcp` server honor.
 pub async fn dispatch_with_profile(
     matches: &ArgMatches,
-    auth: &GoogleAuth,
+    auth: Option<&GoogleAuth>,
     profile: &SafetyProfile,
 ) -> Result<()> {
     // Walk to the deepest subcommand. The generator guarantees a leaf's
@@ -476,7 +476,7 @@ mod tests {
             ])
             .expect("valid invocation");
         let auth = test_auth().await;
-        let err = dispatch_with_profile(&matches, &auth, &SafetyProfile::readonly())
+        let err = dispatch_with_profile(&matches, Some(&auth), &SafetyProfile::readonly())
             .await
             .unwrap_err()
             .to_string();
@@ -501,7 +501,7 @@ mod tests {
             .expect("valid invocation");
         let auth = test_auth().await;
         let profile = SafetyProfile::new(false, ["gmail".to_owned()], []);
-        let err = dispatch_with_profile(&matches, &auth, &profile)
+        let err = dispatch_with_profile(&matches, Some(&auth), &profile)
             .await
             .unwrap_err()
             .to_string();
@@ -513,7 +513,7 @@ mod tests {
             .try_get_matches_from(["grr", "tasks", "tasklists", "list", "--dry-run"])
             .expect("valid invocation");
         assert!(
-            dispatch_with_profile(&matches, &auth, &profile)
+            dispatch_with_profile(&matches, Some(&auth), &profile)
                 .await
                 .is_ok()
         );
@@ -536,7 +536,7 @@ mod tests {
             ])
             .expect("valid invocation");
         let auth = test_auth().await;
-        assert!(dispatch(&matches, &auth).await.is_ok());
+        assert!(dispatch(&matches, Some(&auth)).await.is_ok());
     }
 
     fn deepest(matches: &ArgMatches) -> &ArgMatches {

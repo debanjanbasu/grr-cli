@@ -185,7 +185,7 @@ impl McpServer {
         }
 
         let payload = call_method(
-            &self.auth,
+            Some(&self.auth),
             service,
             method,
             merged,
