@@ -31,11 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - linux-aarch64 release target (5th platform) + ARM runners everywhere GA
 - demo embed + docs for mcp/ask/safety/account
 - the API reference - all 401 methods documented, baked from the index
+- the site maintains itself - CI demo recording + auto release
+- the whole tree works offline - --dry-run needs no credential
+- **demo:** carry-forward for transport and agent segments everywhere
 
 ### Fixed
 
 - the demo player renders correctly - three stacked fixes
 - **demo:** the scattered rendering was bare \\\\n in the cast frames
+- **ci:** the generated-artifact gates and the demo recording are cross-platform
+- **api:** list/describe/refresh work with zero configuration
 
 ### Documentation
 
