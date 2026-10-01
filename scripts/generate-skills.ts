@@ -569,7 +569,10 @@ async function main(): Promise<void> {
   if (CHECK_ONLY) {
     const stale: string[] = [];
     for (const target of targets) {
-      const previous = await readFile(target.path, 'utf8').catch(() => null);
+      // Line-ending-independent compare: Windows runners check out with
+      // CRLF (autocrlf) while the generator writes LF — see the matching
+      // note in generate-commands.ts.
+      const previous = (await readFile(target.path, 'utf8').catch(() => null))?.replace(/\r\n/g, '\n') ?? null;
       if (previous !== target.content) stale.push(relPath(target.path));
     }
     const phantom = await pruneStaleSkills(new Set(analyses.map((a) => a.service.name)), true);

@@ -286,18 +286,21 @@ function findGrr(): string {
 // the shell the demo shows
 // ---------------------------------------------------------------------------
 
-// WSL on Windows gives the Unix bash aesthetic — the real prompt, /bin/bash
-// in the header — while grr.exe runs through WSL's Windows interop with
-// byte-identical output. On Linux/macOS the shell IS bash, so the bash
-// prompt applies there natively (CI runs Linux). Override with
-// --shell=powershell / --shell=wsl.
-const USE_WSL: boolean = process.argv.includes('--shell=powershell')
-  ? false
-  : process.argv.includes('--shell=wsl')
-    ? true
-    : process.platform === 'win32'
-      ? process.argv.includes('--local')
-      : true;
+// Two separate concerns that must not be conflated:
+//
+// WSL_INTEROP — the MECHANISM: route commands through wsl.exe so grr.exe's
+// output is captured from a real bash session on Windows. Windows-only;
+// on Linux/macOS the shell IS bash and commands run directly (spawning
+// wsl.exe there is ENOENT — the exact failure the first CI recording hit).
+//
+// BASH_PROMPT — the COSMETIC: show the bash-style prompt and /bin/bash in
+// the cast header. True everywhere except an explicit --shell=powershell.
+const WSL_INTEROP: boolean =
+  process.platform === 'win32' &&
+  (process.argv.includes('--shell=wsl') || process.argv.includes('--local')) &&
+  !process.argv.includes('--shell=powershell');
+
+const BASH_PROMPT: boolean = !process.argv.includes('--shell=powershell');
 
 /** A Windows path as WSL sees it: /mnt/c/... */
 function toWslPath(windowsPath: string): string {
@@ -322,7 +325,7 @@ async function runGrr(grrBin: string, args: string[]): Promise<string> {
   // shell; the binary path becomes the /mnt/c form WSL understands. The
   // display stays `grr ...` — the .exe suffix is a Windows-interop detail,
   // and on every other platform the tool is `grr`.
-  if (USE_WSL) {
+  if (WSL_INTEROP) {
     const chain = `${toWslPath(grrBin)} ${args.map(shellQuote).join(' ')}`;
     const r = await spawnCapture(
       'wsl.exe',
@@ -662,8 +665,8 @@ function buildCast(frames: Frame[], closing: string): { events: Array<[number, '
     // The typed command, as an input event, then its echoed prompt line.
     ev.push([r3(t), 'i', seg.display]);
     t += TYPE_DELAY;
-    // WSL mode shows the real bash prompt shape; otherwise the plain `$`.
-    const echo = USE_WSL
+    // The bash prompt shape everywhere except --shell=powershell.
+    const echo = BASH_PROMPT
       ? `\u001b[36m${BASH_PROMPT_USER}@${BASH_PROMPT_HOST}:~$\u001b[0m ${seg.display}`
       : `\u001b[36m$\u001b[0m ${seg.display}`;
     for (const l of wrapLine(echo)) {
@@ -695,9 +698,7 @@ function writeCast(path: string, events: Array<[number, 'o' | 'i', string]>, dur
     duration: r3(duration),
     title: 'grr — Google tools from the terminal',
     env: {
-      SHELL: USE_WSL
-    ? '/bin/bash'
-    : process.env.SHELL ?? (process.platform === 'win32' ? 'powershell.exe' : '/bin/bash'),
+      SHELL: BASH_PROMPT ? '/bin/bash' : process.env.SHELL ?? 'powershell.exe',
       TERM: 'xterm-256color',
     },
   };
@@ -809,7 +810,9 @@ function validateCast(path: string): boolean {
     ['grr api list JSON', /gmail\.users\.messages\.list/],
     ['grr api describe JSON', /discoveryRevision/],
     ['grr gmail dry-run request JSON', /https:\/\/gmail\.googleapis\.com\/gmail\/v1\/users\/me\/messages/],
-    ['grr schema dump', /"version":2,"width":100/],
+    // The cast header line, as emitted by grr schema's JSON: tracks WIDTH so
+    // a geometry change never silently breaks this gate.
+    ['grr schema dump', new RegExp(`"version":2,"width":${WIDTH}`)],
     ['grr --help head', /Google tools from the terminal/],
   ];
   for (const [name, re] of required) {
