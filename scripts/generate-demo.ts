@@ -422,15 +422,17 @@ function truncateAgent(lines: string[]): string[] {
 }
 
 /**
- * The committed cast's agent segment, extracted for carry-forward.
- *
- * CI (`--ci-record`) regenerates the cast from source. It can run the live
- * agent segment when opencode works there (free default models or
- * credentials in the environment); when it cannot, this salvages the
- * previously recorded segment from the committed cast so a CI regeneration
- * never strips the agent demo from the site.
+ * A committed-cast segment extractor: collect the 'o' output lines between a
+ * start marker and the next segment boundary (a `$` prompt or a `#` note).
+ * Used to carry the segments CI cannot re-record — `grr transport` (needs a
+ * Google token) and the opencode agent run — so a CI regeneration never
+ * strips them from the site.
  */
-function carryAgentSegment(castPath: string): { seg: PreparedAgent; report: SegmentReport } | null {
+function carrySegment(
+  castPath: string,
+  startMarker: string,
+  display: string,
+): { lines: string[] } | null {
   let raw: string;
   try {
     raw = readFileSync(castPath, 'utf8');
@@ -438,7 +440,7 @@ function carryAgentSegment(castPath: string): { seg: PreparedAgent; report: Segm
     return null;
   }
   const lines: string[] = [];
-  let inAgent = false;
+  let inside = false;
   for (const line of raw.split('\n')) {
     if (line.length === 0) continue;
     let event: unknown;
@@ -451,28 +453,41 @@ function carryAgentSegment(castPath: string): { seg: PreparedAgent; report: Segm
     const [, type, text] = event as [number, string, string];
     if (typeof text !== 'string') continue;
     const plain = text.replace(/\u001b\[[0-9;]*m/g, '');
-    if (type === 'o' && plain.includes('opencode agent driving')) {
-      inAgent = true;
+    if (!inside && type === 'o' && plain.includes(startMarker)) {
+      inside = true;
       continue;
     }
-    if (inAgent) {
-      // The closing note ("# grr <semver> — N segments recorded…") ends the
-      // segment; narration prompts for other commands start with "$ ".
-      if (plain.startsWith('# grr ') || plain.startsWith('$ ')) break;
+    if (inside) {
+      // The next prompt or narration note ends the segment.
+      if (plain.startsWith('$ ') || plain.startsWith('# ')) break;
       for (const l of plain.split('\r\n')) {
         const trimmed = l.replace(/\r/g, '');
         if (trimmed.length > 0) lines.push(trimmed);
       }
     }
   }
-  if (lines.length === 0) return null;
+  return lines.length > 0 ? { lines } : null;
+}
+
+/**
+ * The committed cast's agent segment, extracted for carry-forward.
+ *
+ * CI (`--ci-record`) regenerates the cast from source. It can run the live
+ * agent segment when opencode works there (free default models or
+ * credentials in the environment); when it cannot, this salvages the
+ * previously recorded segment from the committed cast so a CI regeneration
+ * never strips the agent demo from the site.
+ */
+function carryAgentSegment(castPath: string): { seg: PreparedAgent; report: SegmentReport } | null {
+  const carried = carrySegment(castPath, 'opencode agent driving', `opencode run "${AGENT_PROMPT}"`);
+  if (!carried) return null;
   return {
-    seg: { kind: 'agent', mode: 'local', display: `opencode run "${AGENT_PROMPT}"`, lines },
+    seg: { kind: 'agent', mode: 'local', display: `opencode run "${AGENT_PROMPT}"`, lines: carried.lines },
     report: {
       display: 'opencode run "<prompt>"',
       kind: 'agent',
       status: 'ran',
-      lines: lines.length,
+      lines: carried.lines.length,
       note: 'carried forward from the committed cast (live agent run unavailable)',
     },
   };
@@ -586,7 +601,17 @@ async function buildSegments(mode: 'ci' | 'local' | 'ci-record'): Promise<{ segs
       segs.push(agent.seg);
       reports.push(agent.report);
     } else {
-      reports.push(agent.report);
+      // opencode is flaky (agent runs regularly hit the 300s cap). The
+      // committed cast is the carry source — same rule as CI: a failed
+      // live run degrades to the previous recording rather than stripping
+      // the agent demo from the site.
+      const carried = carryAgentSegment(DEFAULT_OUT);
+      if (carried) {
+        segs.push(carried.seg);
+        reports.push(carried.report);
+      } else {
+        reports.push(agent.report);
+      }
     }
   } else if (mode === 'ci-record') {
     // Self-maintenance mode: CI regenerates the cast from source. It has no
@@ -595,13 +620,29 @@ async function buildSegments(mode: 'ci' | 'local' | 'ci-record'): Promise<{ segs
     // default models (or credentials via env secrets) may allow a LIVE agent
     // segment — with carry-forward from the committed cast as the safety net,
     // so a CI regeneration never strips the agent demo from the site.
-    reports.push({
-      display: 'grr transport',
-      kind: 'command',
-      status: 'skipped',
-      lines: 0,
-      note: 'needs a Google token; recorded by --local runs only',
-    });
+    // `grr transport` needs a live Google token — unrecordable in CI. Its
+    // committed segment is carried forward: the transport facts (HTTP/3
+    // negotiated, runtime features) only change when the transport code
+    // itself changes, and a fresh --local run refreshes them.
+    const carriedTransport = carrySegment(DEFAULT_OUT, 'grr transport', 'grr transport');
+    if (carriedTransport) {
+      segs.push({ kind: 'command', mode: 'local', display: 'grr transport', lines: carriedTransport.lines });
+      reports.push({
+        display: 'grr transport',
+        kind: 'command',
+        status: 'ran',
+        lines: carriedTransport.lines.length,
+        note: 'carried forward from the committed cast (live transport needs a Google token)',
+      });
+    } else {
+      reports.push({
+        display: 'grr transport',
+        kind: 'command',
+        status: 'skipped',
+        lines: 0,
+        note: 'needs a Google token; recorded by --local runs only',
+      });
+    }
     await tryPush(
       prepCommand('local', 'grr ask "show my unread messages" --dry-run', ['ask', 'show my unread messages', '--dry-run']),
       'grr ask "show my unread messages" --dry-run',
