@@ -151,3 +151,60 @@ jobs:
           path: target/${{ matrix.target.triple }}/release/${{ matrix.target.artifact }}
           if-no-files-found: error
 
+  archive:
+    name: archive
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        timeout-minutes: 5
+        with:
+          path: dist
+          merge-multiple: false
+
+      - name: Stage binaries
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          mkdir -p stage
+          # merge-multiple=false keeps per-target dirs; flatten to one tree.
+          find dist -type f -name 'grr.exe' -exec sh -c 'cp "$1" stage/grr.exe' _ {} \;
+          # For the unix targets artifact is named `grr`; keep them separate.
+          rm -f stage/grr.exe
+          i=0
+          for d in dist/*/; do
+            i=$((i+1))
+            name=$(basename "$d" | sed -E 's/^grr-v[0-9.]+-//')
+            if [ -f "$d/grr.exe" ]; then cp "$d/grr.exe" "stage/$name.exe"; else cp "$d/grr" "stage/$name"; fi
+          done
+          ls -l stage
+
+      - name: Build archives
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          ref="${{ github.ref_name }}"
+          # zstd -22 is the maximum level; -T0 uses all cores. Decompression
+          # stays fast, which matters more than the last few percent.
+          for name in linux-x86_64 linux-aarch64 macos-aarch64; do
+            tar -cf - -C stage "$name" | zstd -22 -T0 -q -o "grr-$ref-$name.tar.zst"
+          done
+          # Windows keeps .zip: Explorer's built-in extractor only reads
+          # deflate, so lzma2-in-zip would be unopenable without 7-Zip.
+          # -mx=9 is max deflate.
+          for name in windows-x86_64 windows-aarch64; do
+            7z a -m0=deflate -mx=9 -bso0 -bsp0 "grr-$ref-$name.zip" "./stage/$name.exe" >/dev/null
+          done
+          sha256sum grr-* > SHA256SUMS
+          ls -l
+
+      - uses: actions/upload-artifact@v4
+        timeout-minutes: 5
+        with:
+          name: release-assets
+          path: |
+            grr-${{ github.ref_name }}-*.tar.zst
+            grr-${{ github.ref_name }}-*.zip
+            SHA256SUMS
+
