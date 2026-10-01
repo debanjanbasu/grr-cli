@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T09:48:43.812Z",
+  "generatedAt": "2026-10-01T13:40:23.850Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -52,6 +52,24 @@
               "scope": null,
               "type": "feat",
               "note": null
+            },
+            {
+              "description": "the site maintains itself - CI demo recording + auto release",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "the whole tree works offline - --dry-run needs no credential",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "carry-forward for transport and agent segments everywhere",
+              "scope": "demo",
+              "type": "feat",
+              "note": null
             }
           ]
         },
@@ -68,6 +86,18 @@
             {
               "description": "the scattered rendering was bare \\\\\\\\n in the cast frames",
               "scope": "demo",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "the generated-artifact gates and the demo recording are cross-platform",
+              "scope": "ci",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "list/describe/refresh work with zero configuration",
+              "scope": "api",
               "type": "fix",
               "note": null
             }
@@ -87,6 +117,36 @@
               "description": "regenerate for v0.5.0",
               "scope": "changelog",
               "type": "docs",
+              "note": null
+            },
+            {
+              "description": "regenerate for v0.5.0",
+              "scope": "changelog",
+              "type": "docs",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "refresh Google Discovery index",
+              "scope": "discovery",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
               "note": null
             }
           ]

@@ -46,6 +46,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - 0.5.0 release stats - 4-platform binary sizes
 - **changelog:** regenerate for v0.5.0
+- **changelog:** regenerate for v0.5.0
+
+### Internal
+
+- 1 internal commit (chore 1)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.5.0] - 2026-09-28
 
