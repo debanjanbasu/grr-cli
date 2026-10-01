@@ -36,7 +36,7 @@ const contract = `$ grr gmail users messages list --user-id me --max-results 1
 # stderr: INFO grr_cli::core::auth: Loaded token from OS keyring
 
 $ grr api list 2>&1 >/dev/null
-308 methods                      # the count is deliberately on stderr
+401 methods                      # the count is deliberately on stderr
 
 $ grr auth login --device
 Visit https://google.com/device and enter code: ABCD-EFGH
