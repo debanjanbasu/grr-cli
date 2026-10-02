@@ -22,9 +22,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- unattended releases + the stale-count sweep
+
+### Fixed
+
+- **site:** the last stale counts - 401/14 everywhere
+
 ### Documentation
 
 - 0.6.0 release stats - 5-platform binary sizes
+- **changelog:** regenerate for v0.6.0
+- **demo:** the README matches the self-maintaining reality
+
+### Internal
+
+- 1 internal commit (chore 1)
 
 ## [0.6.0] - 2026-10-02
 
