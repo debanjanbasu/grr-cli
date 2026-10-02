@@ -44,10 +44,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **changelog:** regenerate for v0.6.0
 - **demo:** the README matches the self-maintaining reality
 - bring the prose back in line with the tree
+- **changelog:** regenerate for the automation, site and release fixes
 
 ### Internal
 
-- 2 internal commits (chore 2)
+- 3 internal commits (chore 3)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.6.0] - 2026-10-02
 
