@@ -22,7 +22,7 @@ const CONSOLE: &str = "https://console.cloud.google.com";
 const SETUP_DOCS: &str = "https://github.com/debanjanbasu/grr-cli/blob/main/docs/gcp-setup.md";
 
 /// Every API grr can talk to, so one `gcloud services enable` covers them.
-/// All ten are reachable through the generated command tree; a method's
+/// Every one is reachable through the generated command tree; a method's
 /// scopes decide what actually authorises.
 const SERVICES: &[(&str, &str)] = &[
     ("gmail.googleapis.com", "Gmail"),
