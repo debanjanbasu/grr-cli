@@ -149,6 +149,7 @@ jobs:
           add-paths: |
             CHANGELOG.md
             site/src/data/changelog.json
+          body: |
             Automated regeneration of `CHANGELOG.md` by
             `.github/workflows/changelog.yml`, run after
             `${{ github.event_name }}`.
