@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T14:41:37.893Z",
+  "generatedAt": "2026-10-02T22:25:36.133Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -16,6 +16,30 @@
               "scope": null,
               "type": "feat",
               "note": null
+            },
+            {
+              "description": "draw the service illustrations and glyphs as real pixel art",
+              "scope": "site",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "draw the grr crab in the version banner",
+              "scope": "cli",
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "performance",
+          "heading": "Performance",
+          "items": [
+            {
+              "description": "100 in every Lighthouse category",
+              "scope": "site",
+              "type": "perf",
+              "note": null
             }
           ]
         },
@@ -25,6 +49,18 @@
           "items": [
             {
               "description": "the last stale counts - 401/14 everywhere",
+              "scope": "site",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "release correctness, dependency freshness and workflow cost",
+              "scope": "automation",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "stop deriving the site's numbers by hand",
               "scope": "site",
               "type": "fix",
               "note": null
@@ -52,6 +88,12 @@
               "scope": "demo",
               "type": "docs",
               "note": null
+            },
+            {
+              "description": "bring the prose back in line with the tree",
+              "scope": null,
+              "type": "docs",
+              "note": null
             }
           ]
         },
@@ -62,6 +104,12 @@
             {
               "description": "re-record the terminal demo from source",
               "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh the index and everything derived from it",
+              "scope": "discovery",
               "type": "chore",
               "note": null
             }

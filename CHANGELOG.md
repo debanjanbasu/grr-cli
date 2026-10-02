@@ -22,9 +22,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- unattended releases + the stale-count sweep
+- **site:** draw the service illustrations and glyphs as real pixel art
+- **cli:** draw the grr crab in the version banner
+
+### Performance
+
+- **site:** 100 in every Lighthouse category
+
+### Fixed
+
+- **site:** the last stale counts - 401/14 everywhere
+- **automation:** release correctness, dependency freshness and workflow cost
+- **site:** stop deriving the site's numbers by hand
+
 ### Documentation
 
 - 0.6.0 release stats - 5-platform binary sizes
+- **changelog:** regenerate for v0.6.0
+- **demo:** the README matches the self-maintaining reality
+- bring the prose back in line with the tree
+
+### Internal
+
+- 2 internal commits (chore 2)
 
 ## [0.6.0] - 2026-10-02
 
