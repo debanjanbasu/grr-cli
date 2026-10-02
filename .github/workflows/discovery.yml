@@ -8,6 +8,12 @@ name: Refresh discovery index
 # the documents, and opens a pull request when the distilled index differs.
 # Same shape as the Dependabot automations: the repository never edits
 # itself, a human (or auto-merge) reviews the diff.
+#
+# Four artifacts are derived from that index, and all of them move together:
+# src/commands/generated.rs (the CLI tree), skills/** (the agent skills), and
+# site/src/data/discovery-coverage.ts (the counts the site prints). The site
+# table used to be transcribed by hand, which is how it ended up advertising
+# Discovery revisions a month stale.
 
 on:
   schedule:
@@ -15,11 +21,6 @@ on:
     # world fires at :00 and GitHub queues them.
     - cron: "17 4 * * *"
   workflow_dispatch:
-    inputs:
-      force:
-        description: "Open a PR even if the index is unchanged"
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -37,10 +38,10 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         timeout-minutes: 5
         with:
           node-version: "24"
@@ -50,17 +51,22 @@ jobs:
         timeout-minutes: 5
         run: |
           node scripts/fetch-discovery.ts
-          # The CLI command tree AND the agent skills are generated from the
-          # index, so an index change must carry its regenerated tree and
-          # skills in the same PR — the three can never drift apart.
+          # The CLI command tree, the agent skills, and the site's coverage
+          # table are all generated from the index, so an index change must
+          # carry all of them in the same PR — they can never drift apart.
           node scripts/generate-commands.ts
           node scripts/generate-skills.ts
-          if git diff --quiet -- src/discovery src/commands/generated.rs skills; then
+          node scripts/generate-coverage.ts
+          # `git status --porcelain` rather than `git diff --quiet`, because a
+          # brand-new service makes Google ship a discovery doc that has no
+          # tracked file yet: `git diff` sees nothing for an untracked path, so
+          # the one update most worth a PR would have opened none.
+          if [ -z "$(git status --porcelain -- src/discovery src/commands/generated.rs skills site/src/data/discovery-coverage.ts)" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Discovery index is already current."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            git --no-pager diff --stat -- src/discovery src/commands/generated.rs
+            git --no-pager diff --stat -- src/discovery src/commands/generated.rs site/src/data/discovery-coverage.ts
           fi
 
       - uses: dtolnay/rust-toolchain@nightly
@@ -105,7 +111,7 @@ jobs:
 
       - name: Open a pull request
         if: steps.refresh.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         timeout-minutes: 5
         with:
           branch: chore/discovery-refresh
@@ -115,8 +121,11 @@ jobs:
           body: |
             Automated refresh of `src/discovery/` from Google's Discovery
             Service, run by `.github/workflows/discovery.yml`. The
-            regenerated command tree (`src/commands/generated.rs`) rides
-            along, so the PR always contains index and tree in lockstep.
+            regenerated command tree (`src/commands/generated.rs`), the agent
+            skills (`skills/**`), and the site's coverage table
+            (`site/src/data/discovery-coverage.ts`) ride along, so the PR
+            always contains the index and everything derived from it in
+            lockstep.
 
             The Rust tests ran against this index, so a method whose shape
             changed incompatibly would have failed the build rather than
