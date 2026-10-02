@@ -2,17 +2,29 @@
 // The terminal demo: an asciinema cast of grr's real output, played by the
 // self-hosted asciinema-player.
 //
-// `client:visible` is the lazy mount: the player bundle (~50 KB) and the
-// .cast fetch only load when this section scrolls near the viewport, so the
-// page's LCP is untouched. Astro's ClientRouter re-hydrates this component
-// after a client-side navigation, so the mount logic is idempotent.
+// The mount is lazy, armed by an IntersectionObserver below: the player
+// bundle (~50 KB) and the .cast fetch only happen once this section nears
+// the viewport, so the page's LCP is untouched. Astro's ClientRouter swaps
+// in new DOM nodes that carry no mount marker, so `astro:page-load` re-arms
+// the observer and the whole thing is idempotent.
+
+// A `client:*` directive would NOT do this: DemoPlayer is an Astro
+// component, and Astro components never render in the client. The directive
+// is ignored with a build warning, which left the player mounting eagerly on
+// load while this comment claimed otherwise.
 //
-// The player's CSS is imported HERE (the frontmatter), not inside the
-// client script: Astro bundles frontmatter CSS into the page, but an import
-// inside a client script is silently dropped — which once left the terminal
-// without `white-space: pre`, so the cast's newlines collapsed and the text
-// rendered as a scattered staircase.
-import 'asciinema-player/dist/bundle/asciinema-player.css';
+// The player's CSS is NOT imported in the frontmatter. A frontmatter import
+// -- and even a dynamic `import()` of the stylesheet -- is hoisted by Astro
+// into a render-blocking <link> on every page load, for a terminal that only
+// exists far below the fold: 3.8 KB of critical-path CSS for content nobody
+// has scrolled to yet. Importing it with Vite's `?url` suffix yields the
+// built asset's URL without registering it as a page stylesheet, so
+// ensureStyles() can attach it at mount time instead.
+//
+// Ordering matters: the stylesheet must be applied before create() runs, or
+// the cast paints once without `white-space: pre` and its newlines collapse
+// into a staircase. So ensureStyles resolves on the link's load event rather
+// than merely appending it.
 
 interface Props {
   src?: string;
@@ -32,12 +44,72 @@ const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = 
 </div>
 
 <script>
-  import { create } from 'asciinema-player';
+  // The player module is ~65 KB, and a static `import` here would fetch and
+  // parse it during the load window even though `arm()` below deliberately
+  // waits for the shell to approach the viewport. The lazy mount is only
+  // half a fix if the bundle still rides in on the critical path, so the
+  // import itself is deferred to the same IntersectionObserver callback.
+  type CreateFn = typeof import('asciinema-player').create;
+  let player: Promise<CreateFn> | null = null;
 
-  function mount() {
-    document.querySelectorAll<HTMLElement>('[data-demo-stage]').forEach((stage) => {
-      if (stage.dataset.demoMounted === 'true') return;
-      stage.dataset.demoMounted = 'true';
+  // `?url` hands back the built asset's path without adding it to the page's
+  // stylesheet set, which is the whole point: the link below is created only
+  // when the terminal is about to be scrolled into view.
+  import playerCss from 'asciinema-player/dist/bundle/asciinema-player.css?url';
+
+  const STYLE_ATTR = 'data-demo-styles';
+  const ensureStyles = () =>
+    new Promise<void>((resolve) => {
+      const existing = document.querySelector<HTMLLinkElement>(`link[${STYLE_ATTR}]`);
+      if (existing?.sheet) {
+        resolve();
+        return;
+      }
+      if (existing) {
+        // Attached on a previous mount and still in flight; reuse it rather
+        // than racing a second link for the same stylesheet.
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => resolve(), { once: true });
+        return;
+      }
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = playerCss;
+      link.setAttribute(STYLE_ATTR, '');
+      // A failed stylesheet must not wedge the demo: the cast still plays,
+      // it just renders without the player's own layout rules.
+      link.addEventListener('load', () => resolve(), { once: true });
+      link.addEventListener('error', () => resolve(), { once: true });
+      document.head.appendChild(link);
+    });
+
+  const loadPlayer = () =>
+    (player ??= Promise.all([ensureStyles(), import('asciinema-player')]).then(([, mod]) => mod.create));
+
+  // Mounts every player on the page that has not mounted yet. Driven by a
+  // query rather than a parameter so the DOM types flow in from
+  // querySelectorAll (this block is plain JS, not TS). The player module is
+  // imported once, on first mount, not at module evaluation.
+  async function mountPending() {
+    const pending = Array.from(document.querySelectorAll<HTMLElement>('[data-demo-stage]')).filter(
+      (stage) => stage.dataset.demoMounted !== 'true',
+    );
+    if (pending.length === 0) return;
+    // Marked up front: a second observer callback that lands while the
+    // dynamic import is in flight must not queue a duplicate mount.
+    for (const stage of pending) stage.dataset.demoMounted = 'true';
+
+    let create: CreateFn;
+    try {
+      create = await loadPlayer();
+    } catch (error) {
+      // The chunk never arrived. Leave the same readable shell a failed
+      // mount produces instead of an empty black stage.
+      for (const stage of pending) stage.textContent = 'demo unavailable';
+      return;
+    }
+
+    for (const stage of pending) {
       const shell = stage.closest<HTMLElement>('[data-demo-player]');
       const src = shell?.dataset.demoSrc ?? '/demo/demo.cast';
       try {
@@ -60,11 +132,47 @@ const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = 
         stage.textContent = 'demo unavailable';
         if (shell) shell.dataset.demoMounted = 'failed';
       }
-    });
+    }
   }
 
-  // Hydrated on visible by client:visible; also re-mount after a
-  // ClientRouter swap (new DOM nodes carry no mount marker).
-  mount();
-  document.addEventListener('astro:page-load', mount);
+  // One observer for the page, re-created on every navigation. Held in a
+  // module-level binding so a ClientRouter swap disconnects the previous
+  // one instead of leaving it attached to detached nodes.
+  let observer: IntersectionObserver | null = null;
+
+  function arm() {
+    const shells = document.querySelectorAll<HTMLElement>('[data-demo-player]');
+    if (shells.length === 0) return;
+
+    // No IntersectionObserver (very old browsers): correctness beats
+    // laziness, so mount straight away rather than leaving an empty shell.
+    if (typeof IntersectionObserver === 'undefined') {
+      mountPending();
+      return;
+    }
+
+    if (observer) observer.disconnect();
+    observer = new IntersectionObserver(
+      (entries) => {
+        // Nothing scrolled in yet — leave the shell untouched.
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+
+        mountPending();
+        // Every player on the page has mounted: stop paying for the observer.
+        const pending = Array.from(document.querySelectorAll<HTMLElement>('[data-demo-stage]')).some(
+          (stage) => stage.dataset.demoMounted !== 'true',
+        );
+        if (!pending && observer) {
+          observer.disconnect();
+          observer = null;
+        }
+      },
+      // 200px of headroom: the player is ready slightly before it scrolls in.
+      { rootMargin: '200px' },
+    );
+    shells.forEach((shell) => observer?.observe(shell));
+  }
+
+  arm();
+  document.addEventListener('astro:page-load', arm);
 </script>
