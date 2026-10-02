@@ -2,8 +2,13 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import DocsShell from '../../components/DocsShell.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
+import InlineCode from '../../components/InlineCode.astro';
+import PageHero from '../../components/PageHero.astro';
 import SectionIntro from '../../components/SectionIntro.astro';
+import { discoveryMethodTotal, discoveryServiceCount, discoveryServices } from '../../data/discovery-coverage';
 
+
+const tasksMethodCount = discoveryServices.find((service) => service.name === 'tasks')?.methods ?? 0;
 const base = import.meta.env.BASE_URL;
 
 const safety = `# --readonly refuses every write verb, before or after the subcommand
@@ -120,7 +125,7 @@ grr forms forms watches list --form-id <form-id>`,
     name: 'Tasks',
     namespace: 'grr tasks',
     description:
-      '14 methods. Task lists and the tasks inside them. Note the scope caveat: this build does not consent to the Tasks scope, so live calls can 403.',
+      `${tasksMethodCount} methods. Task lists and the tasks inside them. Note the scope caveat: this build does not consent to the Tasks scope, so live calls can 403.`,
     commands: `grr tasks tasklists list
 grr tasks tasks list --tasklist @default
 grr tasks tasks insert --tasklist @default --body-file ./task.json`,
@@ -197,19 +202,13 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
 
 <BaseLayout
   title="Commands"
-  description="The full grr command surface: ten services, one generated tree — the naming rule that predicts any command from its method id, typed flags per method, and the account-level commands."
+  description={`The full grr command surface: ${discoveryServiceCount} services, one generated tree — the naming rule that predicts any command from its method id, typed flags per method, and the account-level commands.`}
 >
   <DocsShell currentPath={`${base}docs/commands/`}>
-    <section class="page-hero section">
-      <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
-        <div class="reveal">
-          <span class="eyebrow">commands</span>
-          <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Ten services, one generated tree.</h1>
-          <p class="m-0 max-w-[62ch] text-sm text-base-content/70">Every service command is generated from Google&rsquo;s Discovery Service at build time &mdash; 401 methods, 839 typed flags, zero hand-written per-service commands. That makes the tree predictable instead of memorized. For the flat, id-based view of the same index, see <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
-        </div>
-        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">401 methods · 10 services · generated, not curated</div>
-      </div>
-    </section>
+    <PageHero eyebrow="commands" title={`${discoveryServiceCount} services, one generated tree.`}>
+      Every service command is generated from Google&rsquo;s Discovery Service at build time &mdash; {discoveryMethodTotal} methods, a typed flag per parameter, zero hand-written per-service commands. That makes the tree predictable instead of memorized. For the flat, id-based view of the same index, see <a href={`${base}docs/discovery/`}>Discovery API</a>.
+      <Fragment slot="aside">{discoveryMethodTotal} methods · {discoveryServiceCount} services · generated, not curated</Fragment>
+    </PageHero>
 
     <section class="section" aria-labelledby="naming-title">
       <div class="container">
@@ -251,7 +250,7 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
             <article id={`svc-${service.name.toLowerCase()}`} class="install-card install-card-wide card card-border border-base-300 bg-base-100">
               <div class="card-body gap-1 p-5">
                 <h2 class="card-title m-0 text-base">{service.name}</h2>
-                <p class="m-0 text-[13px] text-base-content/70">{service.description}</p>
+                <p class="m-0 text-[13px] text-base-content/70"><InlineCode text={service.description} /></p>
                 <CodeBlock code={service.commands} label={service.namespace} />
               </div>
             </article>
@@ -300,7 +299,7 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base"><code>grr schema</code></h2>
-              <p class="m-0 text-[13px] text-base-content/70">Dumps the entire command tree as JSON: every subcommand, every argument, whether it is required, whether it takes a value, its default, and its possible values. Because the tree itself is generated from the index, schema is a faithful census of all 401 methods.</p>
+              <p class="m-0 text-[13px] text-base-content/70">Dumps the entire command tree as JSON: every subcommand, every argument, whether it is required, whether it takes a value, its default, and its possible values. Because the tree itself is generated from the index, schema is a faithful census of all {discoveryMethodTotal} methods.</p>
             </div>
           </article>
           <article class="install-card card card-border border-base-300 bg-base-100">
@@ -348,6 +347,7 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
           <li><strong>Errors are actionable.</strong> A 403 names the missing scope, an unknown method id returns ranked suggestions, a missing required parameter names itself. Non-zero exit on failure, always.</li>
           <li><strong>Two commands print plain text, not JSON:</strong> <code>grr transport</code> and the device-login line above. <code>--dry-run</code> output <em>is</em> JSON, so it pipes.</li>
           <li><strong>Timestamps are RFC 3339</strong> (<code>--time-min 2026-10-01T00:00:00Z</code>), or a bare <code>YYYY-MM-DD</code> where the API accepts a date.</li>
+          <li><strong><code>grr --version</code> is a banner.</strong> The semver is its first line, which is what the benchmark script and the Homebrew formula read; below it sits the crab mascot, drawn in 24-bit-colour pixel art on a terminal that advertises <code>COLORTERM</code> or direct colour and as plain ASCII everywhere else. A pipe, <code>TERM=dumb</code> or <code>NO_COLOR</code> all give you the ASCII crab &mdash; so scripts are never handed escape sequences. <code>CLICOLOR_FORCE=1</code> forces the colour logo through a pipe.</li>
         </ul>
       </div>
     </section>

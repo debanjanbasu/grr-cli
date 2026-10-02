@@ -10,11 +10,16 @@ const { currentPath = '' } = Astro.props;
 ---
 
 {/* DaisyUI drawer: a sticky menu sidenav on desktop (lg:drawer-open keeps the
-    side visible and sticky), a slide-over drawer on mobile behind the toggle. */}
+    side visible and sticky), a slide-over drawer on mobile behind the toggle.
+    The toggle is a <label> for the checkbox, so it is not itself focusable —
+    DaisyUI's keyboard path is the checkbox, and `drawer-button` is the class it
+    uses to paint a focus ring on this label when that checkbox takes focus.
+    Without it, tabbing to the (visually collapsed) checkbox moved focus to
+    something invisible and the mobile sidenav looked unreachable. */}
 <div class="drawer lg:drawer-open">
   <input id="docs-nav-toggle" type="checkbox" class="drawer-toggle" />
   <div class="drawer-content min-w-0">
-    <label for="docs-nav-toggle" class="btn btn-ghost btn-square btn-sm mt-4 ml-5 lg:hidden">
+    <label for="docs-nav-toggle" class="drawer-button btn btn-ghost btn-square btn-sm mt-4 ml-5 lg:hidden">
       <span class="sr-only">Open the docs navigation</span>
       <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" focusable="false" shape-rendering="crispEdges">
         <g fill="currentColor">

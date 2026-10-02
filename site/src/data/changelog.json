@@ -1,11 +1,78 @@
 {
-  "generatedAt": "2026-10-01T13:40:23.850Z",
+  "generatedAt": "2026-10-02T14:41:37.893Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": [
+        {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "unattended releases + the stale-count sweep",
+              "scope": null,
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "the last stale counts - 401/14 everywhere",
+              "scope": "site",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "documentation",
+          "heading": "Documentation",
+          "items": [
+            {
+              "description": "0.6.0 release stats - 5-platform binary sizes",
+              "scope": null,
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "regenerate for v0.6.0",
+              "scope": "changelog",
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "the README matches the self-maintaining reality",
+              "scope": "demo",
+              "type": "docs",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.6.0",
+      "date": "2026-10-02",
+      "unreleased": false,
       "sections": [
         {
           "key": "added",
@@ -100,6 +167,12 @@
               "scope": "api",
               "type": "fix",
               "note": null
+            },
+            {
+              "description": "update Cargo.lock for v0.6.0",
+              "scope": "release",
+              "type": "fix",
+              "note": null
             }
           ]
         },
@@ -135,6 +208,42 @@
               "description": "refresh Google Discovery index",
               "scope": "discovery",
               "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v0.6.0",
+              "scope": "release",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "rename release.yml -\\> release-binaries.yml (fresh workflow registration)",
+              "scope": null,
+              "type": "ci",
+              "note": null
+            },
+            {
+              "description": "release parse probe (minimal skeleton)",
+              "scope": null,
+              "type": "ci",
+              "note": null
+            },
+            {
+              "description": "bisect stage 1 - build job only",
+              "scope": null,
+              "type": "ci",
+              "note": null
+            },
+            {
+              "description": "bisect stage 2 - archive job",
+              "scope": null,
+              "type": "ci",
+              "note": null
+            },
+            {
+              "description": "fix the release job's files block scalar",
+              "scope": null,
+              "type": "ci",
               "note": null
             }
           ]

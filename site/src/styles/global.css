@@ -1179,6 +1179,232 @@
     transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out);
   }
 
+  /* ── API reference (the generated per-service pages) ──────────────────
+
+     Every class the api-reference pages use lived here in markup and in
+     nothing else: Tailwind's preflight sets `font-size: inherit;
+     font-weight: inherit` on headings, so the resource and method headings
+     rendered at body weight, and the seven-column parameter table rendered
+     as bare borderless text. Defined here rather than as utility classes in
+     the template because the same shapes repeat 401 times per build. */
+
+  .api-resource-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .api-resource-head h2 {
+    margin: 0;
+    font-size: clamp(17px, 2vw, 21px);
+    font-weight: 600;
+    line-height: 1.25;
+    /* Clears the sticky 4rem site header, so a `#res-…` link does not land
+       underneath it. */
+    scroll-margin-top: calc(4rem + 12px);
+  }
+
+  .api-resource-count {
+    flex: none;
+    color: var(--quiet);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .api-methods {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 18px;
+  }
+
+  .api-method {
+    padding: 16px 18px 18px;
+    background: var(--color-base-100);
+    border: 1px solid var(--line);
+    scroll-margin-top: calc(4rem + 12px);
+  }
+
+  .api-method-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+  }
+
+  .api-method-head h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .api-verb {
+    flex: none;
+    font-family: var(--font-mono);
+  }
+
+  .api-method-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .api-path {
+    color: var(--quiet);
+    overflow-wrap: anywhere;
+  }
+
+  .api-method-desc {
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+
+  /* The parameter table is the widest thing on the page. `body` sets
+     `overflow-x: clip`, so without an explicit scroll container the
+     Location/Description/Enum columns are simply unreachable on a phone. */
+  .api-params-wrap {
+    margin-top: 12px;
+    overflow-x: auto;
+  }
+
+  .api-params {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  .api-params th,
+  .api-params td {
+    padding: 7px 10px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .api-params thead th {
+    color: var(--quiet);
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+
+  .api-params tbody th {
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .api-params tbody tr:last-child th,
+  .api-params tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .api-param-type,
+  .api-param-loc {
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .api-param-flag {
+    color: var(--quiet);
+    text-align: center;
+  }
+
+  .api-param-desc {
+    min-width: 22ch;
+    color: var(--muted);
+  }
+
+  .api-param-enum {
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+
+  .api-noparams {
+    margin: 10px 0 0;
+    color: var(--quiet);
+    font-size: 12px;
+  }
+
+  .api-scopes-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    margin: 12px 0 0;
+    font-size: 12px;
+  }
+
+  .api-scope-least {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .api-scope-tag {
+    padding: 1px 6px;
+    color: var(--quiet);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border: 1px solid var(--line-strong);
+  }
+
+  .api-scope-none {
+    color: var(--quiet);
+  }
+
+  .api-scopes-all summary {
+    color: var(--quiet);
+    font-size: 11.5px;
+    cursor: pointer;
+  }
+
+  .api-scopes-all ul {
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--muted);
+  }
+
+  .api-scopes-all li {
+    padding: 1px 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* ── Alternating feature rows ─────────────────────────────────────────
+
+     `FeatureRow` sets this class for every other service on the homepage, and
+     nothing reordered the two grid cells — the alternating layout the prop
+     exists to produce never happened. Order only applies to grid items, so
+     this is scoped to the breakpoint where the row is two columns; the
+     stacked mobile order stays copy-then-visual. */
+  @media (min-width: 1024px) {
+    .feature-row-reverse .feature-row-copy {
+      order: 2;
+    }
+
+    .feature-row-reverse .feature-row-visual {
+      order: 1;
+    }
+  }
+
   /* ── FAQ (the open-state accent bar, no layout shift) ─────────────── */
 
   .faq-item[open] {

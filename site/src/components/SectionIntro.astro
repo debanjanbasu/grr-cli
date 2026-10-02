@@ -1,4 +1,6 @@
 ---
+import InlineCode from './InlineCode.astro';
+
 interface Props {
   eyebrow: string;
   title: string;
@@ -11,6 +13,6 @@ const { eyebrow, title, copy, id } = Astro.props;
 
 <div class="section-heading section-intro">
   <span class="eyebrow">{eyebrow}</span>
-  <h2 id={id}>{title}</h2>
-  <p>{copy}</p>
+  <h2 id={id}><InlineCode text={title} /></h2>
+  <p><InlineCode text={copy} /></p>
 </div>
