@@ -1,6 +1,6 @@
 # grr — Agent Execution Ruleset
 
-`grr` is a Rust CLI for Google Workspace: one binary (`grr`), one crate (`grr-cli`), a generated command tree covering **308 methods across 10 Google APIs** (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides) — compiled from the committed Discovery index, never hand-written — plus the id-based `grr api` escape hatch and account-level commands (`auth`, `transport`, `schema`). HTTP/3 (QUIC) is always on. Requires **Rust nightly**.
+`grr` is a Rust CLI for Google Workspace: one binary (`grr`), one crate (`grr-cli`), a generated command tree covering **401 methods across 14 Google APIs** (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, Search Console) — compiled from the committed Discovery index, never hand-written — plus the id-based `grr api` escape hatch and account-level commands (`auth`, `transport`, `schema`). HTTP/3 (QUIC) is always on. Requires **Rust nightly**.
 
 Use this file as the execution ruleset. Deep detail lives in the files linked from it.
 
@@ -8,12 +8,14 @@ Use this file as the execution ruleset. Deep detail lives in the files linked fr
 
 | If your task touches... | Read first |
 |---|---|
-| The service command tree (`grr gmail ...`, all 10 services) | `scripts/generate-commands.ts` + `src/commands/generated.rs` (GENERATED — never edit by hand) + `src/commands/gen_dispatch.rs` (dispatch) |
+| The service command tree (`grr gmail ...`, all 14 services) | `scripts/generate-commands.ts` + `src/commands/generated.rs` (GENERATED — never edit by hand) + `src/commands/gen_dispatch.rs` (dispatch) |
 | OAuth client, config resolution, `.env`, `auth setup` | `build.rs`, `src/core/config.rs`, `src/core/config_loader.rs`, `.env.example` |
 | `grr api` / discovery (methods, scopes, URLs) | `src/discovery.rs`, `src/discovery/*.json`, `scripts/fetch-discovery.ts` |
-| Release binaries, UPX, archives, targets | `.github/workflows/release.yml`, `.cargo/config.toml`, `Cargo.toml [profile.*]` |
+| Release binaries, UPX, archives, targets | `.github/workflows/release-binaries.yml`, `.cargo/config.toml`, `Cargo.toml [profile.*]` |
 | MCP / ask / safety | `src/mcp.rs`, `src/commands/{mcp,safety,ask}.rs` — the MCP server, the safety gate (global args), the System One ask flow |
 | The website | `site/README.md` if present, else `site/astro.config.mjs` + `site/src/pages/` |
+| The pixel-art assets (`site/src/assets/*.svg`, `site/public/*.svg`, favicons, og card) | `site/scripts/generate-mascot.mjs` — GENERATED, never hand-edit; run `node site/scripts/generate-mascot.mjs` |
+| The `grr --version` banner | `src/logo.rs` — the pixel map, palette, half-block renderer, and terminal-capability gate |
 | Docs / changelog automation | `scripts/generate-changelog.ts`, `.github/workflows/changelog.yml`, `.github/workflows/discovery.yml` |
 | The agent skill (`skills/grr/SKILL.md`) | Keep it in lockstep with the output contract and naming rules in `gen_dispatch.rs` and `generated.rs` |
 | Crates.io publishing | `.github/workflows/publish.yml` (read the comment block first) |
@@ -28,15 +30,19 @@ cargo fmt --all -- --check
 cargo package --allow-dirty             # must succeed with NO env set
 
 node scripts/fetch-discovery.ts        # refresh discovery index
-node scripts/fetch-discovery.ts --check    # exit 1 if stale (CI gate)
+node scripts/fetch-discovery.ts --check    # exit 1 if upstream moved (network; the daily workflow, not CI, is the gate)
 node scripts/generate-commands.ts      # regenerate the service command tree
-node scripts/generate-commands.ts --check   # exit 1 if stale (CI gate)
+node scripts/generate-commands.ts --check   # exit 1 if stale (CI gate, offline)
+node scripts/generate-skills.ts        # regenerate skills/<service>/SKILL.md + skills/README.md
+node scripts/generate-skills.ts --check    # exit 1 if stale (CI gate, offline)
+node scripts/generate-coverage.ts      # regenerate the site's coverage table
+node scripts/generate-coverage.ts --check   # exit 1 if stale (CI gate)
 node scripts/generate-changelog.ts     # regenerate CHANGELOG.md + site data
 node scripts/generate-changelog.ts --check # idempotency gate
 npm run demo                             # regenerate demo/demo.cast (local: + opencode segment)
 
 grr schema                                  # the full command tree as JSON — the contract
-grr api list [--service X] [--filter SUBSTR] # the 308 methods, offline, no login
+grr api list [--service X] [--filter SUBSTR] # the 401 methods, offline, no login
 ```
 
 ## Architecture
@@ -47,22 +53,25 @@ grr api list [--service X] [--filter SUBSTR] # the 308 methods, offline, no logi
 | Discovery | `src/discovery.rs` | The embedded index + `grr api` resolution: method ids, path templates, scopes, params. Parsed once into a `OnceLock`. This index is the single source of truth for BOTH surfaces — the generated tree is compiled from it. |
 | Core | `src/core/` | Auth (OAuth+PKCE, keyring), HTTP (HTTP/3), config, errors, pagination. |
 | Build | `build.rs`, `.cargo/config.toml` | Nightly guard + compile-time OAuth client injection; build-std + per-target rustflags. |
-| Site | `site/` | Astro static site: docs, changelog, llms.txt. |
+| Site | `site/` | Astro static site: docs, changelog, llms.txt. Every image is generated pixel art from `site/scripts/generate-mascot.mjs`. |
 | Skills | `skills/grr/SKILL.md` | The packaged agent skill — discovery-first discipline, naming rule, output contract. |
 
 ### Invariants worth knowing before you change something
 
 1. **A `[target.*]` rustflags table REPLACES `[build]` rustflags** — cargo does not merge them. The three `--cfg` flags (`reqwest_unstable`, `hyper_unstable_ffi`, `tokio_unstable`) must be repeated in every target table, or crates gating on them fail to compile on that target.
-2. **The discovery index is committed on purpose** (`src/discovery/*.json`, ~360 KiB). Do not move it to runtime-only fetch: that breaks offline use, adds first-run latency, and sacrifices determinism. Refresh via the script; the daily workflow opens a PR.
-3. **The command tree is generated** — never hand-edit `src/commands/generated.rs`. Change the generator (`scripts/generate-commands.ts`) or the index (`scripts/fetch-discovery.ts`), then regenerate; CI gates both with `--check`. The daily discovery PR regenerates the tree in the same commit as the index, so the two can never drift.
+2. **The discovery index is committed on purpose** (`src/discovery/*.json`, ~434 KiB). Do not move it to runtime-only fetch: that breaks offline use, adds first-run latency, and sacrifices determinism. Refresh via the script; the daily workflow opens a PR.
+3. **The command tree is generated** — never hand-edit `src/commands/generated.rs`. Change the generator (`scripts/generate-commands.ts`) or the index (`scripts/fetch-discovery.ts`), then regenerate; CI gates both with `--check`. The daily discovery PR regenerates the tree, the skills, and the site coverage table in the same commit as the index, so nothing derived from it can drift.
 4. **Method ids include resource names**: `users.messages.list`, not `messages.list`. The distiller walks `Object.entries(doc.resources)` and passes the name as the path prefix — and the CLI command mirrors the id verbatim (`grr gmail users messages list`), resource segments included.
 5. **`basePath` is inconsistent across Google's docs** (`gmail/v1/` vs `/drive/v3/`). `Service::base()` strips the leading slash — `rootUrl` always ends in `/`, so a naive concat yields `//` and a 404.
-6. **Per-method scope escalation is the design**: 105 unique scopes across the 10 services vs Google's ~25-scope cap on unverified apps means "request everything" fails at consent. A method needing a scope outside the consented set gets a stderr note, not a silent escalation; a resulting 403 names the scope.
+6. **Per-method scope escalation is the design**: 124 unique scopes across the 14 services vs Google's ~25-scope cap on unverified apps means "request everything" fails at consent. A method needing a scope outside the consented set gets a stderr note, not a silent escalation; a resulting 403 names the scope.
 7. **The OAuth client must never enter the repo** — not in source, tests, CI logs, or the `.crate` tarball. `build.rs` reads `GRR_CLIENT_ID`/`GRR_CLIENT_SECRET` from the environment (falling back to a repo-root `.env`) and re-exports via `cargo:rustc-env`. Release binaries embed them (Google treats installed-app secrets as non-confidential; PKCE protects the flow); source builds fall through to `grr auth setup`.
 8. **`panic = "immediate-abort"`** in `[profile.release]` (gated by `panic-immediate-abort` in `.cargo/config.toml [unstable]`, paired with `build-std`). Panic messages become context-free; do not write tests that assert on panic text.
 9. **stdout is machine output, stderr is logs** — `grr gmail users messages list --user-id me | jq` must never receive log lines. The known plain-text stdout exceptions are `grr transport` and the pre-JSON device-login line; note any new one in docs when you add it.
 10. **Global args are IDs, not names**: a `global(true)` arg's ID must be the FIELD name (`deny_service`), not the long flag (`deny-service`) - the hyphenated variant is the exact "Mismatch between definition and access" clap panic. And a flag may only be declared ONCE in the tree: a second declaration with the same ID panics arg-matching.
 11. **The demo cast is generated** (`scripts/generate-demo.ts`), never hand-edited; regeneration is local (`npm run demo`) so the opencode agent segment cannot silently regress in CI. The committed cast must never contain private data: no Bearer tokens, no client ids, no real message subjects.
+12. **Counts in the site are derived, never typed.** `site/src/data/discovery-coverage.ts` is generated by `scripts/generate-coverage.ts` from the index, and every page that prints a method or service count imports `discoveryMethodTotal` / `discoveryServiceCount` from it. Hardcoding "401 methods" or "14 APIs" in an `.astro` file reintroduces the drift the generator exists to remove — the counts in prose belong in the coverage table.
+13. **Site graphics are generated pixel art, never vector.** Every mascot pose, service illustration, glyph, favicon and the og card comes from `site/scripts/generate-mascot.mjs`, which authors them on character grids and emits run-length-merged, axis-aligned `<path>` runs. Two rules hold the style together: no curve commands and no blurred shadows anywhere in the set — a `Q`/`C` or a `<filter>` in an asset means it slipped back into vector, and a shadow is a Bayer-dithered *strip*, not an ellipse (a flat ellipse can only vary along x and renders as a row of bars). The CLI banner in `src/logo.rs` embeds the same mascot map and the same palette, so the terminal and the site are one brand.
+
 ## Rust coding standards
 
 - Conventional commits (`feat:`, `fix:`, `perf:`, `feat!:` for breaking). The changelog generator parses them — a malformed subject lands under "Other" instead of its proper section.
@@ -81,6 +90,8 @@ cargo clippy --all-targets -- -D warnings
 cargo fmt --all -- --check
 cargo package --allow-dirty      # with NO GRR_* env and no .env present
 node scripts/generate-commands.ts --check   # generated tree in sync with the index
+node scripts/generate-skills.ts --check     # agent skills in sync with the index
+node scripts/generate-coverage.ts --check   # site coverage table in sync with the index
 ```
 
 For site changes: `npm run build`, `npm run lint`, `npm run typecheck` in `site/`, plus a Lighthouse pass for anything user-facing. The hard-preserve strings in `site/src/layouts/BaseLayout.astro` (title pattern, JSON-LD name/alternateName, `og:site_name`, the `google-site-verification` meta) must survive any edit verbatim.
@@ -89,12 +100,18 @@ For site changes: `npm run build`, `npm run lint`, `npm run typecheck` in `site/
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | PR + push | nextest/clippy/fmt, tests on ubuntu+windows, weekly rustsec audit |
-| `release.yml` | tag `v*` | 4 targets (linux x86_64, macOS arm64, Windows x86_64 **and Windows on ARM** via a native ARM runner), UPX `--best`, zstd-22 `.tar.zst` + max-deflate `.zip`, SHA256SUMS, GitHub Release |
+| `ci.yml` | PR + push | nextest/clippy/fmt on ubuntu+windows, scripts typecheck, **site `astro check` + `astro build`**, generated-artifact gates, weekly rustsec audit |
+| `release-binaries.yml` | tag `v*` | 4 targets (linux x86_64, macOS arm64, Windows x86_64 **and Windows on ARM** via a native ARM runner), UPX `--best`, zstd-22 `.tar.zst` + max-deflate `.zip`, SHA256SUMS, GitHub Release |
 | `publish.yml` | release/manual | `cargo publish --locked --no-verify` (crate is source-only — read its comment) |
-| `discovery.yml` | daily 04:17 UTC | refetches discovery docs, regenerates the index AND the generated command tree, opens a PR when either differs, runs the Rust tests against the new data first |
+| `tag-release.yml` | push to main | pushes the tag for a version on main that has none — fires the binary release and the crates.io publish |
+| `auto-release.yml` | Friday 04:31 UTC | computes the next version from the commit history and opens the bump PR with auto-merge |
+| `discovery.yml` | daily 04:17 UTC | refetches discovery docs, regenerates the index AND everything derived from it (command tree, agent skills, site coverage table), opens a PR when any differs, runs the Rust tests against the new data first |
 | `changelog.yml` | push to main + release | regenerates `CHANGELOG.md` + `site/src/data/changelog.json`, opens a PR |
-| `dependabot.yml` | weekly | cargo / github-actions / npm, all version types, grouped |
+| `benchmark.yml` | daily | rebuilds grr in release mode, re-measures the credential-free metrics into `site/src/data/benchmarks.json`, opens a PR when they move |
+| `demo.yml` | push to main (CLI/demo/generator/Cargo paths), release, weekly Sun 03:41 UTC | re-records `demo/demo.cast` from the built binary — the cast quotes `grr --version`, so a version bump or a published release both re-record — and opens a PR |
+| `stats.yml` | push to `Cargo.toml`, daily 05:07 UTC, release | refreshes `site/src/data/stats.json` (download counts, latest tag/date, measured archive sizes) and opens a PR; idempotent, so a quiet day opens nothing |
+| `dependabot.yml` | weekly | cargo / github-actions / npm, all version types, grouped; every patch group is named `patches` so the auto-merge workflow can tell patches apart |
+| `dependabot-auto-merge.yml` | dependabot PR opened/reopened | **patches merge immediately with `--admin`, bypassing required checks** — the repo prefers the latest patch even if it regresses; minors and majors wait for green CI |
 
 ## Windows PowerShell quirks (for agents on this machine)
 
@@ -114,7 +131,9 @@ Treat a commit as incomplete if docs are stale. What triggers a doc update:
 - Adding/removing/renaming a command or flag → `README.md` command table, `site/src/pages/docs/commands.astro`, `skills/grr/SKILL.md`, `AGENTS.md` key commands
 - Changing auth/config behavior → `README.md`, `docs/gcp-setup.md`, `.env.example`, `config.toml.example`, the FAQ in `site/src/pages/index.astro`
 - Changing packaging/archives → `README.md` packaging table, `site/src/pages/install.astro`
-- Adding a service or changing discovery → `src/discovery/` (via the script, never by hand), `site/src/data/discovery-coverage.ts` (regenerate), the docs discovery page, `site/public/llms.txt`
+- Adding a service or changing discovery → `src/discovery/` (via the script, never by hand), `site/src/data/discovery-coverage.ts` (via `node scripts/generate-coverage.ts`, never by hand), the docs discovery page, `site/public/llms.txt`
 - Changing the agent contract (output, discovery discipline, naming rules) → `skills/grr/SKILL.md`, `site/src/pages/docs/agents.astro`, `site/public/llms.txt`
 
-Generated files (`CHANGELOG.md`, `src/discovery/*.json`, `src/commands/generated.rs`, `site/src/data/changelog.json`) are never hand-edited; rerun the generator.
+Generated files (`CHANGELOG.md`, `src/discovery/*.json`, `src/commands/generated.rs`, `skills/**`, `site/src/data/changelog.json`, `site/src/data/discovery-coverage.ts`, every SVG under `site/src/assets/` and `site/public/` except hand-authored patterns) are never hand-edited; rerun the generator.
+
+Key generator, not previously listed: `node site/scripts/generate-mascot.mjs` (pixel art + favicons + og card). `site/scripts/subset-font.py` regenerates the subsetted IBM 3270 webfont from `site/fonts-src/`.

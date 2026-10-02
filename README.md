@@ -91,17 +91,31 @@ Building from source instead of installing a release? Read [Authentication and c
 ### `grr auth setup`
 
 ```text
-grr auth setup [OPTIONS]
+Create and store an OAuth client. Release builds ship with one, so this is only needed when using
+your own client
 
-  --client-id <ID>          Google OAuth client id (…apps.googleusercontent.com); prompted when omitted
-  --client-secret <SECRET>  Google OAuth client secret; prompted when omitted
-  --print-only              print the instructions and the resolved path, write nothing
-  --force                   overwrite an existing ~/.grr/config.toml instead of refusing
-  --enable-apis             also run `gcloud services enable` for all ten APIs, when gcloud is on PATH
-  -f, --format <FORMAT>     json | jsonl | table | pretty (default json)
+Usage: grr auth setup [OPTIONS]
+
+Options:
+      --client-id <CLIENT_ID>          Google OAuth client id (…apps.googleusercontent.com).
+                                       Prompted for when omitted
+      --client-secret <CLIENT_SECRET>  Google OAuth client secret. Prompted for when omitted
+      --print-only                     Print the instructions and the resolved path, but write
+                                       nothing. Useful for a first look, and for agents that only
+                                       want the recipe
+      --force                          Overwrite an existing ~/.grr/config.toml instead of refusing
+      --enable-apis                    Try `gcloud services enable` for the APIs when gcloud is on
+                                       PATH
+  -f, --format <FORMAT>                Output format [default: json] [possible values: json, jsonl,
+                                       table, pretty]
+      --readonly                       Refuse every write method (POST/PATCH/PUT/DELETE); only reads
+                                       run
+      --deny-service <SERVICE>         Refuse every method of this service (repeatable)
+      --deny-verb <VERB>               Refuse this HTTP verb (repeatable)
+  -h, --help                           Print help
 ```
 
-It checks the client-id shape before writing anything (must end in `.apps.googleusercontent.com`, and a truncated paste is rejected), rejects a truncated secret, writes the file mode `0600` on unix, and refuses to clobber an existing `config.toml` without `--force`. It prints the exact Cloud Console URLs and the `gcloud services enable` line covering all ten APIs — gmail, calendar-json, drive, people, chat, forms, tasks, docs, sheets, and slides `…googleapis.com` — and `--print-only` hands you that recipe without touching disk, which is the right first command when you have no client at all:
+It checks the client-id shape before writing anything (must end in `.apps.googleusercontent.com`, and a truncated paste is rejected), rejects a truncated secret, writes the file mode `0600` on unix, and refuses to clobber an existing `config.toml` without `--force`. It prints the exact Cloud Console URLs and the `gcloud services enable` line covering every API behind a command — gmail, calendar-json, drive, people, chat, forms, tasks, docs, sheets, slides, script, analyticsadmin, analyticsdata, and searchconsole `…googleapis.com` — and `--print-only` hands you that recipe without touching disk, which is the right first command when you have no client at all:
 
 ```sh
 grr auth setup --print-only
@@ -141,22 +155,18 @@ Every command takes `-f/--format json|jsonl|table|pretty` (default `json`). For 
 grr gmail users messages list --user-id me --q "in:inbox" --max-results 1 | jq -r '.[0].id'
 ```
 
+`grr --version` prints the semver on its first line (scripts depend on that), then the crab mascot: in full 24-bit-colour pixel art on a terminal that advertises `COLORTERM`/direct colour, and as plain ASCII everywhere else — a pipe, `TERM=dumb`, or `NO_COLOR`. Set `CLICOLOR_FORCE=1` to force the colour logo through a pipe (`grr --version | less -R`); `NO_COLOR` still wins over it.
+
 ### Command reference
 
-The command tree is **generated** from the committed Discovery index at build time, so this table is deliberately coarse: **`grr --help` and `grr schema` are the source of truth**, and every one of the 308 methods is a real, typed command.
+The command tree is **generated** from the committed Discovery index at build time, so this table is deliberately coarse: **`grr --help` and `grr schema` are the source of truth**, and every one of the 401 methods is a real, typed command.
 
 | Group | What it covers | Methods |
 | --- | --- | --- |
 | `grr auth` | `login [--device] [--account name]`, `status [--account name]`, `setup [--client-id] [--client-secret] [--print-only] [--force] [--enable-apis]` | — |
-**Safety profiles.** `--readonly`, `--deny-service <name>` and `--deny-verb <VERB>` are global flags honored by the generated tree, `grr api call` and `grr mcp` alike — they parse before or after the subcommand, and turn destructive methods into actionable errors:
-
-```sh
-grr --readonly gmail users messages delete --user-id me --id abc   # refused: DELETE
-grr --deny-service chat chat spaces list                            # refused: the chat service
-```
 | `grr ask` | `"<request>" [--run] [--service] [--method]` — natural language to a typed method + params via a System One model; prints the plan by default | - |
 | `grr mcp` | an MCP (JSON-RPC over stdio) server exposing every method as a typed tool; `--readonly` for read-only | - |
-| `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 308 |
+| `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 401 |
 | `grr schema` | the whole command tree as JSON | — |
 | `grr transport` | negotiated HTTP version + runtime features | — |
 | `grr gmail` | messages, threads, drafts, labels, history, attachments, filters, forwarding, POP/IMAP, send-as, CSE, delegates, watches | 79 |
@@ -169,10 +179,21 @@ grr --deny-service chat chat spaces list                            # refused: t
 | `grr docs` | documents `get` / `create` / `batchUpdate` | 3 |
 | `grr sheets` | spreadsheets, values, batch operations, developer metadata | 17 |
 | `grr slides` | presentations, pages, thumbnails | 5 |
+| `grr script` | script projects, deployments, versions, processes, running functions | 16 |
+| `grr analyticsadmin` | accounts, properties, data streams, custom dimensions and metrics, conversion events | 55 |
+| `grr analyticsdata` | standard, realtime, pivot and batch reports, audience exports | 11 |
+| `grr searchconsole` | search analytics queries, sitemaps, sites, URL inspection | 11 |
+
+**Safety profiles.** `--readonly`, `--deny-service <name>` and `--deny-verb <VERB>` are global flags honored by the generated tree, `grr api call` and `grr mcp` alike — they parse before or after the subcommand, and turn destructive methods into actionable errors:
+
+```sh
+grr --readonly gmail users messages delete --user-id me --id abc   # refused: DELETE
+grr --deny-service chat chat spaces list                            # refused: the chat service
+```
 
 ## The generated tree
 
-Every service command above is generated at build time — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~360 KiB across the 10 services) and emits the whole tree into `src/commands/generated.rs` — 308 leaves, 839 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates both the index and the tree, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
+Every service command above is generated at build time — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~434 KiB across the 14 services) and emits the whole tree into `src/commands/generated.rs` — 401 leaves, 994 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates the index along with the command tree, the per-service agent skills, and the site's coverage table, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
 
 The rules, so you can predict any command without memorizing it:
 

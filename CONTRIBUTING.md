@@ -26,12 +26,12 @@ If you have no client at all, the full walkthrough is in [`docs/gcp-setup.md`](.
 
 ### Discovery index and the generated tree
 
-The entire service command tree — every `grr gmail …`, `grr calendar …`, … leaf — is generated at build time from a distilled index of Google's Discovery documents, committed at `src/discovery/*.json` (~360 KiB across 10 services) and embedded with `include_str!`. There are no hand-written service commands: the index is the surface.
+The entire service command tree — every `grr gmail …`, `grr calendar …`, … leaf — is generated at build time from a distilled index of Google's Discovery documents, committed at `src/discovery/*.json` (~434 KiB across 14 services) and embedded with `include_str!`. There are no hand-written service commands: the index is the surface.
 
 - **Refresh it**: `node scripts/fetch-discovery.ts` (Node 24+; no dependencies to install). The output is deterministic — sorted keys — so an unchanged upstream produces an empty diff.
-- **Regenerate the tree**: `node scripts/generate-commands.ts` re-emits `src/commands/generated.rs` (308 leaves, 839 typed flags) from the committed index. After any index change, run it; the two artifacts move together or not at all.
-- **Verify freshness**: `node scripts/fetch-discovery.ts --check` and `node scripts/generate-commands.ts --check` each exit 1 when their output is stale, which is what CI gates on.
-- **Automation**: [`.github/workflows/discovery.yml`](./.github/workflows/discovery.yml) runs daily, regenerates both the index and the tree, and opens a PR when either differs. The repository never edits itself.
+- **Regenerate what depends on it**: `node scripts/generate-commands.ts` re-emits `src/commands/generated.rs` (401 leaves, 994 typed flags), `node scripts/generate-skills.ts` re-emits `skills/<service>/SKILL.md`, and `node scripts/generate-coverage.ts` re-emits the site's `site/src/data/discovery-coverage.ts`. After any index change, run all three; an index and its derived artifacts move together or not at all.
+- **Verify freshness**: the three `--check` modes exit 1 when their output is stale, and all three run in CI — they read only committed files, so they need no network. `node scripts/fetch-discovery.ts --check` is deliberately *not* a CI gate: it compares against live Google, so it would go red every time Google ships a method. The daily workflow is what keeps the index current.
+- **Automation**: [`.github/workflows/discovery.yml`](./.github/workflows/discovery.yml) runs daily, regenerates the index and every artifact derived from it, and opens a PR when any differs. The repository never edits itself.
 - **The generated files are committed on purpose.** Committing them keeps builds hermetic (no network at build time), makes `grr api list` and `grr schema` work offline, and means a Google-side change can never break a build. Do not hand-edit them, and do not gitignore them — regenerate and commit the diff instead. Review refresh diffs for surprising *removals*: a method disappearing usually means Google renamed it upstream.
 
 If you add a service to the index, it goes in the `SERVICES` map in `scripts/fetch-discovery.ts` and the `include_str!` table in `src/discovery.rs`; the manifest is regenerated for you, and the next `generate-commands.ts` run gives it a full command namespace.
