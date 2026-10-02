@@ -54,7 +54,8 @@ grr gmail users messages list --user-id me --q "is:unread" --max-results 5 \
 - **stdout is data; stderr is logs.** Default output is JSON, so `grr … | jq` always works.
 - **Non-zero exit on failure.** Errors land on stderr and are actionable: a 403 names the missing scope, an unknown method id gets ranked suggestions, a missing required parameter names itself.
 - **`--dry-run` before anything destructive.** It prints the resolved verb, URL, body, and scopes as JSON and sends nothing — the cheapest correctness check there is.
-- Plain-text exceptions (do not JSON-parse): `grr transport`, and `grr auth login --device` (prints URL + code before the JSON).
+- Plain-text exceptions (do not JSON-parse): `grr transport`, `grr auth login --device` (prints URL + code before the JSON), and `grr --version` (a banner, not data &mdash; its **first line is the semver**, `grr <x.y.z>`; the rest is the mascot).
+- `grr --version` may carry ANSI colour when stdout is a 24-bit-colour terminal. Read the version with `head -1`, or `NO_COLOR=1 grr --version | head -1`, never with a whole-output parse.
 
 ## Auth state
 

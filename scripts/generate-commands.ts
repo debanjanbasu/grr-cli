@@ -362,7 +362,7 @@ async function main(): Promise<void> {
 
   const body: string[] = [];
 
-  body.push('    /// The ten service commands, in `discovery::services()` order.');
+  body.push(`    /// All ${services.length} service commands, in \`discovery::services()\` order.`);
   body.push('    pub fn commands() -> Vec<Command> {');
   body.push('        vec![');
   for (const service of services) {

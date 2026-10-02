@@ -3,7 +3,7 @@
 // that grr embeds.
 //
 // Why distil instead of embedding the raw documents:
-//   - The raw Gmail doc is ~1.5 MB. All ten services together would add
+//   - The raw Gmail doc is ~1.5 MB. Every service together would add
 //     several MB to a binary whose size is a selling point.
 //   - To *invoke* a method we only need: the method id, HTTP verb, path
 //     template, its scopes, and its parameters. Full request/response
