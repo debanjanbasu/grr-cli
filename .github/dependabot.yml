@@ -1,8 +1,16 @@
 version: 2
 updates:
-  # Every version bump is proposed, majors included, and auto-merged once CI is
-  # green (see .github/workflows/dependabot-auto-merge.yml). Groups only keep
-  # the PR count sane; they never filter out a version type.
+  # Every version bump is proposed, majors included. Patches are merged
+  # immediately and unconditionally — being on the latest patch is worth more
+  # than a green run, and a regression is caught by the next release rather
+  # than by holding the bump back (see dependabot-auto-merge.yml). Minors and
+  # majors wait for CI to go green. Groups only keep the PR count sane; they
+  # never filter out a version type.
+  #
+  # Every patch group is named `patches` on purpose: Dependabot puts the group
+  # name in the branch (`dependabot/<ecosystem>/patches-<hash>`), and
+  # dependabot-auto-merge.yml keys the immediate merge off that. Keep the name
+  # identical across ecosystems or the detection silently stops matching.
   - package-ecosystem: cargo
     directory: /
     schedule:
@@ -13,7 +21,7 @@ updates:
       - dependencies
       - rust
     groups:
-      rust-patches:
+      patches:
         patterns:
           - "*"
         update-types:
@@ -39,6 +47,17 @@ updates:
       - dependencies
       - github-actions
     groups:
+      # Named `patches` for the same reason as the other two ecosystems: this
+      # group had no patch split at all, so action bumps were the only
+      # dependency updates that could never produce a `patches-<hash>` branch
+      # and therefore the only ones that silently fell through to the gated
+      # path. `patches` is listed first so patches are claimed by it and
+      # minors/majors fall through to the catch-all below.
+      patches:
+        patterns:
+          - "*"
+        update-types:
+          - patch
       github-actions:
         patterns:
           - "*"
@@ -69,7 +88,7 @@ updates:
           - "*"
         update-types:
           - minor
-      npm-patches:
+      patches:
         patterns:
           - "*"
         update-types:
@@ -102,7 +121,7 @@ updates:
           - "*"
         update-types:
           - minor
-      npm-patches:
+      patches:
         patterns:
           - "*"
         update-types:

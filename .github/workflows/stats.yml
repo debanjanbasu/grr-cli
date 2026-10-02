@@ -1,0 +1,115 @@
+name: Refresh site stats
+
+# site/src/data/stats.json holds the numbers the homepage and the install page
+# render: crates.io download counts, GitHub release asset downloads, the latest
+# release tag, and the per-platform archive sizes. It is a generated file — the
+# site deliberately renders committed JSON rather than live API responses, so
+# builds stay hermetic and reproducible.
+#
+# Before this workflow it had no automation at all: the only way to refresh it
+# was to run `npm run update-stats` in site/ by hand, which is how the download
+# counts drifted away from reality.
+#
+# Why a pull request and not a direct commit, matching changelog.yml /
+# discovery.yml / benchmark.yml: generated content still deserves a reviewable
+# diff, and the GITHUB_TOKEN cannot push to a protected main. The script is
+# idempotent (a run where only `updatedAt` would move writes nothing), so a
+# quiet day opens no PR.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # The version tile and the install page read `version` from this file,
+      # which the script reads out of Cargo.toml. Refresh on the bump itself,
+      # not only once the release is published.
+      - Cargo.toml
+  schedule:
+    # 05:07 UTC daily. Off the hour, and clear of every other scheduled
+    # workflow here (03:23 benchmark, 03:41 demo, 04:00 CI, 04:17 discovery,
+    # 04:31 auto-release) so they do not contend for the runner queue.
+    - cron: "7 5 * * *"
+  workflow_dispatch:
+  release:
+    # A new release changes the tag, the date, and the archive sizes at once.
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stats-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    name: refresh
+    runs-on: ubuntu-26.04-arm
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+        timeout-minutes: 2
+
+      - uses: actions/setup-node@v7
+        timeout-minutes: 5
+        with:
+          node-version: "24"
+
+      - name: Refresh stats.json
+        id: gen
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          # The script needs no packages — it is a bare Node script using fetch.
+          node site/scripts/update-stats.ts | tee stats-gen.log
+
+          # `git status --porcelain` rather than `git diff --quiet`, so a
+          # first-time generated file (untracked) counts as a change too.
+          if [ -z "$(git status --porcelain -- site/src/data/stats.json)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "stats.json is already current."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git --no-pager diff --stat -- site/src/data/stats.json
+          fi
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Site stats refresh"
+            echo
+            echo '```'
+            cat stats-gen.log 2>/dev/null || echo "(generator produced no log)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open a pull request
+        if: steps.gen.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        timeout-minutes: 5
+        with:
+          branch: chore/stats-refresh
+          title: "chore(site): refresh download counts and archive sizes"
+          commit-message: "chore(site): refresh download counts and archive sizes"
+          labels: dependencies
+          add-paths: site/src/data/stats.json
+          body: |
+            Automated refresh of `site/src/data/stats.json` by
+            `.github/workflows/stats.yml`, run after `${{ github.event_name }}`.
+
+            The file is read by the homepage stat tiles and the install page's
+            download table, so it is committed rather than fetched at build
+            time — the site stays reproducible and builds offline.
+
+            Only the numbers change here: crates.io downloads, GitHub release
+            asset downloads, the latest release tag and date, and the measured
+            archive size per platform. Nothing in the copy depends on these
+            values, so review is a sanity check that the counters are plausible
+            and no size has collapsed.
+
+            The script skips the write when nothing but `updatedAt` would
+            move, so a quiet day produces no diff and no PR.

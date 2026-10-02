@@ -40,10 +40,15 @@ permissions:
   contents: read
 
 concurrency:
-  # One regeneration at a time: two runs racing on the same throwaway branch
-  # would fight over the same PR.
-  group: changelog-${{ github.ref }}
-  cancel-in-progress: true
+  # Static, NOT keyed on the ref: every trigger pushes the SAME throwaway
+  # branch (`chore/changelog-regenerate`), so a push-to-main run and a release
+  # run must serialise. Keying on `github.ref` put them in two different
+  # groups and let them force-push the same branch concurrently.
+  group: changelog
+  # Serialised, not cancelled: a release-triggered regeneration must finish
+  # even if another push lands behind it. The job is ~2 minutes, so queueing
+  # is cheaper than losing the run.
+  cancel-in-progress: false
 
 jobs:
   regenerate:
@@ -55,7 +60,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 5
         with:
           # The generator diffs consecutive tags, so it needs the full history
@@ -64,7 +69,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         timeout-minutes: 5
         with:
           # Matches the Node version the other script-running workflow uses.
@@ -94,13 +99,17 @@ jobs:
 
           # `git status --porcelain` rather than `git diff --quiet`, so a
           # first-time generated file (untracked) counts as a change too.
-          if [ -z "$(git status --porcelain -- CHANGELOG.md)" ]; then
+          # Both outputs are named: the generator writes CHANGELOG.md *and*
+          # site/src/data/changelog.json, and the changelog page renders the
+          # latter. Detecting only the Markdown file meant a run that moved
+          # the JSON alone opened no PR and left the site stale.
+          if [ -z "$(git status --porcelain -- CHANGELOG.md site/src/data/changelog.json)" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "CHANGELOG.md is already in sync."
+            echo "CHANGELOG.md and site/src/data/changelog.json are in sync."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "CHANGELOG.md is out of date:"
-            git --no-pager diff --stat -- CHANGELOG.md
+            echo "Changelog output is out of date:"
+            git --no-pager diff --stat -- CHANGELOG.md site/src/data/changelog.json
           fi
 
       - name: Summarise
@@ -132,13 +141,14 @@ jobs:
 
       - name: Open a pull request
         if: steps.gen.outputs.changed == 'true' && inputs.dry_run != true
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/changelog-regenerate
           title: "docs(changelog): regenerate for ${{ steps.gen.outputs.newest_tag }}"
           commit-message: "docs(changelog): regenerate for ${{ steps.gen.outputs.newest_tag }}"
-          add-paths: CHANGELOG.md
-          body: |
+          add-paths: |
+            CHANGELOG.md
+            site/src/data/changelog.json
             Automated regeneration of `CHANGELOG.md` by
             `.github/workflows/changelog.yml`, run after
             `${{ github.event_name }}`.
@@ -170,10 +180,17 @@ jobs:
     # release is the moment where "the changelog must describe this version" is
     # a real invariant.
     #
-    # Note for whoever sees this go red on a release: the section for the tag
-    # that was just published cannot be in the commit that tag points at (the
-    # tag did not exist when that commit was made). The fix is to merge the
-    # regeneration PR above, or to regenerate in the release PR itself.
+    # Two things make this go red, and both are fixed by a merge rather than
+    # by editing anything here:
+    #   1. The section for the tag that was just published cannot be in the
+    #      commit that tag points at (the tag did not exist when that commit
+    #      was made). Merging the regeneration PR above, or regenerating in
+    #      the release PR itself, is the remedy.
+    #   2. The committed CHANGELOG.md is out of date at the tag because a
+    #      regeneration PR was opened and never merged. Same remedy.
+    # Deleting the tag locally before generating was tried and does NOT help:
+    # the drift is real committed-file drift, not an artefact of the tag, so
+    # the check stays red until the regeneration is actually merged.
     if: github.event_name == 'release' && github.event.action == 'published'
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 10
@@ -181,13 +198,13 @@ jobs:
       # Read-only: this job verifies, it never writes.
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 5
         with:
           fetch-depth: 0
           fetch-tags: true
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         timeout-minutes: 5
         with:
           node-version: "24"

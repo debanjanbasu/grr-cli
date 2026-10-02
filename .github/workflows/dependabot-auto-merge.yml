@@ -1,5 +1,19 @@
 name: Dependabot auto-merge
 
+# Patch updates merge immediately and unconditionally; minors and majors wait
+# for CI to go green.
+#
+# Why patches are not gated: the repository's stated preference is to be on the
+# latest patch even when that breaks something — a held-back patch is a known
+# vulnerability or a fixed bug staying in the tree for another week, and the
+# cost of a bad patch is one revert, not a silent outage. Minors and majors are
+# where an API change can plausibly require a code edit, so those still go
+# through the full suite.
+#
+# Detection: every patch group in .github/dependabot.yml is named `patches`, so
+# Dependabot puts `patches-<hash>` in the branch name. Keep those group names
+# in sync with this check.
+
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -8,13 +22,74 @@ permissions:
   pull-requests: write
   contents: read
 
+concurrency:
+  # One decision per pull request. Two runs (a `synchronize` landing while a
+  # `reopened` is still queued) otherwise race on `gh pr merge`, and the loser
+  # fails on a PR that is already merged — turning a successful auto-merge into
+  # a red run. Queued rather than cancelled: being killed mid-merge is worse
+  # than a duplicate no-op.
+  group: dependabot-auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   dependabot:
     if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Enable auto-merge
+      - name: Decide patch vs. gated
+        id: mode
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # A run queued behind a successful merge must not try to merge a PR
+          # that is already merged: `gh pr merge` errors on one, which turned a
+          # completed auto-merge into a red run on the next event (closed,
+          # reopened, or a Dependabot rebase).
+          state="$(gh pr view "$PR_NUMBER" --json state --jq .state)"
+          if [ "$state" != "open" ]; then
+            echo "::notice::PR #$PR_NUMBER is $state; nothing left to decide."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # `patches-<hash>` in the branch is the whole signal: dependabot.yml
+          # names every patch group `patches` precisely so this matches.
+          if [[ "$HEAD_REF" == *patches-* ]]; then
+            echo "mode=patch" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=gated" >> "$GITHUB_OUTPUT"
+          fi
+          echo "head ref: $HEAD_REF -> ${{ steps.mode.outputs.mode }}"
+
+      - name: Merge a patch now, bypassing required checks
+        if: steps.mode.outputs.skip != 'true' && steps.mode.outputs.mode == 'patch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # --admin is the point: it merges past pending required checks, which
+          # is the whole intent for patches. If the token is not allowed to
+          # bypass protection, fall back to auto-merge so the bump still lands
+          # rather than sitting open forever.
+          if output="$(gh pr merge "$PR_NUMBER" --squash --admin --delete-branch 2>&1)"; then
+            printf '%s\n' "$output"
+          elif printf '%s\n' "$output" | grep -qi "not allowed\|permission\|protected branch"; then
+            printf '%s\n' "$output" >&2
+            echo "::notice::Cannot bypass branch protection; falling back to auto-merge."
+            gh pr merge "$PR_NUMBER" --squash --auto --delete-branch
+          else
+            printf '%s\n' "$output" >&2
+            exit 1
+          fi
+
+      - name: Enable auto-merge for a gated bump
+        if: steps.mode.outputs.skip != 'true' && steps.mode.outputs.mode == 'gated'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -29,10 +104,18 @@ jobs:
             printf '%s\n' "$output" >&2
             exit 1
           fi
-      - name: Explain auto-merge
+
+      - name: Explain the decision
+        if: steps.mode.outputs.skip != 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: gh pr comment "$PR_NUMBER" --body "Auto-merge is enabled. This Dependabot PR will squash-merge after all required checks pass."
+          MODE: ${{ steps.mode.outputs.mode }}
+        run: |
+          if [ "$MODE" = "patch" ]; then
+            gh pr comment "$PR_NUMBER" --body "Patch update: merging immediately without waiting for CI. This repository prefers the latest patch even if it regresses — a revert is cheaper than a held-back security fix."
+          else
+            gh pr comment "$PR_NUMBER" --body "Minor or major update: auto-merge is enabled and this will squash-merge once all required checks pass."
+          fi

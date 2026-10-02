@@ -58,10 +58,10 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 5
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         timeout-minutes: 5
         with:
           # Matches the Node version the other script-running workflows use.
@@ -182,7 +182,7 @@ jobs:
       - name: Open a pull request
         if: steps.bench.outputs.changed == 'true' && inputs.dry_run != true
         timeout-minutes: 5
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/benchmark-refresh
           title: "bench(compare): refresh daily benchmark snapshot"

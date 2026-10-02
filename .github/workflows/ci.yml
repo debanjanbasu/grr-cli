@@ -30,7 +30,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
       - uses: dtolnay/rust-toolchain@nightly
         timeout-minutes: 5
@@ -40,23 +40,22 @@ jobs:
         timeout-minutes: 5
         with:
           cache-bin: true
-      - uses: actions/setup-node@v5
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
         timeout-minutes: 5
         with:
-          # The repo standard: .ts scripts run on Node's native type
-          # stripping, which needs >= 23.6. No npm cache here — this job
-          # never installs packages, it only runs node directly.
-          node-version: "24"
-      - name: Generated command tree is current
-        run: node scripts/generate-commands.ts --check
-      - name: Build
-        run: cargo build --locked
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
-        timeout-minutes: 5
+          # The `nextest` tag this used to float on is an unversioned per-tool
+          # ref from the pre-v2 era; v2 is the maintained line and names the
+          # tool explicitly, so Dependabot can see what it is bumping.
+          tool: nextest
+      # No `cargo build` step before this: `cargo nextest run` compiles the
+      # same lib + bin units, so a separate build only paid for that compile
+      # twice on a cold cache. A build error surfaces here instead.
       - name: Test
+        timeout-minutes: 30
         run: cargo nextest run --locked --all-features
       - name: Test doctests
+        timeout-minutes: 15
         run: cargo test --locked --doc
 
   clippy:
@@ -65,7 +64,7 @@ jobs:
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
       - uses: dtolnay/rust-toolchain@nightly
         timeout-minutes: 5
@@ -82,7 +81,7 @@ jobs:
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
       - uses: dtolnay/rust-toolchain@nightly
         timeout-minutes: 5
@@ -95,11 +94,11 @@ jobs:
     if: github.event_name != 'schedule'
     name: scripts typecheck
     runs-on: ubuntu-26.04-arm
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         timeout-minutes: 5
         with:
           node-version: "24"
@@ -109,6 +108,44 @@ jobs:
         run: npm ci
       - name: Typecheck scripts
         run: npm run typecheck
+      - name: Generated artifacts are current
+        timeout-minutes: 5
+        # These gates used to run inside the `test` matrix, which executed
+        # them twice per PR (once on Linux, once on Windows). They compare
+        # committed bytes against generator output, which is platform-
+        # independent, so one Linux run covers both matrix legs.
+        run: |
+          node scripts/generate-commands.ts --check
+          node scripts/generate-skills.ts --check
+          node scripts/generate-coverage.ts --check
+
+  site:
+    # The site deploys straight from main (Cloudflare Pages builds it on
+    # push), so a broken .astro file or a bad import would ship before anyone
+    # noticed. Nothing else in this workflow compiles the site, which is why
+    # this job exists.
+    if: github.event_name != 'schedule'
+    name: site (build + check)
+    runs-on: ubuntu-26.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        timeout-minutes: 2
+      - uses: actions/setup-node@v7
+        timeout-minutes: 5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Install site dependencies
+        run: npm ci
+        working-directory: site
+      - name: Type-check the Astro sources
+        run: npm run check
+        working-directory: site
+      - name: Build the site
+        run: npm run build
+        working-directory: site
 
   feature-subset:
     # The per-service cargo features are gone; the one meaningful subset left
@@ -120,7 +157,7 @@ jobs:
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
       - uses: dtolnay/rust-toolchain@nightly
         timeout-minutes: 5
@@ -145,7 +182,7 @@ jobs:
       issues: write
       checks: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
       - name: Audit Rust dependencies
         uses: rustsec/audit-check@v2

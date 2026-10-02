@@ -30,12 +30,12 @@ on:
   schedule:
     # 03:41 UTC Sundays — off the hour, off the weekday peak.
     - cron: "41 3 * * 0"
+  release:
+    # The cast quotes `grr --version` and closes with the version, so a
+    # published release is exactly when the recording must be redone — the
+    # push on the version bump covers the bump itself, this covers the tag.
+    types: [published]
   workflow_dispatch:
-    inputs:
-      force:
-        description: "Open the PR even if only the timestamp moved"
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -53,7 +53,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
 
       # The demo must show the CURRENT build, so the binary is built from
@@ -68,7 +68,7 @@ jobs:
         run: cargo build --release --locked
         timeout-minutes: 30
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         timeout-minutes: 5
         with:
           node-version: "24"
@@ -96,7 +96,7 @@ jobs:
         run: node scripts/generate-demo.ts --validate
 
       - name: Open a PR when the recording changed
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         timeout-minutes: 5
         with:
           branch: chore/demo-recording
