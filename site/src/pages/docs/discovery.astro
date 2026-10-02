@@ -2,13 +2,19 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import DocsShell from '../../components/DocsShell.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
+import PageHero from '../../components/PageHero.astro';
 import SectionIntro from '../../components/SectionIntro.astro';
-import { discoveryMethodTotal, discoveryServices } from '../../data/discovery-coverage';
+import ServiceCoverageCards from '../../components/ServiceCoverageCards.astro';
+import { discoveryMethodTotal, discoveryServiceCount, discoveryServices } from '../../data/discovery-coverage';
 
 const base = import.meta.env.BASE_URL;
 
+// Tasks is the one service the coverage table calls out by name, and its
+// method count appears in the example output below.
+const tasksMethodCount = discoveryServices.find((service) => service.name === 'tasks')?.methods ?? 0;
+
 const intro = `$ grr api list
-401 methods                                  # to stderr
+${discoveryMethodTotal} methods                                  # to stderr
 [{"id":"calendar.acl.delete","http":"DELETE","summary":"Deletes an access control rule."}, ...]
 
 $ grr api list --service sheets
@@ -88,7 +94,7 @@ $ grr slides presentations get --presentation-id 1a2b3c
 $ grr slides presentations pages getThumbnail \\
     --presentation-id 1a2b3c --page-object-id g1`;
 const tasks = `$ grr api list --service tasks
-14 methods
+${tasksMethodCount} methods
 
 $ grr api describe tasks.tasks.list
 # leastPrivilegeScope: https://www.googleapis.com/auth/tasks.readonly
@@ -114,24 +120,18 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
 
 <BaseLayout
   title="Discovery API"
-  description="One Discovery index embedded in the grr binary drives the entire generated command tree and the flat grr api surface: list, describe, call, dry runs, and per-method scopes across 401 methods in 14 APIs."
+  description={`One Discovery index embedded in the grr binary drives the entire generated command tree and the flat grr api surface: list, describe, call, dry runs, and per-method scopes across ${discoveryMethodTotal} methods in ${discoveryServiceCount} APIs.`}
 >
   <DocsShell currentPath={`${base}docs/discovery/`}>
-    <section class="page-hero section">
-      <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
-        <div class="reveal">
-          <span class="eyebrow">discovery</span>
-          <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">The index behind the whole tree.</h1>
-          <p class="m-0 max-w-[62ch] text-sm text-base-content/70">Every service command grr runs is generated from a machine-readable description of Google&rsquo;s APIs, distilled into an index and compiled into the binary. <code>grr api</code> is the same index read flat, by method id.</p>
-        </div>
-        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">{discoveryMethodTotal} methods · 14 APIs · works offline</div>
-      </div>
-    </section>
+    <PageHero eyebrow="discovery" title="The index behind the whole tree.">
+      Every service command grr runs is generated from a machine-readable description of Google&rsquo;s APIs, distilled into an index and compiled into the binary. <code>grr api</code> is the same index read flat, by method id.
+      <Fragment slot="aside">{discoveryMethodTotal} methods · {discoveryServiceCount} APIs · works offline</Fragment>
+    </PageHero>
 
     <section class="section" aria-labelledby="why-title">
       <div class="container prose reveal">
         <h2 id="why-title">Why this exists</h2>
-        <p class="lead">A hand-written command tree can never keep up with a Google Workspace API. There are 401 methods across ten services, and Google adds more without asking.</p>
+        <p class="lead">A hand-written command tree can never keep up with a Google Workspace API. There are {discoveryMethodTotal} methods across {discoveryServiceCount} services, and Google adds more without asking.</p>
         <p>So grr does not hand-write one. The committed Discovery index is the single source of truth for the entire surface: a build-time generator compiles it into the namespaced command tree (<code>grr gmail users messages list</code> &mdash; see <a href={`${base}docs/commands/`}>Commands</a>), and <code>grr api</code> reads the same index flat by method id. A method released after this build of grr existed reaches the tree through the daily refresh PR &mdash; no code change, no new release, no upgrade step.</p>
         <p>Two properties make this more than a thin passthrough:</p>
         <ul>
@@ -165,25 +165,10 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
         <SectionIntro
           id="coverage-title"
           eyebrow="coverage"
-          title={`${discoveryMethodTotal} methods, ten services.`}
+          title={`${discoveryMethodTotal} methods, ${discoveryServiceCount} services.`}
           copy="Counts are what grr api list reports at runtime. Revisions come from the committed index at src/discovery/manifest.json."
         />
-        <div class="install-grid mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {discoveryServices.map((service) => (
-            <article class="install-card card card-border border-base-300 bg-base-100">
-              <div class="card-body gap-1 p-5">
-                <h2 class="card-title m-0 text-base">{service.label}</h2>
-                <p class="m-0 text-[13px] text-base-content/70">{service.note}</p>
-                <p class="install-note m-0 mt-2 text-xs text-(--quiet)">
-                  {service.methods} methods · {service.version} · revision {service.revision}
-                </p>
-                <p class="install-note m-0 text-xs text-(--quiet)">
-                  <code>grr {service.name}</code>
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
+        <ServiceCoverageCards />
         <div class="container prose reveal max-w-[68ch] mt-8">
           <p>Every service in the index has a full generated command namespace now &mdash; the cards above are the namespaces. <code>grr api</code> is not the only way into any of them; it is the flat alternative when you would rather compose an id than walk a path.</p>
         </div>
@@ -229,7 +214,7 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
         <h2 id="ids-title">Method ids and typo handling</h2>
         <p>A method id is the dotted <code>service.resource.method</code> path, taken verbatim from the Discovery document &mdash; resource segments included, so <code>gmail.users.messages.list</code> is the id, not <code>gmail.messages.list</code>. The service prefix is the same key <code>--service</code> takes, and slashes are accepted in place of dots. The same id, with dots as spaces, is the generated command; the tree and <code>grr api</code> are two views of one index.</p>
         <CodeBlock code={idForms} label="method ids" />
-        <p>An unknown service lists the ten known keys. An unknown method is matched against the real ids and returns ranked suggestions, preferring candidates that share the most of the resource path &mdash; which is what tells <code>users.messages.list</code> apart from <code>users.drafts.list</code> when both are one typo away.</p>
+        <p>An unknown service lists the {discoveryServiceCount} known keys. An unknown method is matched against the real ids and returns ranked suggestions, preferring candidates that share the most of the resource path &mdash; which is what tells <code>users.messages.list</code> apart from <code>users.drafts.list</code> when both are one typo away.</p>
       </div>
     </section>
 
@@ -262,7 +247,7 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
           <p>Before sending, grr compares that narrowest scope against the consented set. When it is not there, it prints a note to stderr and <strong>attempts the call anyway</strong>, because the narrow scope is often a sibling of a broader one the build does hold &mdash; <code>drive.readonly</code> and <code>drive.file</code> are both satisfied by the consented <code>auth/drive</code>. A note on stderr is a heads-up, not a failure. Treat the exit status as the answer.</p>
           <p>Where a method genuinely needs a scope nobody consented to, grr names it. A 403 comes back with the specific scope and the file to edit, rather than a bare permission error:</p>
           <CodeBlock code={tasks} label="tasks · the scope boundary" />
-          <p><strong>Tasks is the one service that does not work out of the box.</strong> Its fourteen methods need <code>.../auth/tasks</code> or <code>.../auth/tasks.readonly</code>, and neither is in the sixteen consented scopes, nor is any broader scope that would cover them. They list and describe correctly, and <code>--dry-run</code> is accurate, but a live call returns 403 until the scope set in <code>src/core/auth/mod.rs</code> is extended and <code>grr auth login</code> is re-run.</p>
+          <p><strong>Tasks is the one service that does not work out of the box.</strong> Its {tasksMethodCount} methods need <code>.../auth/tasks</code> or <code>.../auth/tasks.readonly</code>, and neither is in the sixteen consented scopes, nor is any broader scope that would cover them. They list and describe correctly, and <code>--dry-run</code> is accurate, but a live call returns 403 until the scope set in <code>src/core/auth/mod.rs</code> is extended and <code>grr auth login</code> is re-run.</p>
           <p>A smaller tail behaves the same way for narrower reasons: Gmail CSE keypairs and S/MIME settings need <code>gmail.settings.*</code> scopes, directory people need <code>directory.readonly</code>, and most of the Chat admin surface (custom emoji, space import) needs scopes outside the consented set. Docs, Sheets, and Slides all work, because their methods accept the Drive scope the build already holds.</p>
         </div>
       </div>
@@ -271,8 +256,8 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
     <section class="section" aria-labelledby="fresh-title">
       <div class="container prose reveal">
         <h2 id="fresh-title">How the index stays current</h2>
-        <p>The index is committed at <code>src/discovery/*.json</code> so builds stay hermetic and <code>grr api list</code> works offline. Something has to notice upstream drift, and that is a scheduled workflow: a daily run refetches the ten Discovery documents, distils them with <code>scripts/fetch-discovery.ts</code>, regenerates the command tree with <code>scripts/generate-commands.ts</code>, and opens a pull request when either differs. An unchanged upstream produces an empty diff and no PR.</p>
-        <p>Both outputs are deterministic (sorted keys) precisely so that comparison is meaningful. When the index does change, the workflow runs the Rust test suite against the new data before proposing the change, so a method whose shape broke incompatibly fails the build instead of shipping. The tree and the index move in the same PR, so the commands and the index can never drift apart.</p>
+        <p>The index is committed at <code>src/discovery/*.json</code> so builds stay hermetic and <code>grr api list</code> works offline. Something has to notice upstream drift, and that is a scheduled workflow: a daily run refetches the {discoveryServiceCount} Discovery documents, distils them with <code>scripts/fetch-discovery.ts</code>, regenerates the command tree with <code>scripts/generate-commands.ts</code>, the agent skills with <code>scripts/generate-skills.ts</code>, and this page&rsquo;s coverage table with <code>scripts/generate-coverage.ts</code>, then opens a pull request when any of them differ. An unchanged upstream produces an empty diff and no PR.</p>
+        <p>Every output is deterministic (sorted keys, no wall-clock) precisely so that comparison is meaningful. When the index does change, the workflow runs the Rust test suite against the new data before proposing the change, so a method whose shape broke incompatibly fails the build instead of shipping. The index, the command tree, the skills, and this coverage table all move in the same PR, so the docs, the commands, and the index can never drift apart.</p>
         <p class="legal-note m-0 text-xs text-(--quiet)">
           Treat the counts on this page as a snapshot of the embedded index, not a promise about what Google publishes tomorrow.
           <code>grr api list</code> is always the live answer.

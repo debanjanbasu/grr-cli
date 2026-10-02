@@ -1,21 +1,16 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import PageHero from '../components/PageHero.astro';
 ---
 
 <BaseLayout
   title="Privacy"
   description="How grr handles local credentials, Google API requests, and the static project website."
 >
-  <section class="page-hero section">
-    <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
-      <div class="reveal">
-        <span class="eyebrow">privacy</span>
-        <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Your account stays yours.</h1>
-        <p class="m-0 max-w-[62ch] text-sm text-base-content/70">grr is a local command-line tool. This policy describes what the software does with credentials and requests, and what this static site does not do.</p>
-      </div>
-      <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">effective · September 25, 2026</div>
-    </div>
-  </section>
+  <PageHero eyebrow="privacy" title="Your account stays yours.">
+    grr is a local command-line tool. This policy describes what the software does with credentials and requests, and what this static site does not do.
+    <Fragment slot="aside">effective · September 25, 2026</Fragment>
+  </PageHero>
 
   <section class="section">
     <div class="container prose reveal">

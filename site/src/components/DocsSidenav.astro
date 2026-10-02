@@ -24,7 +24,10 @@ const isActive = (href: string) =>
   href === `${base}docs/` ? currentPath === href : currentPath.startsWith(href);
 ---
 
-<aside class="docs-sidenav">
+{/* A <nav> landmark, not an <aside>: every other link group on the site
+    (primary header, footer, changelog jump) is one, and without it a screen
+    reader user has no landmark route into the documentation navigation. */}
+<nav class="docs-sidenav" aria-label="Documentation">
   <ul class="menu menu-md w-64 border border-base-300 bg-base-200 p-2">
     <li class="menu-title"><span>documentation</span></li>
     {
@@ -55,4 +58,4 @@ const isActive = (href: string) =>
       ))
     }
   </ul>
-</aside>
+</nav>

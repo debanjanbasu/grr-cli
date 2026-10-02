@@ -4,6 +4,10 @@ import changelog from '../data/changelog.json';
 
 const REPO_URL = 'https://github.com/debanjanbasu/grr-cli';
 
+// Internal links go through BASE_URL so they survive a change of `base` in
+// astro.config.mjs instead of silently pointing at the production origin.
+const base = import.meta.env.BASE_URL;
+
 const { releases, generatedAt } = changelog;
 const newest = releases[0];
 
@@ -38,9 +42,16 @@ const formatDate = (iso: string | null) => (iso ? dateFormatter.format(new Date(
       </p>
       <p class="changelog-meta mt-2 text-xs text-(--quiet)">
         {
-          newest.unreleased
-            ? `Unreleased work is on <a href="${REPO_URL}/commits/main">main</a>. The newest tag is ${newest === releases[1] ? releases[1].version : 'none yet'}.`
-            : `Newest release: ${newest.version}, ${formatDate(newest.date)}.`
+          newest.unreleased ? (
+            <>
+              Unreleased work is on <a href={`${REPO_URL}/commits/main`}>main</a>. The newest tag is{' '}
+              {newest === releases[1] ? releases[1].version : 'none yet'}.
+            </>
+          ) : (
+            <>
+              Newest release: {newest.version}, {formatDate(newest.date)}.
+            </>
+          )
         }
         <a href={`${REPO_URL}/releases`}>GitHub releases</a> carry the binaries and checksums.
       </p>
@@ -99,8 +110,8 @@ const formatDate = (iso: string | null) => (iso ? dateFormatter.format(new Date(
           by <code>scripts/generate-changelog.mjs</code> and refreshed automatically.
         </p>
         <p class="m-0 mt-1">
-          Looking for setup instructions instead? <a class="link link-hover" href="/docs/getting-started/">Start here</a>, or see
-          <a class="link link-hover" href="/docs/">all documentation</a>.
+          Looking for setup instructions instead? <a class="link link-hover" href={`${base}docs/getting-started/`}>Start here</a>, or see
+          <a class="link link-hover" href={`${base}docs/`}>all documentation</a>.
         </p>
       </footer>
     </div>
