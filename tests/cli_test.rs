@@ -32,11 +32,15 @@ fn configured_grr() -> Command {
 
 #[test]
 fn version_output_is_a_banner_with_the_semver_on_the_first_line() {
-    // `--version` prints a banner: `grr <semver>`, the mascot crab, then
-    // the tagline. The first line must stay exactly `grr <semver>` —
+    // `--version` prints a banner: `grr <semver>`, the mascot, then the
+    // tagline. The first line must stay exactly `grr <semver>` —
     // scripts/benchmark.ts parses it as the measured version and its gate
-    // compares it against Cargo.toml — while the Homebrew formula only
-    // needs the version as a substring anywhere in the output.
+    // compares it against Cargo.toml, and generate-demo.ts matches
+    // /^grr \d+\.\d+\.\d+$/m — while the Homebrew formula only needs the
+    // version as a substring anywhere in the output.
+    //
+    // assert_cmd captures stdout through a pipe, so this also pins the
+    // no-TTY contract: the plain ASCII crab, never escape sequences.
     grr()
         .arg("--version")
         .assert()
@@ -52,7 +56,52 @@ fn version_output_is_a_banner_with_the_semver_on_the_first_line() {
         // the tagline is the crate's about line — factual, no marketing
         .stdout(predicate::str::contains(
             "Google tools from the terminal, at maximum performance",
-        ));
+        ))
+        .stdout(predicate::str::contains("\u{1b}").not());
+}
+
+#[test]
+fn version_draws_the_pixel_mascot_when_the_terminal_advertises_colour() {
+    // `CLICOLOR_FORCE` is the opt-in that asks for the full logo through a
+    // pipe. The banner must still lead with the bare semver — the colour
+    // logo goes below it, never in front of it.
+    let output = grr()
+        .env_remove("NO_COLOR")
+        .env("CLICOLOR_FORCE", "1")
+        .arg("--version")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let banner = String::from_utf8(output).expect("banner is UTF-8");
+    let first_line = banner.lines().next().expect("banner has a first line");
+    assert_eq!(first_line, format!("grr {}", env!("CARGO_PKG_VERSION")));
+    // U+2580 UPPER HALF BLOCK, carrying two pixel rows per character row.
+    assert!(banner.contains('\u{2580}'));
+    assert!(banner.contains("\u{1b}[38;2;"), "no truecolor foreground");
+    assert!(banner.contains("\u{1b}[48;2;"), "no truecolor background");
+    assert!(
+        banner.contains("Google tools from the terminal, at maximum performance"),
+        "the colour path drops the tagline"
+    );
+    // Every logo row is reset, so the logo cannot bleed into the tagline.
+    assert!(banner.contains("\u{2580}\u{1b}[0m\n"));
+}
+
+#[test]
+fn no_color_beats_the_force_opt_in() {
+    // NO_COLOR's whole contract is "never colour my output"; an
+    // environment setting both has said so twice, and NO_COLOR wins.
+    grr()
+        .env("NO_COLOR", "1")
+        .env("CLICOLOR_FORCE", "1")
+        .arg("--version")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("(o) (o)"))
+        .stdout(predicate::str::contains("\u{2580}").not());
 }
 
 #[test]
