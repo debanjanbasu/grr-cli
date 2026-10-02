@@ -25,35 +25,19 @@ use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::commands::{api, ask, auth, gen_dispatch, generated, mcp, safety, transport};
+use crate::logo;
 use crate::schema;
 use auth::AuthCommands;
 
-/// The `--version` banner: the bare semver first (clap prefixes it with
-/// `grr `), then the site mascot as a tiny ASCII crab, then the tagline —
-/// all concatenated at compile time, no runtime allocation.
-///
-/// The semver must stay on the FIRST line: scripts/benchmark.ts reads
-/// `--version`'s first line as the measured version and the workflow's
-/// version gate compares it against Cargo.toml, so a crab-first layout
-/// would parse as "version missing" and fail the gate open forever. The
-/// Homebrew formula only greps for the version as a substring, which any
-/// line order satisfies.
-const VERSION_OUTPUT: &str = concat!(
-    env!("CARGO_PKG_VERSION"),
-    "\n\n",
-    // The mascot's idle pose (site/scripts/generate-mascot.mjs holds the
-    // pixel original): wide-set glossy eyes, small smile, chunky claws.
-    "      _~^~^~^~_\n",
-    "  \\) / (o) (o) \\ (/\n",
-    "    '_   \\_/   _'\n",
-    "    \\  '-----'  /\n",
-    "Google tools from the terminal, at maximum performance",
-);
+// The `--version` banner lives in `logo`: the semver, then the mascot
+// rendered as well as the terminal allows, then the tagline. clap
+// prefixes the whole string with `grr `, and the semver must stay on the
+// FIRST line — see that module for the three consumers that parse it.
 
 #[derive(Parser)]
 #[command(
     name = "grr",
-    version = VERSION_OUTPUT,
+    version = logo::version_banner(),
     about = "Google tools from the terminal, at maximum performance"
 )]
 struct Cli {
