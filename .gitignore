@@ -46,3 +46,10 @@ coverage/
 /site/node_modules/
 /site/dist/
 /site/.astro/
+
+# Release staging scratch. release-binaries.yml builds into /stage and
+# archives out of /dist; a local replay of that workflow leaves both behind,
+# and untracked build output in the tree root is noise at best and a
+# accidentally-committed 30MB tarball at worst.
+/stage/
+/dist/
