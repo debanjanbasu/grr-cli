@@ -1,0 +1,27 @@
+---
+/**
+ * Renders a copy string in which backtick-delimited spans become real <code>
+ * elements.
+ *
+ * Why this exists: props like `title` / `copy` / `description` are HTML-escaped
+ * by Astro, so a backtick written in those strings reached the reader as a
+ * literal backtick glyph — "Point the harness at `grr mcp` and it owns 401
+ * tools." Rather than strip the backticks (which loses the code styling the
+ * copy is asking for), they are honoured here.
+ *
+ * Odd-indexed segments are the code spans; everything else is plain text and
+ * is escaped by Astro as usual, so this cannot inject markup.
+ */
+interface Props {
+  text: string;
+}
+
+const { text } = Astro.props;
+const segments = text.split('`');
+---
+
+{
+  segments.map((segment, index) =>
+    index % 2 === 1 ? <code>{segment}</code> : <span>{segment}</span>,
+  )
+}

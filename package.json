@@ -10,6 +10,8 @@
     "check:discovery": "node scripts/fetch-discovery.ts --check",
     "check:commands": "node scripts/generate-commands.ts --check",
     "check:changelog": "node scripts/generate-changelog.ts --check",
+    "coverage": "node scripts/generate-coverage.ts",
+    "check:coverage": "node scripts/generate-coverage.ts --check",
     "demo": "node scripts/generate-demo.ts --local",
     "skills": "node scripts/generate-skills.ts",
     "check:skills": "node scripts/generate-skills.ts --check"

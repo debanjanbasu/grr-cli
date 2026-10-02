@@ -1,0 +1,31 @@
+---
+/**
+ * The per-service coverage grid (label, note, method count, version,
+ * revision, namespace command).
+ *
+ * Why a component: the docs overview and the Discovery API page each rendered
+ * this grid from `discoveryServices` with the same fields in a different
+ * order, so the two tables could never be compared side by side without
+ * spotting that they had already drifted.
+ */
+import { discoveryServices } from '../data/discovery-coverage';
+---
+
+<div class="install-grid mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+  {
+    discoveryServices.map((service) => (
+      <article class="install-card card card-border border-base-300 bg-base-100">
+        <div class="card-body gap-1 p-5">
+          <h2 class="card-title m-0 text-base">{service.label}</h2>
+          <p class="m-0 text-[13px] text-base-content/70">{service.note}</p>
+          <p class="install-note m-0 mt-2 text-xs text-(--quiet)">
+            {service.methods} methods · {service.version} · revision {service.revision}
+          </p>
+          <p class="install-note m-0 text-xs text-(--quiet)">
+            <code>grr {service.name}</code>
+          </p>
+        </div>
+      </article>
+    ))
+  }
+</div>

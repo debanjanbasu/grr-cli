@@ -1,4 +1,6 @@
 ---
+import { discoveryServiceCount } from '../data/discovery-coverage';
+
 interface Surface {
   name: string;
   commands: string;
@@ -17,7 +19,7 @@ const { surfaces } = Astro.props;
       <span class="eyebrow">the generated command surface</span>
       <h3 class="mt-1 mb-0 text-[clamp(19px,2.2vw,24px)] leading-[1.2]">Every branch, still namespaced.</h3>
     </div>
-    <span class="badge badge-secondary">14 APIs</span>
+    <span class="badge badge-secondary">{discoveryServiceCount} APIs</span>
   </div>
   <div class="grid">
     {

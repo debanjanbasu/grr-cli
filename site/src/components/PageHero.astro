@@ -1,0 +1,29 @@
+---
+/**
+ * The banner every non-home route opens with: eyebrow, H1, lede paragraph,
+ * and a right-aligned aside.
+ *
+ * Why a component: this nine-line block was copy-pasted into eleven pages, so
+ * a change to the hero type scale meant eleven edits and two copies had
+ * already drifted (one gained `m-0`, one lost the `section`/`page-hero`
+ * ordering). The lede and the aside are slots rather than strings because both
+ * legitimately contain markup — links, <code>, <time>.
+ */
+interface Props {
+  eyebrow: string;
+  title: string;
+}
+
+const { eyebrow, title } = Astro.props;
+---
+
+<section class="page-hero section">
+  <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
+    <div class="reveal">
+      <span class="eyebrow">{eyebrow}</span>
+      <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">{title}</h1>
+      <p class="m-0 max-w-[62ch] text-sm text-base-content/70"><slot /></p>
+    </div>
+    <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)"><slot name="aside" /></div>
+  </div>
+</section>

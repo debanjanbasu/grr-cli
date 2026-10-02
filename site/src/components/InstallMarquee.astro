@@ -1,0 +1,29 @@
+---
+/**
+ * The scrolling install-command strip. Both pages that need it carried a
+ * verbatim copy of the same five commands and the same duplicated group, so
+ * the list lived in two places; it lives here now.
+ *
+ * The second group exists only so the -50% translate loop in global.css is
+ * seamless. It is aria-hidden because repeating the commands to a screen
+ * reader would announce every install line twice.
+ */
+const commands = [
+  'brew tap debanjanbasu/homebrew',
+  'brew trust debanjanbasu/homebrew',
+  'brew install grr',
+  'winget install debanjanbasu.grr',
+  'cargo install grr-cli --locked',
+];
+---
+
+<div class="command-marquee" role="group" aria-label="Install commands">
+  <div class="command-marquee-track">
+    <div class="command-marquee-group">
+      {commands.map((command) => <span>{command}</span>)}
+    </div>
+    <div class="command-marquee-group" aria-hidden="true">
+      {commands.map((command) => <span>{command}</span>)}
+    </div>
+  </div>
+</div>

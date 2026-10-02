@@ -2,7 +2,9 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import DocsShell from '../../components/DocsShell.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
+import PageHero from '../../components/PageHero.astro';
 import SectionIntro from '../../components/SectionIntro.astro';
+import { discoveryMethodTotal, discoveryServiceCount } from '../../data/discovery-coverage';
 
 const base = import.meta.env.BASE_URL;
 const releaseUrl = 'https://github.com/debanjanbasu/grr-cli/releases';
@@ -61,16 +63,10 @@ const scopes = `$ grr api call gmail.users.messages.list --param userId=me --dry
   description="Install grr on macOS, Linux, and Windows, log in once with grr auth login, run your first command, and verify auth status and the HTTP/3 transport."
 >
   <DocsShell currentPath={`${base}docs/getting-started/`}>
-    <section class="page-hero section">
-      <div class="container page-hero-grid flex flex-wrap items-end justify-between gap-x-12 gap-y-3">
-        <div class="reveal">
-          <span class="eyebrow">getting started</span>
-          <h1 class="mt-2 mb-3 text-[clamp(26px,3.2vw,42px)] leading-[1.12]">Install, log in once, and read some mail.</h1>
-          <p class="m-0 max-w-[62ch] text-sm text-base-content/70">Four platforms, one login, and output you can pipe. This page is the whole first-run path; everything after it lives in <a href={`${base}docs/commands/`}>Commands</a> and <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
-        </div>
-        <div class="page-hero-aside reveal pb-1 text-xs whitespace-nowrap text-(--quiet)">release binaries are zero-config · no OAuth setup needed</div>
-      </div>
-    </section>
+    <PageHero eyebrow="getting started" title="Install, log in once, and read some mail.">
+      Four platforms, one login, and output you can pipe. This page is the whole first-run path; everything after it lives in <a href={`${base}docs/commands/`}>Commands</a> and <a href={`${base}docs/discovery/`}>Discovery API</a>.
+      <Fragment slot="aside">release binaries are zero-config · no OAuth setup needed</Fragment>
+    </PageHero>
 
     <section class="section" aria-labelledby="install-title">
       <div class="container">
@@ -128,7 +124,7 @@ const scopes = `$ grr api call gmail.users.messages.list --param userId=me --dry
         <SectionIntro
           id="auth-title"
           eyebrow="step two"
-          title="Log in once. One credential, ten services."
+          title={`Log in once. One credential, ${discoveryServiceCount} services.`}
           copy="Release binaries are compiled with a Google OAuth client, so there is nothing to configure. Source builds ship no client and need grr auth setup first."
         />
       </div>
@@ -178,7 +174,7 @@ const scopes = `$ grr api call gmail.users.messages.list --param userId=me --dry
           <li><code>grr auth login --device</code> prints the verification URL and a user code, then polls until you approve. It is the only login path that works over plain SSH.</li>
           <li><code>grr auth setup</code> needs <code>--client-id</code> and <code>--client-secret</code> when stdin is not a TTY, and exits with an error instead of waiting for input. Add <code>--print-only</code> to get the recipe and the config path without writing anything.</li>
           <li><code>grr auth setup --force</code> overwrites an existing <code>~/.grr/config.toml</code>. Without it, an existing file is never replaced.</li>
-          <li><code>--enable-apis</code> shells out to <code>gcloud services enable</code> for the ten service APIs (gmail, calendar-json, drive, people, chat, forms, tasks, docs, sheets, slides) when <code>gcloud</code> is on <code>PATH</code>. It is best-effort: a failure warns and setup still succeeds.</li>
+          <li><code>--enable-apis</code> shells out to <code>gcloud services enable</code> for the service APIs behind every command in the index (gmail, calendar-json, drive, people, chat, forms, tasks, docs, sheets, slides, script, analyticsadmin, analyticsdata, searchconsole) when <code>gcloud</code> is on <code>PATH</code>. It is best-effort: a failure warns and setup still succeeds.</li>
         </ul>
         <CodeBlock code={agentic} label="headless · setup" />
         <p>Client ids are shape-checked before anything is written: the value must end in <code>.apps.googleusercontent.com</code> and the secret must be at least ten characters. A truncated paste is caught immediately rather than becoming an opaque 400 from Google&rsquo;s token endpoint later.</p>
@@ -213,7 +209,7 @@ const scopes = `$ grr api call gmail.users.messages.list --param userId=me --dry
         <h2 id="next-title">Where to go next</h2>
         <ul>
           <li><a href={`${base}docs/commands/`}>Commands — the generated tree: naming rule, typed flags, and per-service examples</a></li>
-          <li><a href={`${base}docs/discovery/`}>Discovery API — the index behind the whole tree: 401 methods across ten APIs</a></li>
+          <li><a href={`${base}docs/discovery/`}>Discovery API — the index behind the whole tree: {discoveryMethodTotal} methods across {discoveryServiceCount} APIs</a></li>
           <li><a href={`${base}docs/agents/`}>Agents and harnesses — the output contract for driving grr programmatically</a></li>
           <li><a href={`${base}install/`}>Install page — archive sizes and channel details</a></li>
         </ul>

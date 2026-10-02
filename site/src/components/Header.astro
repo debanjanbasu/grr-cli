@@ -65,8 +65,14 @@ const isActive = (href: string) => {
       <a class="btn btn-primary btn-sm hidden items-center sm:inline-flex" href="https://github.com/debanjanbasu/grr-cli" target="_blank" rel="noreferrer">
         GitHub <span aria-hidden="true">↗</span>
       </a>
+      {/* DaisyUI opens this on :focus-within, so the trigger only has to be
+          focusable. It was a <div role="button">: a fake button is announced
+          as one but does nothing on Enter/Space, and the dropdown panel added
+          its own tabindex, so keyboard users landed on a non-interactive <ul>.
+          A real <button> is focusable and activatable natively, and the panel
+          no longer needs a tab stop of its own. */}
       <div class="dropdown dropdown-end md:hidden">
-        <div tabindex="0" role="button" class="btn btn-ghost btn-square min-h-12 min-w-12" aria-label="Open the navigation menu">
+        <button type="button" class="btn btn-ghost btn-square min-h-12 min-w-12" aria-label="Open the navigation menu">
           <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" focusable="false" shape-rendering="crispEdges">
             <g fill="currentColor">
               <rect x="8" y="10" width="32" height="4"></rect>
@@ -74,8 +80,8 @@ const isActive = (href: string) => {
               <rect x="8" y="34" width="32" height="4"></rect>
             </g>
           </svg>
-        </div>
-        <ul tabindex="0" class="dropdown-content menu z-50 mt-2 w-56 border border-base-300 bg-base-200 p-2 shadow-lg">
+        </button>
+        <ul class="dropdown-content menu z-50 mt-2 w-56 border border-base-300 bg-base-200 p-2 shadow-lg">
           {
             links.map((link) => (
               <li>

@@ -1,5 +1,6 @@
 ---
 import DownloadSizes from './DownloadSizes.astro';
+import { discoveryServiceCount } from '../data/discovery-coverage';
 import stats from '../data/stats.json';
 
 const formatCount = (value: number | string) => {
@@ -44,7 +45,7 @@ const base = import.meta.env.BASE_URL;
         </div>
         <div class="stat stat-card">
           <div class="stat-title stat-label">services</div>
-          <div class="stat-value">6</div>
+          <div class="stat-value">{discoveryServiceCount}</div>
           <div class="stat-desc">one namespaced binary</div>
         </div>
       </div>
@@ -57,7 +58,9 @@ const base = import.meta.env.BASE_URL;
         <span class="stat-spark stat-spark-f"></span>
       </div>
     </div>
-    <div class="stats-release-strip" aria-label="Release snapshot">
+    {/* aria-label only reaches assistive tech on an element that has a role,
+        so this is a labelled region rather than a div that silently drops it. */}
+    <section class="stats-release-strip" aria-label="Release snapshot">
       <div>
         <span class="stat-label mb-0.5">latest release</span>
         <strong class="text-base font-normal" data-stat="latestRelease">{stats.latestRelease || '—'}</strong>
@@ -68,7 +71,7 @@ const base = import.meta.env.BASE_URL;
         <strong class="text-base font-normal" data-stat="githubDownloads">{formatCount(stats.githubDownloads)}</strong>
         <span class="mt-0.5 block text-xs text-(--muted)">across all public releases</span>
       </div>
-    </div>
+    </section>
     <div class="stats-footnote">
       <span class="status-dot" aria-hidden="true"></span>
       <span>Snapshot refreshed <time data-stat="updatedAt" datetime={stats.updatedAt}>{formatDate(stats.updatedAt)}</time></span>
@@ -96,9 +99,16 @@ const base = import.meta.env.BASE_URL;
   };
   const setDate = (key, value) => {
     const date = new Date(value);
-    if (!Number.isNaN(date.getTime())) {
-      setText(key, date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }));
-    }
+    if (Number.isNaN(date.getTime())) return;
+    const nextText = date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    document.querySelectorAll(`[data-stat="${key}"]`).forEach((node) => {
+      if (node.textContent !== nextText) node.textContent = nextText;
+      // Keep the machine-readable date in step with the visible one. A <time>
+      // reading "Oct 3, 2026" while its `datetime` still carried the build
+      // timestamp is wrong for assistive tech and for anything reading the
+      // attribute — the live refresh was making the two disagree.
+      if (node.tagName === 'TIME') node.setAttribute('datetime', date.toISOString());
+    });
   };
   const refresh = async () => {
     try {
@@ -129,5 +139,23 @@ const base = import.meta.env.BASE_URL;
       return;
     }
   };
-  refresh();
+  // The stats are a live nicety, not content: the section already renders
+  // build-time values, so the refresh is a pure enhancement. Running it
+  // during the load window put two cross-origin requests on the critical
+  // path, competing with the document, the stylesheet and the webfont for
+  // bandwidth on exactly the slow connections that need it most. So the
+  // refresh waits for `load` AND for the main thread to go idle, with a
+  // timeout so a busy page still gets fresh numbers eventually.
+  const whenIdle = (run) => {
+    if (document.readyState !== 'complete') {
+      window.addEventListener('load', () => { whenIdle(run); }, { once: true });
+      return;
+    }
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => { run(); }, { timeout: 3000 });
+      return;
+    }
+    run();
+  };
+  whenIdle(refresh);
 </script>

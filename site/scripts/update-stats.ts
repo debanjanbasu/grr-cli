@@ -51,7 +51,7 @@ interface SiteStats {
   updatedAt: string;
 }
 
-/** Hand-rolled guard: a JSON object (arrays excluded â€” a release row is one). */
+/** Hand-rolled guard: a JSON object (arrays excluded — a release row is one). */
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -147,6 +147,27 @@ try {
     binarySizes: readBinarySizes(latestRelease),
     updatedAt: new Date().toISOString(),
   };
+
+  // Idempotency, like every other generator in this repository: `updatedAt`
+  // alone is not a change. Without this the file would differ on every run
+  // and the scheduled refresh would open a pull request a day saying
+  // "nothing moved". Compared field by field rather than through a sorted
+  // JSON.stringify replacer, which would also filter the nested
+  // `binarySizes` keys out of the comparison.
+  const unchanged = (a: SiteStats, b: SiteStats): boolean =>
+    a.version === b.version &&
+    a.crateDownloads === b.crateDownloads &&
+    a.crateDownloads30d === b.crateDownloads30d &&
+    a.githubDownloads === b.githubDownloads &&
+    a.latestRelease === b.latestRelease &&
+    a.latestReleaseDate === b.latestReleaseDate &&
+    JSON.stringify(a.binarySizes) === JSON.stringify(b.binarySizes);
+
+  const previous = await readFile(statsPath, 'utf8').then((text) => JSON.parse(text) as SiteStats).catch(() => null);
+  if (previous && unchanged(previous, stats)) {
+    console.log(`${statsPath} is already current (last refreshed ${previous.updatedAt}).`);
+    process.exit(0);
+  }
 
   await writeFile(statsPath, `${JSON.stringify(stats, null, 2)}\n`, 'utf8');
   const sizeSummary = stats.binarySizes

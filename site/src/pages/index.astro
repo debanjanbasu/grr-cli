@@ -5,11 +5,14 @@ import ApiSurface from '../components/ApiSurface.astro';
 import CodeBlock from '../components/CodeBlock.astro';
 import CommandInventory from '../components/CommandInventory.astro';
 import FeatureRow from '../components/FeatureRow.astro';
+import InlineCode from '../components/InlineCode.astro';
+import InstallMarquee from '../components/InstallMarquee.astro';
 import Mascot from '../components/Mascot.astro';
 import SectionIntro from '../components/SectionIntro.astro';
 import DemoPlayer from '../components/DemoPlayer.astro';
 import Stats from '../components/Stats.astro';
 import heroTerminal from '../assets/hero-terminal.svg?raw';
+import { discoveryMethodTotal, discoveryServiceCount, discoveryServices } from '../data/discovery-coverage';
 import artMail from '../assets/art-mail.svg';
 import artCalendar from '../assets/art-calendar.svg';
 import artDrive from '../assets/art-drive.svg';
@@ -21,6 +24,11 @@ import glyphCalendar from '../assets/glyph-calendar.svg';
 import glyphContacts from '../assets/glyph-contacts.svg';
 import glyphChat from '../assets/glyph-chat.svg';
 
+
+// The per-service line under each card in the inventory panel; the count is
+// read from the coverage table rather than typed, so it cannot drift.
+const methodCountFor = (name: string): number =>
+  discoveryServices.find((service) => service.name === name)?.methods ?? 0;
 const base = import.meta.env.BASE_URL;
 const releaseUrl = 'https://github.com/debanjanbasu/grr-cli/releases';
 const services = [
@@ -137,7 +145,7 @@ const commandSurfaces = [
   },
   {
     name: 'Tasks',
-    commands: 'tasklists, tasks · 14 methods',
+    commands: `tasklists, tasks · ${methodCountFor('tasks')} methods`,
   },
   {
     name: 'Docs',
@@ -197,7 +205,7 @@ const askPlan = `$ grr ask "show my unread gmail"
 const faqs = [
   {
     question: 'What is grr?',
-    answer: 'grr is a Rust CLI for Google services from the terminal. One generated command tree covers 401 methods across the 14 consumer Google Workspace APIs — Gmail, Calendar, Drive, Contacts, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics and Search Console — in one namespaced binary with machine-readable output and a single OAuth login.',
+    answer: `grr is a Rust CLI for Google services from the terminal. One generated command tree covers ${discoveryMethodTotal} methods across the ${discoveryServiceCount} consumer Google Workspace APIs — Gmail, Calendar, Drive, Contacts, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics and Search Console — in one namespaced binary with machine-readable output and a single OAuth login.`,
   },
   {
     question: 'How does OAuth work?',
@@ -254,7 +262,7 @@ const storySteps = [
 
 <BaseLayout
   title="grr"
-  description="grr is a zero-config Rust CLI for Google Workspace: a generated command tree over 14 APIs with 401 methods, an MCP server, safety profiles, and grr ask turning plain English into a typed plan — clean JSON on stdout."
+  description={`grr is a zero-config Rust CLI for Google Workspace: a generated command tree over ${discoveryServiceCount} APIs with ${discoveryMethodTotal} methods, an MCP server, safety profiles, and grr ask turning plain English into a typed plan — clean JSON on stdout.`}
 >
   <section class="hero section" aria-labelledby="hero-title">
     <div class="container hero-grid grid grid-cols-1 items-center gap-[clamp(28px,4vw,64px)] lg:grid-cols-[1.02fr_0.98fr]">
@@ -286,24 +294,7 @@ const storySteps = [
     </div>
   </section>
 
-  <div class="command-marquee" aria-label="Install commands">
-    <div class="command-marquee-track">
-      <div class="command-marquee-group">
-        <span>brew tap debanjanbasu/homebrew</span>
-        <span>brew trust debanjanbasu/homebrew</span>
-        <span>brew install grr</span>
-        <span>winget install debanjanbasu.grr</span>
-        <span>cargo install grr-cli --locked</span>
-      </div>
-      <div class="command-marquee-group" aria-hidden="true">
-        <span>brew tap debanjanbasu/homebrew</span>
-        <span>brew trust debanjanbasu/homebrew</span>
-        <span>brew install grr</span>
-        <span>winget install debanjanbasu.grr</span>
-        <span>cargo install grr-cli --locked</span>
-      </div>
-    </div>
-  </div>
+  <InstallMarquee />
 
   <Stats />
 
@@ -324,7 +315,7 @@ const storySteps = [
         </p>
       </div>
       <div class="demo-visual">
-        <DemoPlayer client:visible />
+        <DemoPlayer />
       </div>
     </div>
   </section>
@@ -340,8 +331,8 @@ const storySteps = [
         <p>
           <code>grr ask "show my unread gmail"</code> is all it takes. A System One model —
           TypeSafe's Jev by default, any provider speaking the same contract works by config —
-          classifies the request hierarchically: the service (14 options), then the method
-          (&le;79), then one typed question per required parameter. Every candidate comes from
+          classifies the request hierarchically: the service ({discoveryServiceCount} options), then the method,
+          then one typed question per required parameter. Every candidate comes from
           the discovery index, so the model can only <em>select</em>. It can never invent a
           method, a flag, or a value.
         </p>
@@ -478,8 +469,8 @@ const storySteps = [
       <div class="faq-list grid">
         {faqs.map((faq) => (
           <details class="faq-item collapse collapse-arrow reveal rounded-none border-t border-base-300 last:border-b">
-            <summary class="collapse-title min-h-12 px-1 text-sm">{faq.question}</summary>
-            <div class="faq-answer collapse-content max-w-[64ch] px-1 text-[13px] leading-[1.7] text-(--muted)">{faq.answer}</div>
+            <summary class="collapse-title min-h-12 px-1 text-sm"><InlineCode text={faq.question} /></summary>
+            <div class="faq-answer collapse-content max-w-[64ch] px-1 text-[13px] leading-[1.7] text-(--muted)"><InlineCode text={faq.answer} /></div>
           </details>
         ))}
       </div>
@@ -498,7 +489,7 @@ const storySteps = [
         <p class="legal-note m-0 mt-4 text-xs text-(--quiet)">grr is an independent project and is not affiliated with, sponsored by, or endorsed by Google LLC.</p>
       </div>
       <div class="cta-visual reveal">
-        <div class="install-slab" role="img" aria-label="A floating card showing the cargo install command for grr">
+        <div class="install-slab" role="img" aria-label="A floating card showing the command: cargo install grr-cli --locked">
           <div class="slab-base" aria-hidden="true"></div>
           <code class="slab-face">$ cargo install grr-cli --locked</code>
         </div>
