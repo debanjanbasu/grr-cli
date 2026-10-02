@@ -33,13 +33,16 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
+      # No rust-cache and no rust-src here, deliberately. The crate is
+      # source-only (see the comment block above) and `--no-verify` skips
+      # cargo's verification build, so `cargo publish` compiles nothing: a
+      # cache restore resolved a `target/` that does not exist, and rust-src
+      # only exists to feed build-std, which never runs. Dropping both removes
+      # a pointless cache round trip and the rust-src component download
+      # (~15-40s) from every publish.
       - uses: dtolnay/rust-toolchain@nightly
-        timeout-minutes: 10
-        with:
-          components: rust-src
-      - uses: Swatinem/rust-cache@v2
         timeout-minutes: 10
       - name: Authenticate with crates.io
         uses: rust-lang/crates-io-auth-action@v1

@@ -29,7 +29,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
         with:
           fetch-tags: true
@@ -37,9 +37,28 @@ jobs:
       - name: Tag when the version has no tag
         timeout-minutes: 3
         run: |
-          VERSION="$(grep -m1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')"
+          # Read the version bare, whatever is in the manifest. A previous
+          # release bump wrote `version = "v0.6.0"` into Cargo.toml, and this
+          # line then produced the orphan `vv0.6.0` tag. auto-release.yml now
+          # strips the prefix, but this step is the one that creates a public
+          # tag and fires the release — it must not trust its input blindly.
+          RAW="$(grep -m1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')"
+          VERSION="${RAW#v}"
+          if [ "$VERSION" != "$RAW" ]; then
+            echo "::error::Cargo.toml version '$RAW' carries a leading 'v'. Cargo needs a bare semver; refusing to tag a release from a malformed manifest."
+            exit 1
+          fi
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Cargo.toml version '$VERSION' is not a bare x.y.z semver; refusing to tag."
+            exit 1
+          fi
           TAG="v$VERSION"
-          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+          # Ask the remote, not just the local clone: a tag that exists upstream
+          # but was not fetched would skip a local-only guard and then fail the
+          # `git push` with "already exists", turning a no-op release check into
+          # a red run. One extra round trip buys a deterministic outcome.
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null \
+             || git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
             echo "$TAG already exists — nothing to do."
             exit 0
           fi

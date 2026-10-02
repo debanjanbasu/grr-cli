@@ -54,7 +54,7 @@ jobs:
             artifact: grr
             triple: aarch64-apple-darwin
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         timeout-minutes: 2
       - uses: dtolnay/rust-toolchain@nightly
         timeout-minutes: 10
@@ -68,10 +68,6 @@ jobs:
       - name: Build release binary
         timeout-minutes: 45
         run: cargo build --release --locked --target ${{ matrix.target.triple }}
-        env:
-          # UPX's Windows build is a 64-bit PE packer; it handles both
-          # x86_64 and aarch64 targets.
-          UPX_COMPRESS: ${{ runner.os == 'Windows' && '1' || '0' }}
 
       - name: Install UPX (linux)
         if: runner.os == 'Linux'
@@ -144,7 +140,7 @@ jobs:
           fi
           "$BIN" --version
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         timeout-minutes: 5
         with:
           name: grr-${{ github.ref_name }}-${{ matrix.target.name }}
@@ -157,7 +153,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         timeout-minutes: 5
         with:
           path: dist
@@ -168,15 +164,23 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p stage
-          # merge-multiple=false keeps per-target dirs; flatten to one tree.
-          find dist -type f -name 'grr.exe' -exec sh -c 'cp "$1" stage/grr.exe' _ {} \;
-          # For the unix targets artifact is named `grr`; keep them separate.
-          rm -f stage/grr.exe
-          i=0
-          for d in dist/*/; do
-            i=$((i+1))
-            name=$(basename "$d" | sed -E 's/^grr-v[0-9.]+-//')
-            if [ -f "$d/grr.exe" ]; then cp "$d/grr.exe" "stage/$name.exe"; else cp "$d/grr" "stage/$name"; fi
+          # merge-multiple=false keeps one directory per artifact, named
+          # `grr-<ref>-<target>`. The target list is spelled out here instead of
+          # being recovered by stripping the version out of that directory name:
+          # a prerelease tag (`v0.7.0-rc.1`) makes the strip ambiguous and
+          # produced names like `rc.1-linux-x86_64`, so every archive step below
+          # then looked for a stage file that did not exist and the release
+          # failed. Matching on the known target suffix is tag-independent.
+          for name in linux-x86_64 linux-aarch64 macos-aarch64 windows-x86_64 windows-aarch64; do
+            bin=$(find dist -type f \( -name grr -o -name grr.exe \) -path "*/grr-*-$name/*" -print -quit)
+            if [ -z "$bin" ]; then
+              echo "::error::no downloaded artifact for $name"
+              exit 1
+            fi
+            case "$name" in
+              windows-*) cp "$bin" "stage/$name.exe" ;;
+              *)         cp "$bin" "stage/$name" ;;
+            esac
           done
           ls -l stage
 
@@ -199,7 +203,7 @@ jobs:
           sha256sum grr-* > SHA256SUMS
           ls -l
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         timeout-minutes: 5
         with:
           name: release-assets
@@ -216,13 +220,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         timeout-minutes: 5
         with:
           name: release-assets
           path: assets
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         timeout-minutes: 10
         with:
           generate_release_notes: true
