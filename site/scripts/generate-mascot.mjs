@@ -51,15 +51,51 @@ const svgDocument = ({ width, height, viewBox = `0 0 ${width} ${height}`, title,
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${number(width)}" height="${number(height)}" viewBox="${viewBox}" role="img" aria-labelledby="${titleId} ${descId}"><title id="${titleId}">${xml(title)}</title><desc id="${descId}">${xml(description)}</desc>${body}\n</svg>\n`;
 };
 
-const snap4 = (value) => Math.round(value / 4) * 4;
-
-const contactShadow = (cx, cy, rx, ry) => {
-  const centerX = snap4(cx);
-  const centerY = snap4(cy);
-  const radiusX = snap4(rx);
-  const radiusY = snap4(ry);
-  return `<g aria-hidden="true"><ellipse cx="${number(centerX)}" cy="${number(centerY)}" rx="${number(radiusX)}" ry="${number(radiusY)}" fill="#3B1D0B" opacity=".05"/><ellipse cx="${number(centerX)}" cy="${number(snap4(cy - 4))}" rx="${number(snap4(rx - 16))}" ry="${number(snap4(ry - 4))}" fill="#3B1D0B" opacity=".06"/><ellipse cx="${number(centerX)}" cy="${number(snap4(cy - 8))}" rx="${number(snap4(rx - 36))}" ry="${number(snap4(ry - 8))}" fill="#3B1D0B" opacity=".07"/></g>`;
+/**
+ * Contact shadow, pixel-art style: a dithered strip on the same lattice as the
+ * artwork around it. The previous version stacked three blurred ellipses at
+ * low opacity, which was the one thing in the whole set that read as smooth
+ * vector — and a blur also smears on fractional viewports.
+ *
+ * A strip, not an ellipse. A contact shadow under a flat sprite is two to four
+ * pixels tall and forty wide, and a Bayer dissolve across an ellipse that flat
+ * varies only along x — which renders as a row of vertical bars rather than as
+ * a shadow. Fading the strip's ends gives the checker its second dimension,
+ * which is what makes it read as a shadow at all.
+ */
+const ditherShadowStrip = (width, rows, { color = 's' } = {}) => {
+  const map = grid(width, rows);
+  const centre = (width - 1) / 2;
+  const half = Math.max(centre, 1);
+  for (let row = 0; row < rows; row += 1) {
+    // Rows disperse downward: density falls off with depth as well as across,
+    // so the strip reads as a shadow pooling under the object rather than as a
+    // bar of solid pixels sitting on the page.
+    const depth = 1 - (row / Math.max(rows - 1, 1)) * 0.6;
+    for (let x = 0; x < width; x += 1) {
+      const t = Math.abs(x - centre) / half;
+      const keep = Math.round(8 * (1 - t) ** 1.5 * depth);
+      if (keep <= 0) continue;
+      const bayer = ((x & 3) + (row & 3) * 4) & 3;
+      if (bayer * 2 < keep) plot(map, x, row, color);
+    }
+  }
+  return map;
 };
+
+/** Size the strip from user-space radii and place it on the artwork's lattice,
+ *  so the same four-argument call works on the 512px mascot, the 960px
+ *  terminal, and the 480px illustrations without each restating its grid. */
+const ditherShadowBox = (cx, cy, rx, ry, scale = 8) => {
+  const width = Math.max(3, Math.round((rx * 2) / scale));
+  const rows = Math.max(2, Math.round((ry * 2) / scale));
+  const left = Math.round(cx / scale) - Math.floor(width / 2);
+  const top = Math.round(cy / scale) - Math.floor(rows / 2);
+  return pixels(ditherShadowStrip(width, rows), { x: left * scale, y: top * scale, scale });
+};
+
+const contactShadow = (cx, cy, rx, ry, scale = 8) =>
+  `<g aria-hidden="true">${ditherShadowBox(cx, cy, rx, ry, scale)}</g>`;
 
 const parseAscii = (name, source) => {
   const rows = source.trim().split(/\r?\n/).map((row) => [...row]);
@@ -427,6 +463,171 @@ const mapLayer = (map, { x = 0, y = 0, scale = 8 } = {}) => {
   }).join('');
 };
 
+// ── Pixel scene engine ──────────────────────────────────────────────────────
+// The mascot and the wordmark are authored on a character grid and emitted as
+// hard-edged rectangles. The service illustrations and the glyphs were not:
+// they were hand-composed polygons sitting on a blurred ellipse shadow, which
+// reads as smooth vector illustration doing an impression of pixel art. The
+// helpers below render any rectangular grid through the same path the mascot
+// already uses, so the whole site speaks one visual language — hard edges, a
+// fixed palette ramp, and dithered shadow instead of blur.
+
+/** Blank grid of any size. '.' is transparent (see PALETTE_LEGEND). */
+const grid = (width, height) =>
+  Array.from({ length: height }, () => Array(width).fill('.'));
+
+/** Bounds-checked single-pixel write. */
+const plot = (map, x, y, color) => {
+  const px = Math.round(x);
+  const py = Math.round(y);
+  if (py >= 0 && py >= 0 && px < map[0].length && py < map.length) map[py][px] = color;
+};
+
+/** Filled axis-aligned rectangle, in grid cells. */
+const box = (map, x, y, width, height, color) => {
+  for (let py = y; py < y + height; py += 1) {
+    for (let px = x; px < x + width; px += 1) plot(map, px, py, color);
+  }
+};
+
+/** Pixel line of the given thickness, stepped rather than interpolated so
+ *  it never lands on a half-cell. */
+const pixelLine = (map, x1, y1, x2, y2, color, thickness = 1) => {
+  const steps = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1), 1);
+  const half = Math.floor((thickness - 1) / 2);
+  for (let index = 0; index <= steps; index += 1) {
+    const x = Math.round(x1 + ((x2 - x1) * index) / steps);
+    const y = Math.round(y1 + ((y2 - y1) * index) / steps);
+    box(map, x - half, y - half, thickness, thickness, color);
+  }
+};
+
+/** Filled pixel ellipse. */
+const pixelEllipse = (map, cx, cy, rx, ry, color) => {
+  for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y += 1) {
+    for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x += 1) {
+      const dx = (x + 0.5 - cx) / (rx + 0.5);
+      const dy = (y + 0.5 - cy) / (ry + 0.5);
+      if (dx * dx + dy * dy <= 1) plot(map, x, y, color);
+    }
+  }
+};
+
+/**
+ * Emit a grid as crisp-edged paths, run-length merged per colour.
+ * `scale` is the pixel size in user units, so a 60x45 grid at scale 8 is the
+ * same 480x360 canvas the vector illustrations used to occupy.
+ */
+const pixels = (map, { x = 0, y = 0, scale = 8 } = {}) => {
+  const width = map[0].length;
+  const height = map.length;
+  const rectangles = new Map();
+  let previous = [];
+  for (let row = 0; row < height; row += 1) {
+    const current = [];
+    let column = 0;
+    while (column < width) {
+      const color = map[row][column];
+      if (color === '.') {
+        column += 1;
+        continue;
+      }
+      const start = column;
+      while (column < width && map[row][column] === color) column += 1;
+      const runWidth = column - start;
+      const prior = previous.find(
+        (candidate) => candidate.color === color && candidate.x === start && candidate.width === runWidth,
+      );
+      if (prior) {
+        prior.height += 1;
+        current.push(prior);
+      } else {
+        const run = { color, x: start, y: row, width: runWidth, height: 1 };
+        rectangles.set(run, run);
+        current.push(run);
+      }
+    }
+    previous = current;
+  }
+  return ['o', 's', 'd', 'm', 'b', 'p', 'w', 'h', 'k', 'r', 'g', 'y', 'u']
+    .map((color) => {
+      const paths = [...rectangles.values()]
+        .filter((run) => run.color === color)
+        .map((run) => `M${number(run.x * scale + x)} ${number(run.y * scale + y)}h${number(run.width * scale)}v${number(run.height * scale)}h-${number(run.width * scale)}z`);
+      return paths.length ? `<path fill="${PALETTE_LEGEND[color]}" d="${paths.join('')}"/>` : '';
+    })
+    .join('');
+};
+
+
+/** Filled polygon on any grid (the 64x64 helpers above are hard-bound). */
+const fillPoly = (map, points, color) => {
+  const ys = points.map(([, y]) => y);
+  for (let y = Math.floor(Math.min(...ys)); y <= Math.ceil(Math.max(...ys)); y += 1) {
+    for (let x = 0; x < map[0].length; x += 1) {
+      let inside = false;
+      for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+        const [xi, yi] = points[i];
+        const [xj, yj] = points[j];
+        if ((yi > y) !== (yj > y) && x + 0.5 < ((xj - xi) * (y - yi)) / ((yj - yi) || 1) + xi) {
+          inside = !inside;
+        }
+      }
+      if (inside) plot(map, x, y, color);
+    }
+  }
+};
+
+/** Point-in-polygon (even-odd ray cast) at a cell centre. */
+const insidePoly = (px, py, points) => {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i, i += 1) {
+    const [xi, yi] = points[i];
+    const [xj, yj] = points[j];
+    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / ((yj - yi) || 1) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+};
+
+/**
+ * Stroke a polygon's edge in `color` WITHOUT touching its interior.
+ * Deliberately not "fill then hollow out": that destroys whatever is already
+ * painted inside, which turns a rimmed shape into a black blob. A cell is on
+ * the edge when it is inside the polygon and at least one of its four
+ * neighbours is not.
+ */
+const strokePoly = (map, points, color) => {
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  for (let y = Math.floor(Math.min(...ys)); y <= Math.ceil(Math.max(...ys)); y += 1) {
+    for (let x = Math.floor(Math.min(...xs)); x <= Math.ceil(Math.max(...xs)); x += 1) {
+      if (!insidePoly(x + 0.5, y + 0.5, points)) continue;
+      const exposed =
+        !insidePoly(x + 0.5, y + 1.5, points) ||
+        !insidePoly(x + 0.5, y - 0.5, points) ||
+        !insidePoly(x + 1.5, y + 0.5, points) ||
+        !insidePoly(x - 0.5, y + 0.5, points);
+      if (exposed) plot(map, x, y, color);
+    }
+  }
+};
+
+/** Ordered-dither a shape's fill: a real pixel-art gradient, and the reason
+ *  the illustrations no longer need a blur filter. Fill first, then dither —
+ *  the pass is scoped to the polygon's interior so it cannot punch holes in
+ *  neighbouring artwork that happens to share the colour. */
+const ditherPoly = (map, points, color, density = 2) => {
+  for (let y = 0; y < map.length; y += 1) {
+    for (let x = 0; x < map[0].length; x += 1) {
+      if (map[y][x] !== color) continue;
+      if (!insidePoly(x + 0.5, y + 0.5, points)) continue;
+      if ((x + y * density) % (density * 2) >= density) plot(map, x, y, '.');
+    }
+  }
+};
+
 const extractGroups = (map, groups) => {
   const base = map.map((row) => [...row]);
   const layers = groups.map(() => blankMap());
@@ -544,80 +745,328 @@ const heroTerminal = () => {
   return svgDocument({ width: 960, height: 640, viewBox: '0 0 960 640', idPrefix: 'ht', title: 'grr terminal', description: 'A dimensional cream and orange terminal with a glowing screen and a tiny crab perched on its top edge.', body });
 };
 
-const artMail = () => svgDocument({
-  width: 480,
-  height: 360,
-  viewBox: '0 0 480 360',
-  title: 'Mail illustration',
-  description: 'A dimensional envelope with a small blue paper plane.',
-  body: `${contactShadow(240, 304, 152, 20)}<g shape-rendering="crispEdges">${polygon([[84, 140], [240, 92], [404, 140], [384, 284], [96, 284]], PALETTE_LEGEND.o)}${polygon([[100, 144], [240, 104], [388, 144], [372, 268], [112, 268]], PALETTE_LEGEND.d)}${polygon([[100, 140], [240, 100], [388, 140], [364, 160], [240, 124], [116, 160]], PALETTE_LEGEND.c)}${polygon([[112, 156], [240, 224], [368, 156], [376, 264], [104, 264]], PALETTE_LEGEND.c)}${polygon([[112, 156], [240, 224], [240, 248], [104, 180]], PALETTE_LEGEND.w)}${polygon([[368, 156], [240, 224], [240, 248], [376, 180]], PALETTE_LEGEND.h)}${line(112, 160, 240, 232, PALETTE_LEGEND.o, 8)}${line(368, 160, 240, 232, PALETTE_LEGEND.o, 8)}${line(104, 264, 240, 132, PALETTE_LEGEND.s, 8, 'opacity=".8"')}${line(376, 264, 240, 132, PALETTE_LEGEND.d, 8, 'opacity=".8"')}${polygon([[282, 72], [356, 96], [306, 148], [250, 122]], PALETTE_LEGEND.o)}${polygon([[288, 80], [344, 98], [304, 138], [262, 120]], PALETTE_LEGEND.u)}${polygon([[288, 80], [304, 138], [262, 120]], PALETTE_LEGEND.h)}${polygon([[304, 138], [344, 98], [312, 120]], '#1A120B', 'opacity=".8"')}${rect(136, 244, 64, 12, PALETTE_LEGEND.p, 'opacity=".55"')}</g>`
-});
+// Service illustrations: 60x45 grids at scale 8, which is the same 480x360
+// canvas the old hand-composed polygons occupied. Same subjects, same palette,
+// but every edge is now on the pixel grid and every shadow is a dither — which
+// is what makes them read as pixel art rather than vector illustration.
+const ART_W = 60;
+const ART_H = 45;
+const ART_SCALE = 8;
 
-const artCalendar = () => svgDocument({
-  width: 480,
-  height: 360,
-  viewBox: '0 0 480 360',
-  title: 'Calendar illustration',
-  description: 'A dimensional torn calendar page with a small clock.',
-  body: `${contactShadow(240, 314, 148, 18)}<g shape-rendering="crispEdges">${polygon([[96, 76], [360, 76], [360, 292], [336, 280], [320, 300], [296, 284], [272, 304], [248, 284], [224, 300], [200, 284], [176, 304], [152, 284], [128, 300], [96, 284]], PALETTE_LEGEND.o)}${polygon([[112, 88], [348, 88], [348, 276], [328, 268], [312, 288], [288, 272], [264, 292], [240, 272], [216, 292], [192, 272], [168, 292], [144, 272], [112, 284]], PALETTE_LEGEND.c)}${polygon([[96, 76], [360, 76], [360, 120], [96, 120]], PALETTE_LEGEND.m)}${polygon([[112, 88], [344, 88], [344, 104], [112, 104]], PALETTE_LEGEND.p)}${rect(128, 56, 24, 44, PALETTE_LEGEND.o)}${rect(136, 60, 8, 32, PALETTE_LEGEND.w)}${rect(304, 56, 24, 44, PALETTE_LEGEND.o)}${rect(312, 60, 8, 32, PALETTE_LEGEND.w)}${rect(144, 148, 40, 32, PALETTE_LEGEND.h)}${rect(208, 148, 40, 32, PALETTE_LEGEND.w)}${rect(272, 148, 40, 32, PALETTE_LEGEND.h)}${rect(144, 204, 40, 32, PALETTE_LEGEND.w)}${rect(208, 204, 40, 32, PALETTE_LEGEND.h)}${polygon([[308, 214], [344, 188], [384, 212], [404, 252], [384, 296], [340, 308], [300, 288], [284, 248]], PALETTE_LEGEND.o)}${polygon([[316, 220], [344, 200], [376, 220], [392, 252], [376, 284], [340, 296], [308, 280], [296, 248]], PALETTE_LEGEND.b)}${polygon([[324, 228], [344, 214], [368, 228], [380, 252], [368, 276], [340, 284], [316, 272], [308, 248]], PALETTE_LEGEND.c)}${line(344, 224, 344, 252, PALETTE_LEGEND.o, 8)}${line(344, 252, 368, 264, PALETTE_LEGEND.o, 8)}${rect(340, 248, 8, 8, PALETTE_LEGEND.d)}</g>`
-});
+const artCanvas = (title, description, object) =>
+  svgDocument({
+    width: ART_W * ART_SCALE,
+    height: ART_H * ART_SCALE,
+    viewBox: `0 0 ${ART_W * ART_SCALE} ${ART_H * ART_SCALE}`,
+    title,
+    description,
+    body:
+      '<g shape-rendering="crispEdges">' +
+      // The shadow is emitted first so the sprite always paints over it, and
+      // both are already-flat path runs — there is nothing to composite, so no
+      // grid-merge layer is needed.
+      ditherShadowBox(240, 328, 152, 16, ART_SCALE) +
+      pixels(object, { scale: ART_SCALE }) +
+      '</g>',
+  });
 
-const artDrive = () => svgDocument({
-  width: 480,
-  height: 360,
-  viewBox: '0 0 480 360',
-  title: 'Drive illustration',
-  description: 'A dimensional orange folder with a stacked file edge.',
-  body: `${contactShadow(240, 306, 156, 20)}<g shape-rendering="crispEdges">${polygon([[140, 76], [344, 76], [376, 116], [376, 276], [112, 276], [112, 100]], PALETTE_LEGEND.o)}${polygon([[152, 88], [332, 88], [356, 124], [356, 260], [128, 260], [128, 112]], PALETTE_LEGEND.c)}${polygon([[152, 88], [332, 88], [356, 124], [336, 132], [128, 132], [128, 112]], PALETTE_LEGEND.h)}${rect(196, 112, 96, 12, PALETTE_LEGEND.w)}${rect(180, 140, 128, 12, PALETTE_LEGEND.w)}${polygon([[76, 132], [172, 132], [204, 104], [400, 104], [416, 276], [88, 276]], PALETTE_LEGEND.o)}${polygon([[88, 140], [164, 140], [204, 116], [388, 116], [400, 260], [100, 260]], PALETTE_LEGEND.d)}${polygon([[88, 140], [164, 140], [204, 116], [388, 116], [400, 164], [88, 164]], PALETTE_LEGEND.m)}${polygon([[88, 164], [400, 164], [400, 260], [100, 260]], PALETTE_LEGEND.b)}${polygon([[104, 176], [384, 176], [384, 188], [104, 188]], PALETTE_LEGEND.p)}${polygon([[100, 260], [400, 260], [400, 276], [88, 276]], PALETTE_LEGEND.s)}</g>`
-});
+const artMail = () => {
+  const map = grid(ART_W, ART_H);
+  // Blue paper plane lifting out of the top-right corner.
+  fillPoly(map, [[37, 4], [52, 8], [42, 17]], 'u');
+  strokePoly(map, [[37, 4], [52, 8], [42, 17]], 'o');
+  pixelLine(map, 37, 4, 42, 17, 'h', 1);
+  // Envelope: cream body, ink rim, folded-down orange flap.
+  box(map, 11, 18, 38, 17, 'h');
+  strokePoly(map, [[11, 18], [48, 18], [48, 34], [11, 34]], 'o');
+  fillPoly(map, [[13, 20], [46, 20], [30, 30]], 'b');
+  strokePoly(map, [[13, 20], [46, 20], [30, 30]], 'o');
+  // A dithered band along the bottom reads as the envelope's thickness.
+  fillPoly(map, [[12, 30], [47, 30], [47, 33], [12, 33]], 'w');
+  ditherPoly(map, [[12, 30], [47, 30], [47, 33], [12, 33]], 'w', 2);
+  return artCanvas(
+    'Mail illustration',
+    'Pixel art: a cream envelope with an orange folded flap and a blue paper plane lifting out of it.',
+    map,
+  );
+};
 
-const artContacts = () => svgDocument({
-  width: 480,
-  height: 360,
-  viewBox: '0 0 480 360',
-  title: 'Contacts illustration',
-  description: 'A dimensional contact card with a friendly generic avatar.',
-  body: `${contactShadow(240, 310, 144, 18)}<g shape-rendering="crispEdges">${polygon([[96, 76], [384, 76], [408, 100], [408, 292], [96, 292]], PALETTE_LEGEND.o)}${polygon([[112, 92], [384, 92], [392, 100], [392, 276], [112, 276]], PALETTE_LEGEND.c)}${polygon([[112, 92], [384, 92], [384, 108], [112, 108]], PALETTE_LEGEND.h)}${polygon([[336, 108], [384, 108], [384, 276], [336, 276]], PALETTE_LEGEND.w, 'opacity=".45"')}${polygon([[140, 144], [180, 120], [220, 144], [220, 188], [180, 212], [140, 188]], PALETTE_LEGEND.o)}${polygon([[148, 148], [180, 128], [212, 148], [212, 180], [180, 200], [148, 180]], PALETTE_LEGEND.u)}${rect(160, 152, 40, 28, PALETTE_LEGEND.h)}${rect(168, 156, 12, 12, PALETTE_LEGEND.w)}${polygon([[144, 228], [156, 204], [180, 192], [204, 204], [220, 228], [220, 248], [144, 248]], PALETTE_LEGEND.o)}${polygon([[152, 232], [164, 212], [180, 204], [200, 212], [212, 232], [212, 240], [152, 240]], PALETTE_LEGEND.p)}${rect(260, 148, 84, 12, PALETTE_LEGEND.d)}${rect(260, 176, 56, 12, PALETTE_LEGEND.p)}${rect(260, 216, 104, 12, PALETTE_LEGEND.m)}${rect(260, 244, 72, 12, PALETTE_LEGEND.s, 'opacity=".7"')}${rect(120, 116, 12, 12, PALETTE_LEGEND.b)}</g>`
-});
+const artCalendar = () => {
+  const map = grid(ART_W, ART_H);
+  // Two hanger tabs poking above the sheet.
+  box(map, 17, 6, 3, 7, 'o');
+  box(map, 40, 6, 3, 7, 'o');
+  const sheet = [[11, 12], [48, 12], [48, 37], [11, 37]];
+  fillPoly(map, sheet, 'h');
+  strokePoly(map, sheet, 'o');
+  // Orange header band under the rim.
+  box(map, 12, 13, 36, 6, 'm');
+  box(map, 12, 13, 36, 2, 'p');
+  box(map, 12, 19, 36, 1, 'o');
+  // Date grid: alternating filled cells, all on the pixel grid.
+  for (let row = 0; row < 3; row += 1) {
+    for (let column = 0; column < 4; column += 1) {
+      const x = 15 + column * 8;
+      const y = 23 + row * 4;
+      const filled = (row + column) % 3 === 0;
+      box(map, x, y, 5, 2, filled ? 'b' : 'w');
+      if (filled) box(map, x, y, 5, 1, 'p');
+    }
+  }
+  return artCanvas(
+    'Calendar illustration',
+    'Pixel art: a calendar sheet with an orange header band, two hanger tabs, and a grid of date cells.',
+    map,
+  );
+};
 
-const artChat = () => svgDocument({
-  width: 480,
-  height: 360,
-  viewBox: '0 0 480 360',
-  title: 'Chat illustration',
-  description: 'A dimensional pair of speech bubbles with a single reaction dot.',
-  body: `${contactShadow(240, 304, 152, 20)}<g shape-rendering="crispEdges">${polygon([[120, 92], [340, 92], [364, 116], [364, 220], [228, 220], [188, 264], [192, 220], [120, 220]], PALETTE_LEGEND.o)}${polygon([[132, 104], [336, 104], [352, 120], [352, 204], [224, 204], [204, 232], [208, 204], [132, 204]], PALETTE_LEGEND.d)}${polygon([[132, 104], [336, 104], [352, 120], [336, 132], [132, 132]], PALETTE_LEGEND.m)}${polygon([[168, 144], [244, 144], [264, 164], [264, 212], [168, 212], [148, 232], [152, 212], [148, 164]], PALETTE_LEGEND.o)}${polygon([[180, 156], [240, 156], [252, 168], [252, 200], [180, 200], [164, 216], [168, 200], [164, 168]], PALETTE_LEGEND.c)}${polygon([[292, 236], [364, 236], [384, 256], [384, 292], [312, 292], [300, 316], [300, 292], [292, 292]], PALETTE_LEGEND.o)}${polygon([[304, 248], [364, 248], [372, 260], [372, 280], [304, 280], [304, 292], [292, 280], [292, 260]], PALETTE_LEGEND.g)}${rect(320, 260, 16, 16, PALETTE_LEGEND.h)}${rect(196, 168, 24, 16, PALETTE_LEGEND.b)}${rect(240, 184, 16, 16, PALETTE_LEGEND.d)}</g>`
-});
+const artDrive = () => {
+  const map = grid(ART_W, ART_H);
+  // A cream page peeking out from behind the folder.
+  fillPoly(map, [[16, 10], [44, 10], [44, 30], [16, 30]], 'h');
+  strokePoly(map, [[16, 10], [44, 10], [44, 30], [16, 30]], 'o');
+  box(map, 19, 14, 22, 2, 'w');
+  box(map, 19, 18, 16, 2, 'w');
+  // Folder back with its tab.
+  const back = [[9, 18], [24, 18], [27, 22], [51, 22], [51, 36], [9, 36]];
+  fillPoly(map, back, 'd');
+  strokePoly(map, back, 'o');
+  // Front panel in the brighter orange, with a dithered lip.
+  const front = [[11, 24], [50, 24], [50, 35], [11, 35]];
+  fillPoly(map, front, 'm');
+  strokePoly(map, front, 'o');
+  fillPoly(map, [[12, 25], [49, 25], [49, 28], [12, 28]], 'p');
+  fillPoly(map, [[12, 31], [49, 31], [49, 34], [12, 34]], 'b');
+  ditherPoly(map, [[12, 31], [49, 31], [49, 34], [12, 34]], 'b', 3);
+  return artCanvas(
+    'Drive illustration',
+    'Pixel art: an orange folder with a tab, a cream document peeking out behind it, and a dithered front lip.',
+    map,
+  );
+};
 
-const artForms = () => svgDocument({
-  width: 480,
-  height: 360,
-  viewBox: '0 0 480 360',
-  title: 'Forms illustration',
-  description: 'A dimensional form sheet with checked boxes and a pencil.',
-  body: `${contactShadow(240, 310, 144, 18)}<g shape-rendering="crispEdges">${polygon([[92, 56], [340, 56], [364, 80], [364, 300], [92, 300]], PALETTE_LEGEND.o)}${polygon([[108, 72], [332, 72], [348, 88], [348, 284], [108, 284]], PALETTE_LEGEND.c)}${polygon([[108, 72], [332, 72], [332, 88], [108, 88]], PALETTE_LEGEND.h)}${rect(136, 120, 32, 32, PALETTE_LEGEND.o)}${rect(144, 128, 16, 16, PALETTE_LEGEND.g)}${line(148, 136, 156, 144, PALETTE_LEGEND.h, 4)}${line(156, 144, 168, 124, PALETTE_LEGEND.h, 4)}${rect(200, 128, 100, 12, PALETTE_LEGEND.d)}${rect(200, 148, 76, 12, PALETTE_LEGEND.p)}${rect(136, 180, 32, 32, PALETTE_LEGEND.o)}${rect(144, 188, 16, 16, PALETTE_LEGEND.g)}${line(148, 196, 156, 204, PALETTE_LEGEND.h, 4)}${line(156, 204, 168, 184, PALETTE_LEGEND.h, 4)}${rect(200, 188, 124, 12, PALETTE_LEGEND.m)}${rect(200, 208, 92, 12, PALETTE_LEGEND.b)}${polygon([[284, 276], [304, 236], [356, 260], [336, 300]], PALETTE_LEGEND.o)}${polygon([[296, 272], [308, 244], [344, 260], [332, 288]], PALETTE_LEGEND.b)}${polygon([[308, 244], [356, 260], [348, 272], [300, 256]], PALETTE_LEGEND.w)}${polygon([[284, 276], [304, 236], [312, 240], [292, 280]], PALETTE_LEGEND.p)}${polygon([[284, 276], [292, 280], [336, 300], [332, 308]], PALETTE_LEGEND.s)}</g>`
-});
+const artContacts = () => {
+  const map = grid(ART_W, ART_H);
+  const card = [[10, 12], [50, 12], [50, 37], [10, 37]];
+  fillPoly(map, card, 'h');
+  strokePoly(map, card, 'o');
+  // Avatar: an orange head over shoulders.
+  pixelEllipse(map, 21, 21, 5, 5, 'b');
+  fillPoly(map, [[14, 31], [28, 31], [28, 36], [14, 36]], 'm');
+  pixelEllipse(map, 21, 20, 2, 2, 'o');
+  box(map, 20, 19, 2, 1, 'h');
+  box(map, 20, 21, 2, 1, 'h');
+  // Two text lines to the right of the avatar.
+  box(map, 30, 17, 16, 2, 'd');
+  box(map, 30, 21, 11, 2, 'p');
+  // A dithered detail row across the bottom.
+  fillPoly(map, [[14, 33], [45, 33], [45, 35], [14, 35]], 'w');
+  ditherPoly(map, [[14, 33], [45, 33], [45, 35], [14, 35]], 'w', 2);
+  return artCanvas(
+    'Contacts illustration',
+    'Pixel art: a cream contact card with an orange avatar, two text lines, and a dithered detail row.',
+    map,
+  );
+};
 
-const glyphBase = (title, body) => svgDocument({
-  width: 48,
-  height: 48,
-  viewBox: '0 0 48 48',
-  title,
-  description: `${title} pixel glyph`,
-  body: `<g shape-rendering="crispEdges">${body}</g>`
-});
+const artChat = () => {
+  const map = grid(ART_W, ART_H);
+  // Big orange bubble with a tail.
+  const big = [[10, 11], [46, 11], [46, 29], [24, 29], [19, 35], [20, 29], [10, 29]];
+  fillPoly(map, big, 'm');
+  strokePoly(map, big, 'o');
+  fillPoly(map, [[11, 12], [45, 12], [45, 15], [11, 15]], 'p');
+  // Small cream bubble overlapping, offset to the lower right.
+  const small = [[26, 24], [48, 24], [48, 35], [42, 35], [40, 39], [39, 35], [26, 35]];
+  fillPoly(map, small, 'c');
+  strokePoly(map, small, 'o');
+  // Three dots in the big bubble, one reaction dot on the small one.
+  box(map, 16, 20, 3, 3, 'h');
+  box(map, 23, 20, 3, 3, 'h');
+  box(map, 30, 20, 3, 3, 'h');
+  box(map, 33, 28, 3, 3, 'g');
+  return artCanvas(
+    'Chat illustration',
+    'Pixel art: a large orange speech bubble with three dots, a smaller cream bubble, and a green reaction dot.',
+    map,
+  );
+};
 
-const glyphMail = () => glyphBase('Mail glyph', `${rect(6, 12, 36, 26, PALETTE_LEGEND.o)}${rect(8, 14, 32, 22, PALETTE_LEGEND.c)}${polygon([[10, 16], [38, 16], [24, 30]], PALETTE_LEGEND.h)}${line(10, 16, 24, 30, PALETTE_LEGEND.o, 2)}${line(38, 16, 24, 30, PALETTE_LEGEND.o, 2)}${line(10, 34, 22, 22, PALETTE_LEGEND.s, 2, 'opacity=".6"')}${line(38, 34, 26, 22, PALETTE_LEGEND.d, 2, 'opacity=".6"')}${rect(10, 8, 10, 6, PALETTE_LEGEND.p)}${rect(32, 34, 8, 6, PALETTE_LEGEND.d)}`);
+const artForms = () => {
+  const map = grid(ART_W, ART_H);
+  // Cream sheet with a clipped top-right corner, rimmed in ink.
+  const sheet = [[11, 8], [42, 8], [47, 13], [47, 38], [11, 38]];
+  fillPoly(map, sheet, 'h');
+  strokePoly(map, sheet, 'o');
+  // Two checked boxes with orange rules beside them.
+  [16, 26].forEach((y, index) => {
+    box(map, 16, y, 5, 5, 'o');
+    box(map, 17, y + 1, 3, 3, 'g');
+    pixelLine(map, 17, y + 2, 18, y + 3, 'h', 1);
+    pixelLine(map, 18, y + 3, 20, y, 'h', 1);
+    box(map, 24, y, 16 - index * 3, 2, index === 0 ? 'd' : 'p');
+    box(map, 24, y + 3, 10, 1, 'w');
+  });
+  // Pencil leaning against the bottom-right corner.
+  fillPoly(map, [[44, 22], [47, 25], [37, 37], [33, 34]], 'b');
+  strokePoly(map, [[44, 22], [47, 25], [37, 37], [33, 34]], 'o');
+  fillPoly(map, [[33, 34], [37, 37], [32, 39]], 'h');
+  strokePoly(map, [[33, 34], [37, 37], [32, 39]], 'o');
+  return artCanvas(
+    'Forms illustration',
+    'Pixel art: a cream form sheet with two checked boxes, ruled lines, and a pencil leaning on the corner.',
+    map,
+  );
+};
 
-const glyphCalendar = () => glyphBase('Calendar glyph', `${rect(8, 10, 32, 30, PALETTE_LEGEND.o)}${rect(10, 12, 28, 26, PALETTE_LEGEND.c)}${rect(10, 12, 28, 8, PALETTE_LEGEND.m)}${rect(14, 6, 4, 10, PALETTE_LEGEND.o)}${rect(30, 6, 4, 10, PALETTE_LEGEND.o)}${rect(14, 24, 6, 6, PALETTE_LEGEND.p)}${rect(22, 24, 6, 6, PALETTE_LEGEND.w)}${rect(30, 24, 6, 6, PALETTE_LEGEND.p)}${rect(14, 32, 6, 6, PALETTE_LEGEND.w)}${rect(22, 32, 6, 6, PALETTE_LEGEND.p)}${rect(30, 32, 6, 6, PALETTE_LEGEND.w)}`);
+// Glyphs are authored as 16x16 character grids and emitted at scale 3, so the
+// canvas stays the 48x48 the templates already size them to. Hand-placing the
+// pixels is the whole point: the old rect/polygon glyphs were smooth vector
+// shapes wearing a `shape-rendering="crispEdges"` hat.
+const GLYPH_SCALE = 3;
 
-const glyphDrive = () => glyphBase('Drive glyph', `${rect(10, 8, 28, 30, PALETTE_LEGEND.o)}${rect(12, 10, 24, 26, PALETTE_LEGEND.c)}${rect(18, 14, 12, 4, PALETTE_LEGEND.h)}${path('M6 18H18L22 14H42V38H6Z', PALETTE_LEGEND.o)}${path('M8 20H18L22 16H40V36H8Z', PALETTE_LEGEND.b)}${rect(10, 24, 28, 4, PALETTE_LEGEND.p)}${rect(8, 36, 34, 4, PALETTE_LEGEND.s)}`);
+const parseGrid = (name, rows) => {
+  const cells = rows.map((row) => [...row]);
+  const width = cells[0].length;
+  if (cells.some((row) => row.length !== width)) {
+    const widths = cells.map((row) => row.length).join(', ');
+    throw new Error(`${name}: ragged grid — row widths are [${widths}]`);
+  }
+  for (const row of cells) {
+    for (const cell of row) {
+      if (!(cell in PALETTE_LEGEND)) {
+        throw new Error(`${name}: unknown palette cell '${cell}'`);
+      }
+    }
+  }
+  return cells;
+};
 
-const glyphContacts = () => glyphBase('Contacts glyph', `${rect(6, 10, 36, 30, PALETTE_LEGEND.o)}${rect(8, 12, 32, 26, PALETTE_LEGEND.c)}${path('M18 22a6 6 0 1 0 12 0a6 6 0 1 0-12 0', PALETTE_LEGEND.u)}${path('M12 36c2-8 8-10 12-10s10 2 12 10', PALETTE_LEGEND.b)}${rect(32, 18, 6, 4, PALETTE_LEGEND.h)}${rect(32, 24, 6, 4, PALETTE_LEGEND.h)}${rect(10, 8, 6, 6, PALETTE_LEGEND.p)}`);
+const glyph = (title, rows) => {
+  const map = parseGrid(title, rows);
+  return svgDocument({
+    width: 48,
+    height: 48,
+    viewBox: '0 0 48 48',
+    title,
+    description: `${title} — a 16x16 pixel sprite on the grr palette`,
+    body: `<g shape-rendering="crispEdges">${pixels(map, { scale: GLYPH_SCALE })}</g>`,
+  });
+};
 
-const glyphChat = () => glyphBase('Chat glyph', `${path('M8 10H36L42 16V30H24L18 38V30H8Z', PALETTE_LEGEND.o)}${path('M10 12H34L40 18V28H22L18 32V28H10Z', PALETTE_LEGEND.b)}${path('M18 18H34V30H26L22 34V30H18Z', PALETTE_LEGEND.o)}${path('M20 20H32V28H25L23 31V28H20Z', PALETTE_LEGEND.c)}${rect(30, 34, 8, 8, PALETTE_LEGEND.g)}${rect(32, 36, 4, 4, PALETTE_LEGEND.h)}`);
+const glyphMail = () => glyph('Mail glyph', [
+  '................',
+  '.oooooooooooooo.',
+  '.ohhhhhhhhhhhho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohwwwbwwwwbwho.',
+  '.ohwwwwwbwwwwho.',
+  '.ohwwwwwwbwwwwo.',
+  '.ohwwwwwwbwwwwo.',
+  '.ohwwwwwbwwwwho.',
+  '.ohwwwbwwwwbwho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohhhhhhhhhhhho.',
+  '.oooooooooooooo.',
+  '................',
+  '................',
+]);
 
-const glyphForms = () => glyphBase('Forms glyph', `${path('M8 6H32L40 14V42H8Z', PALETTE_LEGEND.o)}${path('M10 8H30L38 16V40H10Z', PALETTE_LEGEND.c)}${rect(14, 16, 8, 8, PALETTE_LEGEND.o)}${rect(16, 18, 4, 4, PALETTE_LEGEND.g)}${rect(26, 18, 8, 4, PALETTE_LEGEND.d)}${rect(14, 28, 8, 8, PALETTE_LEGEND.o)}${rect(16, 30, 4, 4, PALETTE_LEGEND.g)}${rect(26, 30, 8, 4, PALETTE_LEGEND.d)}${polygon([[30, 38], [36, 20], [40, 22], [34, 40]], PALETTE_LEGEND.o)}${polygon([[32, 37], [37, 22], [39, 23], [34, 38]], PALETTE_LEGEND.b)}`);
+const glyphCalendar = () => glyph('Calendar glyph', [
+  '................',
+  '.oooooooooooooo.',
+  '.oddddddddddddo.',
+  '.oddddddddddddo.',
+  '.ohhhhhhhhhhhho.',
+  '.ohhhwwhhhhwwho.',
+  '.ohhhhhhhhhhhho.',
+  '.ohhhwwhhhhwwho.',
+  '.ohhhhhhhhhhhho.',
+  '.ohhhwwhhhhwwho.',
+  '.ohhhhhhhhhhhho.',
+  '.ohhhwwhhhhwwho.',
+  '.ohhhhhhhhhhhho.',
+  '.oooooooooooooo.',
+  '................',
+  '................',
+]);
+
+const glyphDrive = () => glyph('Drive glyph', [
+  '................',
+  '................',
+  '..oooooooo......',
+  '..obbbbbboo.....',
+  '.obbbbbbbboo....',
+  '.obbbbbbbbbbo...',
+  '.obbbbbbbbbbbo..',
+  '.obbbbbbbbbbbbo.',
+  '.obbbbbbbbbbbbo.',
+  '.obbbbbbbbbbbbo.',
+  '.oppppppppppppo.',
+  '.oppppppppppppo.',
+  '.oooooooooooooo.',
+  '................',
+  '................',
+  '................',
+]);
+
+const glyphContacts = () => glyph('Contacts glyph', [
+  '................',
+  '.oooooooooooooo.',
+  '.ohhhhhhhhhhhho.',
+  '.ohhwwwwwwwwhho.',
+  '.ohwwbbwwwwwwho.',
+  '.ohwwbbwwwwwwho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohhhhhhhhhhhho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohhhhhhhhhhhho.',
+  '.oooooooooooooo.',
+  '................',
+  '................',
+]);
+
+const glyphChat = () => glyph('Chat glyph', [
+  '................',
+  '..oooooooooooo..',
+  '.ohhhhhhhhhhhho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohhhhhhhhhhhho.',
+  '.ohhhhhhhhhhhho.',
+  '.ohhhhhhhhhhhho.',
+  '..oooooooooooo..',
+  '...obbbbbbo.....',
+  '....obbbbo......',
+  '.....obbo.......',
+  '......oo........',
+  '................',
+  '................',
+]);
+
+const glyphForms = () => glyph('Forms glyph', [
+  '................',
+  '.oooooooooooooo.',
+  '.ohhhhhhhhhhhho.',
+  '.ohgghhhhhhhhho.',
+  '.ohgghhhhhhhhho.',
+  '.ohhhhhhhhhhhho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohhhhhhhhhhhho.',
+  '.ohgghhhhhhhhho.',
+  '.ohgghhhhhhhhho.',
+  '.ohhhhhhhhhhhho.',
+  '.ohwwwwwwwwwwho.',
+  '.ohhhhhhhhhhhho.',
+  '.oooooooooooooo.',
+  '................',
+  '................',
+]);
 
 const makeHeadMap = () => {
   const map = Array.from({ length: 32 }, () => Array(32).fill('.'));
@@ -680,13 +1129,31 @@ const pixelText = (text, x, y, scale, fill, extra = '') => {
   return paths.length ? `<path fill="${fill}" d="${paths.join('')}"${extra ? ` ${extra}` : ''}/>` : '';
 };
 
+/**
+ * Wrap the mark in a slow idle bob, so the tab icon and the header logo
+ * breathe instead of sitting dead still.
+ *
+ * CSS rather than SMIL, deliberately: SMIL cannot be switched off by
+ * `prefers-reduced-motion`, and an always-animating tab icon is exactly the
+ * kind of motion that query exists to stop. `cell` is the user-unit size of one
+ * pixel cell, so the travel is half a pixel whatever the render scale — without
+ * it a 256px logo would bob eight times further than a 32px favicon.
+ */
+const idleMark = (cell, body) =>
+  '<style>@media (prefers-reduced-motion: no-preference){' +
+  '.grr-idle{animation:grr-idle 3.4s ease-in-out infinite}' +
+  `@keyframes grr-idle{0%,100%{transform:translateY(0)}50%{transform:translateY(${number(-cell / 2)}px)}}` +
+  '}</style><g class="grr-idle">' +
+  body +
+  '</g>';
+
 const faviconSvg = (width) => svgDocument({
   width,
   height: width,
   viewBox: '0 0 32 32',
   title: 'grr',
   description: 'A compact orange crab head with dimensional pixel shading.',
-  body: headLayer(0, 0, 1)
+  body: idleMark(1, headLayer(0, 0, 1)),
 });
 
 const logoSvg = () => svgDocument({
@@ -695,7 +1162,7 @@ const logoSvg = () => svgDocument({
   viewBox: '0 0 256 256',
   title: 'Google Rust Rewrite',
   description: 'The dimensional orange grr crab mascot.',
-  body: headLayer(0, 0, 8)
+  body: idleMark(8, headLayer(0, 0, 8)),
 });
 
 const logoWordmarkSvg = () => svgDocument({
