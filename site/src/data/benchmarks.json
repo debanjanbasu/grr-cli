@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-10-01T10:21:27.577Z",
+  "generatedAt": "2026-10-02T09:58:37.183Z",
   "environment": {
     "platform": "linux",
     "arch": "arm64",
     "nodeVersion": "v24.21.0",
     "binaryKind": "release",
     "binaryPath": "target/release/grr",
-    "grrVersion": "grr 0.5.0"
+    "grrVersion": "grr 0.6.0"
   },
   "versions": {
     "grr": {
-      "local": "grr 0.5.0",
-      "latestTag": "v0.5.0"
+      "local": "grr 0.6.0",
+      "latestTag": "v0.6.0"
     },
     "gog": {
       "local": null,
@@ -31,19 +31,21 @@
   "grr": {
     "startup": {
       "available": true,
-      "medianMs": 5,
-      "p95Ms": 6.7,
-      "minMs": 4.4
+      "medianMs": 4.4,
+      "p95Ms": 5.9,
+      "minMs": 4.2
     },
     "schemaDump": {
       "available": true,
-      "medianMs": 17.8,
-      "p95Ms": 18.3,
-      "minMs": 17.6
+      "medianMs": 17,
+      "p95Ms": 17.4,
+      "minMs": 16.8
     },
     "apiList": {
-      "available": false,
-      "reason": "exit status 1 for `grr api list`"
+      "available": true,
+      "medianMs": 5.5,
+      "p95Ms": 6.1,
+      "minMs": 5.2
     },
     "binary": {
       "bytes": 10442360,
@@ -68,9 +70,9 @@
       "version": "gws 0.22.5",
       "startup": {
         "available": true,
-        "medianMs": 33.9,
-        "p95Ms": 36.2,
-        "minMs": 32.8
+        "medianMs": 31.5,
+        "p95Ms": 32.3,
+        "minMs": 30.4
       },
       "binary": {
         "bytes": 852,
