@@ -1,0 +1,166 @@
+name: Automation auto-merge
+
+# Self-service merging for the PRs our own automation opens via
+# peter-evans/create-pull-request (GITHUB_TOKEN authorship → `github-actions`).
+#
+# The problem: any workflow event authored by GITHUB_TOKEN lands its runs in
+# `action_required` — GitHub refuses to auto-start CI for a token-created
+# event. The PRs from changelog.yml / demo.yml / benchmark.yml / stats.yml /
+# discovery.yml / auto-release.yml therefore sit with zero checks and can
+# never merge on their own. This workflow is the unblocker: it approves the
+# pending runs (the documented lever that lets the real ci.yml run and report
+# its four required contexts) and then drives the merge with the same policy
+# the repository already applies to Dependabot.
+#
+# Zero pwn-request surface: there is NO checkout of the PR head anywhere in
+# this file. pull_request_target grants the *base* repo's secrets to the job,
+# and every step only shells out to `gh` — PR code is never executed.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  actions: write        # approve pending (action_required) workflow runs
+  pull-requests: write  # merge, comment, delete branches
+  contents: read
+
+concurrency:
+  # One decision per pull request. Two runs (a `synchronize` landing while a
+  # `reopened` is still queued) otherwise race on `gh pr merge`, and the loser
+  # fails on a PR that is already merged — turning a successful auto-merge
+  # into a red run. Queued rather than cancelled: being killed mid-merge is
+  # worse than a duplicate no-op. (Mirrors dependabot-auto-merge.yml.)
+  group: automation-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  approve-and-merge:
+    # Same-repo heads only: forks cannot be merged by this token, and a fork
+    # author must never reach the approve/merge code path with our token.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Guard and classify
+        id: mode
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # A run queued behind a successful merge must not try to merge a PR
+          # that is already merged: `gh pr merge` errors on one, which turned
+          # a completed auto-merge into a red run on the next event.
+          # (Mirrors dependabot-auto-merge.yml.)
+          state="$(gh pr view "$PR_NUMBER" --json state --jq .state)"
+          if [ "$state" != "open" ]; then
+            echo "::notice::PR #$PR_NUMBER is $state; nothing left to decide."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Allowlist: the exact branch: values of the six workflows that open
+          # bot PRs (create-pull-request in each). Anything else — a human
+          # pushing to a chore/* branch, a renamed automation branch — gets
+          # no merge help from this workflow.
+          case "$HEAD_REF" in
+            chore/changelog-regenerate|chore/demo-recording|chore/benchmark-refresh|chore/stats-refresh)
+              echo "class=artifact" >> "$GITHUB_OUTPUT" ;;
+            chore/discovery-refresh)
+              echo "class=code" >> "$GITHUB_OUTPUT" ;;
+            chore/release-v[0-9]*.[0-9]*.[0-9]*)
+              # A bare-semver release bump. The character class guards against
+              # the double-v form (chore/release-vv0.6.0) — the malformed
+              # manifest this repo has already shipped once, which created an
+              # orphan vv tag. That shape is a bug, never something to merge.
+              echo "class=code" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "::notice::Branch $HEAD_REF is not an automation branch; ignoring."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0 ;;
+          esac
+          echo "head ref: $HEAD_REF -> ${{ steps.mode.outputs.class }}"
+
+      - name: Approve pending CI runs for the head SHA
+        if: steps.mode.outputs.skip != 'true'
+        id: approve
+        shell: bash
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # GITHUB_TOKEN-authored events cannot start workflows, so the runs
+          # for a bot push land in `action_required` and required checks
+          # (test (ubuntu-latest), test (windows-latest), clippy, fmt) never
+          # report. The approve API is the documented lever: approving a
+          # pending run lets the real ci.yml execute and gate the merge like
+          # any other PR.
+          ids="$(gh api --paginate \
+            "repos/{owner}/{repo}/actions/runs?head_sha=$HEAD_SHA&status=action_required" \
+            --jq '.workflow_runs[].id')"
+          if [ -z "$ids" ]; then
+            echo "No runs in action_required for $HEAD_SHA (already approved or none pending)."
+            exit 0
+          fi
+          for id in $ids; do
+            echo "Approving run $id"
+            gh api -X POST "repos/{owner}/{repo}/actions/runs/$id/approve"
+          done
+          gh pr comment "$PR_NUMBER" --body "Approved $(
+            printf '%s\n' "$ids" | wc -l | tr -d ' '
+          ) pending CI run(s) in \`action_required\` for this head SHA. Bot-authored pushes land in that state because GITHUB_TOKEN events cannot start workflows; approval lets the real ci.yml run and report the required checks."
+
+      - name: Merge artifact-only PRs immediately
+        if: steps.mode.outputs.skip != 'true' && steps.mode.outputs.class == 'artifact'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Artifact-only PRs (changelog, demo, benchmark, stats) touch nothing
+          # the test suite reads for its verdict on correctness — they are
+          # self-validating generated artifacts, and a held-back refresh rots
+          # exactly like a held-back patch. The repo's stated philosophy for
+          # patches extends here: revert is cheaper than staleness, so merge
+          # now with --admin and fall back to --auto if protection refuses.
+          # (Mirrors dependabot-auto-merge.yml.)
+          if output="$(gh pr merge "$PR_NUMBER" --squash --admin --delete-branch 2>&1)"; then
+            printf '%s\n' "$output"
+          elif printf '%s\n' "$output" | grep -qi "not allowed\|permission\|protected branch"; then
+            printf '%s\n' "$output" >&2
+            echo "::notice::Cannot bypass branch protection; falling back to auto-merge."
+            gh pr merge "$PR_NUMBER" --squash --auto --delete-branch
+          else
+            printf '%s\n' "$output" >&2
+            exit 1
+          fi
+          gh pr comment "$PR_NUMBER" --body "Artifact-only refresh: merged immediately without waiting for CI. These are self-validating generated artifacts; a revert is cheaper than a held-back refresh — same philosophy as this repo's patch policy."
+
+      - name: Gate code-affecting PRs behind real CI
+        if: steps.mode.outputs.skip != 'true' && steps.mode.outputs.class == 'code'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Code-affecting PRs (discovery refresh rewrites the generated
+          # command tree; the release bump arms tag→publish) get real CI and
+          # only native auto-merge — NEVER --admin. Bypassing required checks
+          # on a tree-changing merge is exactly what the checks exist for.
+          if output="$(gh pr merge "$PR_NUMBER" --squash --auto --delete-branch 2>&1)"; then
+            printf '%s\n' "$output"
+          elif printf '%s\n' "$output" | grep -qi "already enabled"; then
+            printf '%s\n' "$output"
+          else
+            printf '%s\n' "$output" >&2
+            exit 1
+          fi
+          gh pr comment "$PR_NUMBER" --body "Code-affecting automation PR: auto-merge is enabled and this will squash-merge once all required checks pass. Never admin-merged — the pending runs approved above let real CI gate a tree-changing merge."
