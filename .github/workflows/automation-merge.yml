@@ -73,15 +73,33 @@ jobs:
           # human pushing to a chore/* branch, a renamed automation branch —
           # gets no merge help from this workflow. Forks cannot appear here:
           # the listing is scoped to this repository's open PRs.
-          list="$(gh pr list --state open --json number,headRefName,author \
-            --jq '.[] | select(
-                    (.headRefName == "chore/changelog-regenerate" or
-                     .headRefName == "chore/demo-recording" or
-                     .headRefName == "chore/benchmark-refresh" or
-                     .headRefName == "chore/stats-refresh" or
-                     .headRefName == "chore/discovery-refresh" or
-                     (.headRefName | test("^chore/release-v[0-9]+\\.[0-9]+\\.[0-9]+$")))
-                  ) | "\(.number)|\(.headRefName)"')"
+          #
+          # A transient API failure here reddened a whole cycle once (run
+          # 37156260203). The poller is idempotent, so the enumeration gets
+          # three quick attempts and then defers to the next cycle rather
+          # than failing a run whose work merely postpones ten minutes.
+          ok=0
+          list=""
+          for attempt in 1 2 3; do
+            if list="$(gh pr list --state open --json number,headRefName,author \
+              --jq '.[] | select(
+                      (.headRefName == "chore/changelog-regenerate" or
+                       .headRefName == "chore/demo-recording" or
+                       .headRefName == "chore/benchmark-refresh" or
+                       .headRefName == "chore/stats-refresh" or
+                       .headRefName == "chore/discovery-refresh" or
+                       (.headRefName | test("^chore/release-v[0-9]+\\.[0-9]+\\.[0-9]+$")))
+                    ) | "\(.number)|\(.headRefName)"')"; then
+              ok=1
+              break
+            fi
+            echo "::warning::enumeration attempt $attempt/3 failed"
+            sleep 10
+          done
+          if [ "$ok" != 1 ]; then
+            echo "::notice::could not enumerate this cycle; nothing merged, the next cycle retries."
+            exit 0
+          fi
           # The release-bump pattern requires bare semver and rejects the
           # double-v form (chore/release-vv0.6.0) — the malformed manifest
           # this repo has already shipped once, which created an orphan vv

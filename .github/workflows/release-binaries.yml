@@ -260,13 +260,14 @@ jobs:
         # swallowed the tag (see tag-release.yml). workflow_dispatch is the
         # exception, so the watchers are fired by hand:
         #   demo re-records against the new version, benchmark re-measures
-        #   when the version gate says so, stats refresh the download tiles.
+        #   when the version gate says so, stats refresh the download tiles,
+        #   and changelog's release-only verify job finally gets to run.
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         timeout-minutes: 5
         run: |
-          for wf in demo.yml benchmark.yml stats.yml; do
+          for wf in demo.yml benchmark.yml stats.yml changelog.yml; do
             echo "dispatching $wf"
             gh workflow run "$wf" --ref main || echo "::warning::$wf dispatch failed"
           done
