@@ -85,6 +85,43 @@ const ms = (value: number | undefined) => (Number.isFinite(value) ? `${value} ms
 const megabytes = (bytes: number | undefined) =>
   typeof bytes === 'number' && Number.isFinite(bytes) ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : '—';
 
+// One binary-size rule for both the numeric table and the feature matrix.
+//
+// A measurement is only a size when it measured the tool itself. gws ships
+// through npm, so the executable PATH resolves to is a ~852-byte launcher
+// shim (run.js) that spawns the real artifact elsewhere — the benchmark even
+// records its source as "installed on PATH" rather than a build output path
+// like grr's "target/release/grr". Quoting that shim as gws's binary size put
+// a 852-byte file against a 10 MB executable and rendered as "0.0 MB".
+//
+// No standalone Workspace CLI binary is under a mebibyte, so a measurement
+// below that is a launcher shim (or otherwise not the binary) and is rendered
+// as an em dash with the reason, never as a number.
+const MIN_BINARY_BYTES = 1024 * 1024;
+
+const isLauncherShim = (binary: Binary | undefined) => {
+  const bytes = binary?.bytes;
+  return typeof bytes === 'number' && Number.isFinite(bytes) && bytes > 0 && bytes < MIN_BINARY_BYTES;
+};
+
+const trustworthyBytes = (binary: Binary | undefined): number | null => {
+  const bytes = binary?.bytes;
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes <= 0) return null;
+  return bytes >= MIN_BINARY_BYTES ? bytes : null;
+};
+
+const sizeDetail = (binary: Binary | undefined) =>
+  isLauncherShim(binary)
+    ? `measured artifact is a ${binary?.bytes}-byte launcher shim, not a binary (${binary?.source ?? 'unknown source'})`
+    : binary?.reason ?? 'not measured';
+
+// Table cell: the number, or an em dash whose tooltip carries the reason. The
+// cell is never blank.
+const measuredSize = (binary: Binary | undefined) => {
+  const bytes = trustworthyBytes(binary);
+  return { bytes, text: megabytes(bytes ?? undefined), title: bytes === null ? sizeDetail(binary) : undefined };
+};
+
 const timingDetail = (metric: Timing | undefined) => {
   if (!metric?.available) return `not in this snapshot — ${metric?.reason ?? 'not measured'}`;
   return `p95 ${ms(metric.p95Ms)} · min ${ms(metric.minMs)}`;
@@ -113,14 +150,18 @@ const columns = [
 // as the numeric table above, so the two can never disagree.
 const gogRow = competitors.find((row) => row.tool === 'gog');
 const gwsRow = competitors.find((row) => row.tool === 'gws');
-const unpackedSize = (binary: Binary | undefined) =>
-  typeof binary?.bytes === 'number' && Number.isFinite(binary.bytes) ? megabytes(binary.bytes) : '—';
-const grrBytes = grr.binary?.bytes;
-const measuredBytes = [grrBytes, gogRow?.binary?.bytes, gwsRow?.binary?.bytes].filter(
-  (bytes): bytes is number => typeof bytes === 'number' && Number.isFinite(bytes),
-);
-const grrSmallest =
-  typeof grrBytes === 'number' && measuredBytes.length === 3 && Math.min(...measuredBytes) >= grrBytes;
+const unpackedSize = (binary: Binary | undefined) => {
+  const bytes = trustworthyBytes(binary);
+  if (bytes !== null) return megabytes(bytes);
+  return isLauncherShim(binary) ? `— launcher shim, not a binary (${binary?.bytes} B)` : '—';
+};
+const measuredBytes = [grr.binary, gogRow?.binary, gwsRow?.binary]
+  .map((binary) => trustworthyBytes(binary))
+  .filter((bytes): bytes is number => bytes !== null);
+const grrBytes = trustworthyBytes(grr.binary);
+// "Smallest of the three" is only claimed when all three tools produced a
+// trustworthy measurement; a shim or a missing size can never win the title.
+const grrSmallest = grrBytes !== null && measuredBytes.length === 3 && Math.min(...measuredBytes) >= grrBytes;
 
 // ---------------------------------------------------------------------------
 // Feature matrix. Every cell cites the project's own documentation or a
@@ -381,7 +422,9 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
                 </tr>
               </thead>
               <tbody>
-                {columns.map((column) => (
+                {columns.map((column) => {
+                  const size = measuredSize(column.binary);
+                  return (
                   <tr>
                     <th scope="row">
                       {column.name}
@@ -396,9 +439,10 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
                     <td title={column.apiList?.available ? undefined : `not comparable — ${column.apiList?.reason ?? 'not measured'}`}>
                       {ms(column.apiList?.available ? column.apiList?.medianMs : undefined)}
                     </td>
-                    <td>{megabytes(column.binary?.bytes)}</td>
+                    <td title={size.title}>{size.text}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -501,7 +545,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           <code>--deny-service</code> and <code>--deny-verb</code> gates as the rest of the CLI.
           Named accounts keep separate tokens in the OS keyring. HTTP/3 is always on with HTTP/2
           fallback, release binaries ship the OAuth client compiled in so the first run is
-          zero-config, and the measured binary is the smallest of the three — the size row above is
+          zero-config{grrSmallest ? ', and the measured binary is the smallest of the three' : ''} — the size row above is
           computed from the same snapshot, not typed by hand.
         </p>
         <p>
