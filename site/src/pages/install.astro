@@ -41,9 +41,9 @@ cargo build --release --locked
         <article class="install-card card card-border border-base-300 bg-base-100">
           <div class="card-body gap-1 p-5">
             <h2 class="card-title m-0 text-base">macOS + Linux</h2>
-            <p class="m-0 text-[13px] text-base-content/70">The repository&rsquo;s Homebrew tap serves arm64 macOS and x86_64 Linux builds. Tap it, trust it, then install by formula name.</p>
+            <p class="m-0 text-[13px] text-base-content/70">The repository&rsquo;s Homebrew tap serves arm64 macOS and x86_64/arm64 Linux builds. Tap it, trust it, then install by formula name.</p>
             <p class="install-note m-0 mt-2 text-xs text-(--quiet)">Since Homebrew 4.4, third-party taps are untrusted by default, so <code>brew trust</code> is required before Homebrew will install a formula from the tap.</p>
-            <CodeBlock code={'brew tap debanjanbasu/homebrew\nbrew trust debanjanbasu/homebrew\nbrew install grr'} label="homebrew" />
+            <CodeBlock code={'brew tap debanjanbasu/tap\nbrew trust debanjanbasu/tap\nbrew install grr'} label="homebrew" />
           </div>
         </article>
         <article class="install-card card card-border border-base-300 bg-base-100">
