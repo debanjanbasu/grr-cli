@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T09:37:23.457Z",
+  "generatedAt": "2026-10-03T10:25:29.022Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -148,6 +148,12 @@
               "scope": null,
               "type": "docs",
               "note": null
+            },
+            {
+              "description": "regenerate for the docs audit and crate metadata",
+              "scope": "changelog",
+              "type": "docs",
+              "note": null
             }
           ]
         },
@@ -164,6 +170,12 @@
             {
               "description": "refresh the index and everything derived from it",
               "scope": "discovery",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
               "type": "chore",
               "note": null
             },
