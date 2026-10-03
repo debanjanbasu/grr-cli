@@ -14,14 +14,18 @@ const { code, label = 'shell', copyable = true } = Astro.props;
     screen reader's landmark list into noise. The label still names the window. */}
 <div class="code-window" role="group" aria-label={`${label} command`}>
   <div class="code-window-bar mb-2 flex items-center justify-between gap-3">
-    <span class="code-window-label kbd kbd-sm">{label}</span>
+    {/* The label ellipsizes on narrow screens (see .code-window-label); title
+        keeps the full command reachable on hover. */}
+    <span class="code-window-label kbd kbd-sm" title={label}>{label}</span>
     <span class="code-window-tools flex items-center gap-2">
       <span class="terminal-caret" aria-hidden="true"></span>
       {
         copyable && (
           <button class="copy-button" type="button" data-copy aria-label={`Copy the ${label} command to the clipboard`}>
             <span class="copy-glyph" aria-hidden="true" />
-            <span class="copy-text" data-copy-state>Copy</span>
+            {/* aria-live so the "Copied"/"Press Ctrl+C" result is announced;
+                the aria-label on the button otherwise hides the state text. */}
+            <span class="copy-text" data-copy-state aria-live="polite">Copy</span>
           </button>
         )
       }
