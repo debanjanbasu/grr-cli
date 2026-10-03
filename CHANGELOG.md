@@ -22,14 +22,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **scripts:** delete dead weight, share the flag contract
+- delete dead code across the CLI
+
 ### Fixed
 
 - **ci:** merges with GITHUB\_TOKEN fire no downstream workflows
 - **ci:** token-authored pushes and releases start nothing — dispatch the chain
+- **site:** the live audit's twelve content corrections
+- **ci:** poller retry, changelog in the release dispatch, dead input
+
+### Documentation
+
+- packaging status told the truth (0.7.0; winget unpublished)
 
 ### Internal
 
-- 1 internal commit (ci 1)
+- 5 internal commits (chore 4, ci 1)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.7.0] - 2026-10-03
 
