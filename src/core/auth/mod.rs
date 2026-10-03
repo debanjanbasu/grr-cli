@@ -73,15 +73,12 @@ pub struct GoogleAuth {
     token_storage: Arc<RwLock<Option<TokenStorage>>>,
     store: TokenStore,
     token_endpoint: String,
-    /// The named account this handle is bound to, if any (`None` = the
-    /// default account, whose store entry keeps the legacy naming).
-    account: Option<String>,
 }
 
 impl GoogleAuth {
     /// Create new GoogleAuth from config
     pub async fn new(config: OAuthConfig) -> Result<Self> {
-        Self::with_store(config, TokenStore::auto().await?, None).await
+        Self::with_store(config, TokenStore::auto().await?).await
     }
 
     /// Create an auth handle bound to one named account's own token
@@ -92,14 +89,10 @@ impl GoogleAuth {
     pub async fn new_for(config: OAuthConfig, account: impl Into<String>) -> Result<Self> {
         let account = store::validate_account_name(account.into().as_str())?;
         let store = TokenStore::auto_named(&account).await?;
-        Self::with_store(config, store, Some(account)).await
+        Self::with_store(config, store).await
     }
 
-    async fn with_store(
-        config: OAuthConfig,
-        store: TokenStore,
-        account: Option<String>,
-    ) -> Result<Self> {
+    async fn with_store(config: OAuthConfig, store: TokenStore) -> Result<Self> {
         let http_client = HttpClient::builder()
             .timeout(Duration::from_secs(30))
             .build()
@@ -112,15 +105,7 @@ impl GoogleAuth {
             token_storage: Arc::new(RwLock::new(token_storage)),
             store,
             token_endpoint: GOOGLE_TOKEN_URL.to_string(),
-            account,
         })
-    }
-
-    /// The named account this handle is bound to, if any. `None` means the
-    /// default account (no `--account`); `Some` means every store
-    /// operation targets that account's own token.
-    pub fn account(&self) -> Option<&str> {
-        self.account.as_deref()
     }
 
     /// A handle bound to `account`'s own token store, reusing this handle's
@@ -128,9 +113,7 @@ impl GoogleAuth {
     /// shared: the new handle loads the named account's stored token.
     ///
     /// This is what `commands/auth.rs` uses to rebind a default handle when
-    /// a per-command `--account` is present; see
-    /// [`AuthConfigBuilder::with_account`] for the owner's global-flag
-    /// wire-up seam.
+    /// a per-command `--account` is present.
     pub async fn with_account_store(&self, account: impl Into<String>) -> Result<Self> {
         Self::new_for(self.config.clone(), account).await
     }
@@ -142,12 +125,7 @@ impl GoogleAuth {
     /// named `--account` and the default take the same code path; without
     /// an account it is behavior-identical to the original construction.
     pub async fn with_default_account_store(&self) -> Result<Self> {
-        Self::with_store(
-            self.config.clone(),
-            TokenStore::default_named().await?,
-            None,
-        )
-        .await
+        Self::with_store(self.config.clone(), TokenStore::default_named().await?).await
     }
 
     /// Token storage backend in use (for logs and `auth login` output).
@@ -172,7 +150,7 @@ impl GoogleAuth {
     /// entirely until a test explicitly installs a token path.
     #[doc(hidden)]
     pub async fn with_token(config: OAuthConfig, storage: TokenStorage) -> Result<Self> {
-        let this = Self::with_store(config, TokenStore::Memory, None).await?;
+        let this = Self::with_store(config, TokenStore::Memory).await?;
         *this.token_storage.write().await = Some(storage);
         Ok(this)
     }

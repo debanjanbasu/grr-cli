@@ -4,27 +4,28 @@
 //! layers:
 //!
 //! * a thin, hand-written set of account-level commands — `auth`, `api`,
-//!   `schema`, `transport` — kept as clap derive types;
-//! * the ENTIRE service command tree (`gmail`, `calendar`, `drive`,
-//!   `people`, `chat`, `forms`, `tasks`, `docs`, `sheets`, `slides`),
-//!   generated at build time from the committed Discovery index into
-//!   `commands/generated.rs`, because the index is the single source of
-//!   truth for the CLI surface and it changes daily.
+//!   `mcp`, `transport`, `schema`, `ask` — kept as clap derive types;
+//! * the ENTIRE generated service command tree, built from the committed
+//!   Discovery index into `commands/generated.rs`, because the index is
+//!   the single source of truth for the CLI surface and it changes daily.
 //!
 //! Wiring: clap's derive cannot express a runtime-generated tree, and
 //! `external_subcommand` would forfeit typed flags and per-leaf `--help`.
 //! So [`root_command`] composes the derive's static commands with the
 //! generated service commands onto ONE `Command`, parses once with
-//! `get_matches()`, and dispatch matches the four static names first —
+//! `get_matches()`, and dispatch matches the static names first —
 //! everything else is a generated service and goes through
-//! `gen_dispatch::dispatch`, which shares the call path with `grr api`.
+//! `gen_dispatch::dispatch_with_profile`, which shares the call path with
+//! `grr api`.
 
 use crate::core::prelude::*;
 use anyhow::Result;
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::commands::{api, ask, auth, gen_dispatch, generated, mcp, safety, transport};
+use crate::commands::{
+    api, ask, auth, build_auth, gen_dispatch, generated, mcp, safety, transport,
+};
 use crate::logo;
 use crate::schema;
 use auth::AuthCommands;
@@ -76,7 +77,7 @@ enum StaticCommands {
     Ask(ask::AskArgs),
 }
 
-/// The complete parse tree: the four static commands plus every generated
+/// The complete parse tree: the six static commands plus every generated
 /// service command. `grr --help` and `grr schema` both read this, so it
 /// is the single definition of the CLI surface.
 ///
@@ -89,22 +90,6 @@ pub(crate) fn root_command() -> clap::Command {
     Cli::command()
         .subcommands(generated::tree::commands())
         .args(safety::global_args())
-}
-
-/// Build a fresh GoogleAuth from the loaded config. One credential backs
-/// every service; the token store is shared, so this is a cheap read.
-async fn build_auth(config: &GrrConfig) -> Result<GoogleAuth> {
-    // Fail here rather than letting an empty client_id reach Google's
-    // token endpoint and come back as an opaque 400.
-    if config.oauth.client_id.trim().is_empty() {
-        anyhow::bail!(crate::core::config::NO_CLIENT_HELP);
-    }
-
-    Ok(AuthConfigBuilder::new()
-        .client_id(config.oauth.client_id.clone())
-        .client_secret(config.oauth.client_secret.clone())
-        .build()
-        .await?)
 }
 
 pub async fn run() -> Result<()> {
@@ -121,7 +106,7 @@ pub async fn run() -> Result<()> {
 
     let matches = root_command().get_matches();
 
-    // Parse dispatch: the four static commands first (they are few and
+    // Parse dispatch: the static commands first (they are few and
     // fixed); any other matched name is a generated service, which clap
     // has already validated against the registered tree.
     let Some((name, sub)) = matches.subcommand() else {

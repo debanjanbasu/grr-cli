@@ -1,5 +1,6 @@
-//! Service-agnostic HTTP core: one authenticated transport for every
-//! Google API client (Gmail, Calendar, Drive, Contacts, Chat, Forms).
+//! Service-agnostic HTTP core: the transport probe behind `grr transport`,
+//! and the request-execution engine (`execute` plus the verb builders) it
+//! hosts.
 //!
 //! Zero-config by construction: all tuning is compile-time constants.
 //! tokio sizes OS threads to cores; the semaphore bounds only in-flight
@@ -75,12 +76,9 @@ impl Default for TransportInfo {
     }
 }
 
-/// The shared authenticated HTTP engine behind every service client.
-///
-/// Owns the reqwest client, the in-flight request valve, and the retry
-/// executor (429 Retry-After, transient 5xx, fast-fail 401/403/404).
-/// Service clients build URLs from their own base and hand requests to
-/// [`HttpCore::execute`].
+/// The authenticated HTTP engine. [`HttpCore::connect`] negotiates the
+/// transport version against a service base URL and records it in
+/// [`TransportInfo`]; `grr transport` reports that result.
 #[derive(Clone)]
 pub struct HttpCore {
     auth: Arc<GoogleAuth>,
@@ -147,22 +145,6 @@ impl HttpCore {
             semaphore: Arc::new(Semaphore::new(MAX_INFLIGHT_REQUESTS)),
             transport_info: info,
         })
-    }
-
-    /// Core assembled without probing (test injection: custom client, mock
-    /// base URLs).
-    pub fn unprobed(auth: GoogleAuth, http_client: ReqwestClient) -> Self {
-        Self {
-            auth: Arc::new(auth),
-            http_client,
-            semaphore: Arc::new(Semaphore::new(MAX_INFLIGHT_REQUESTS)),
-            transport_info: TransportInfo {
-                negotiated_version: "not-probed".into(),
-                http3_requested: true,
-                http3_effective: false,
-                fell_back: false,
-            },
-        }
     }
 
     /// Start a GET request against an absolute URL.

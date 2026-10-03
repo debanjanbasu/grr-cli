@@ -1,10 +1,10 @@
 //! Safety profiles — a cheap gate over the Discovery method surface.
 //!
 //! One [`SafetyProfile`] answers "may this method run?" for both dispatch
-//! surfaces: the CLI (`grr api call`, and the generated tree once the
-//! profile is wired through `cli.rs`) and the `grr mcp` server. The check
-//! is a verb + service-name lookup per call — no I/O — so it can sit on
-//! every request path.
+//! surfaces: the CLI (`grr api call` and the generated tree, both gated by
+//! the global flags on the root command in `cli.rs`) and the `grr mcp`
+//! server. The check is a verb + service-name lookup per call — no I/O —
+//! so it can sit on every request path.
 //!
 //! ```text
 //! grr api call gmail.users.messages.send --readonly           # refused: POST
@@ -28,8 +28,9 @@ pub(crate) fn is_write_verb(verb: &str) -> bool {
 }
 
 /// CLI flags for the gate, as a derive struct so `cli.rs` can flatten it
-/// onto any subcommand (or the root) without re-declaring the flags.
-/// `grr api call` embeds the same three fields.
+/// onto the root command without re-declaring the flags. The generated
+/// tree and `grr api call` read them from the root matches (clap merges
+/// global args across levels).
 #[derive(Args, Debug, Clone, Default)]
 pub struct SafetyArgs {
     /// Refuse every write method (POST/PATCH/PUT/DELETE); only reads run

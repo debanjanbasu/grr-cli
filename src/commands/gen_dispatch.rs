@@ -66,14 +66,13 @@ pub(crate) fn kebab_case(name: &str) -> String {
     out.trim_matches('-').to_owned()
 }
 
-/// Entry point for every generated service subcommand. `matches` is the
-/// ROOT `ArgMatches` (the one whose current subcommand is the service), so
-/// the full chain is walkable from here.
+/// Entry point for every generated service subcommand under the permissive
+/// safety profile. `matches` is the ROOT `ArgMatches` (the one whose current
+/// subcommand is the service), so the full chain is walkable from here.
 ///
-/// Permissive for now: the owner wires the safety profile (global
-/// `--readonly`/`--deny-service`/`--deny-verb` args, or a flattened
-/// [`SafetyArgs`](crate::commands::safety::SafetyArgs)) into `cli.rs` and
-/// switches to [`dispatch_with_profile`].
+/// Production dispatch goes through [`dispatch_with_profile`] (wired in
+/// `cli.rs`), which applies the global `--readonly`/`--deny-*` flags; this
+/// profile-free wrapper is what the unit tests exercise.
 pub async fn dispatch(matches: &ArgMatches, auth: Option<&GoogleAuth>) -> Result<()> {
     dispatch_with_profile(matches, auth, &SafetyProfile::PERMISSIVE).await
 }
