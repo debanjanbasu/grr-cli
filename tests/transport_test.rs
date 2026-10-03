@@ -1,4 +1,4 @@
-﻿//! Transport selection unit tests for the shared HTTP core.
+//! Transport selection unit tests for the shared HTTP core.
 
 use grr_cli::core::http::{
     TransportInfo, TransportMode, apply_transport_version, resolve_transport_mode,

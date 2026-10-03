@@ -1,4 +1,4 @@
-﻿use grr_cli::core::error::GrrError;
+use grr_cli::core::error::GrrError;
 use reqwest::StatusCode;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
