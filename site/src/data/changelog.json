@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T06:56:33.603Z",
+  "generatedAt": "2026-10-03T09:37:23.457Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -136,6 +136,18 @@
               "scope": "changelog",
               "type": "docs",
               "note": null
+            },
+            {
+              "description": "regenerate for the sidenav, benchmark and release fixes",
+              "scope": "changelog",
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "22 corrections against the current tree",
+              "scope": null,
+              "type": "docs",
+              "note": null
             }
           ]
         },
@@ -171,6 +183,12 @@
               "description": "unattended merging for the automation PRs (approve + merge)",
               "scope": null,
               "type": "ci",
+              "note": null
+            },
+            {
+              "description": "link the homepage and docs from the crate metadata",
+              "scope": "crate",
+              "type": "chore",
               "note": null
             }
           ]
