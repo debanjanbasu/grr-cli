@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **ci:** merges with GITHUB\_TOKEN fire no downstream workflows
+
+## [0.7.0] - 2026-10-03
+
 ### Added
 
 - unattended releases + the stale-count sweep
@@ -64,7 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- 10 internal commits (chore 8, ci 2)
+- 11 internal commits (chore 9, ci 2)
 
 ### Other
 
@@ -210,7 +216,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.6.0...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.3.0...v0.4.0

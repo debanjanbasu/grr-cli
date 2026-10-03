@@ -1,11 +1,30 @@
 {
-  "generatedAt": "2026-10-03T15:09:57.055Z",
+  "generatedAt": "2026-10-03T15:29:50.568Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": [
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "merges with GITHUB\\_TOKEN fire no downstream workflows",
+              "scope": "ci",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.7.0",
+      "date": "2026-10-03",
+      "unreleased": false,
       "sections": [
         {
           "key": "added",
@@ -249,6 +268,12 @@
               "description": "unattended merging for the automation PRs (approve + merge)",
               "scope": null,
               "type": "ci",
+              "note": null
+            },
+            {
+              "description": "grr vv0.7.0",
+              "scope": "release",
+              "type": "chore",
               "note": null
             },
             {
