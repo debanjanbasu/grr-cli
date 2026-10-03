@@ -357,9 +357,33 @@ interface ObtainSuccess {
   via: 'path' | 'github-release-download';
   releaseTag?: string;
   asset?: string;
+  /**
+   * The real binary behind a launcher shim, when one was resolved. `exe`
+   * stays the launcher for timing (that is what a user invoking the command
+   * pays), but the binary-size metric follows this path.
+   */
+  payload?: string;
 }
 
 type Obtained = ObtainSuccess | { error: string };
+
+/**
+ * The npm-installed `gws` on PATH is an ~850-byte launcher: it downloads the
+ * platform binary on first run and then execs it. Timing the launcher is
+ * honest (that is what a user invoking `gws` pays), but its stat size is the
+ * shim's — the compare page once showed gws at "0.0 MB" because of exactly
+ * this. Call this only AFTER the launcher has run once (the smoke test does),
+ * so the payload exists.
+ */
+function resolveGwsPayload(): string | null {
+  if (process.platform === 'win32' || !gwsTriple) return null;
+  const root = spawnSync('npm', ['root', '-g'], { encoding: 'utf8', timeout: COMMAND_TIMEOUT_MS, windowsHide: true });
+  const globalRoot = root.status === 0 ? (root.stdout ?? '').trim() : '';
+  if (!globalRoot) return null;
+  // The package layout, after the launcher's first run: bin/<triple>/gws.
+  const candidate = join(globalRoot, '@googleworkspace/cli', 'bin', gwsTriple, 'gws');
+  return existsSync(candidate) ? candidate : null;
+}
 
 /**
  * Locate a competitor binary: PATH first (the benchmark workflow pre-installs
@@ -379,7 +403,11 @@ async function obtainCompetitor({ tool, project, exeName, assetTokens }: Competi
   if (onPath) {
     const smoke = spawnSync(onPath, ['--version'], { encoding: 'utf8', timeout: COMMAND_TIMEOUT_MS, windowsHide: true });
     if (!smoke.error && smoke.status === 0) {
-      return { exe: onPath, via: 'path' };
+      // gws ships as an npm launcher; the smoke test just ran it, which is
+      // what triggers its one-time payload download — so the real binary is
+      // resolvable now (see resolveGwsPayload for why size follows it).
+      const payload = tool === 'gws' ? resolveGwsPayload() : null;
+      return { exe: onPath, via: 'path', ...(payload ? { payload } : {}) };
     }
     // Wrong-arch or otherwise unrunnable: on Linux, libuv falls back to
     // /bin/sh for a spawn that returns ENOEXEC, and the shell exits 2
@@ -636,8 +664,10 @@ async function buildSnapshot(): Promise<BenchmarkSnapshot> {
       schemaDump,
       apiList,
       binary: {
-        bytes: statSync(obtained.exe).size,
-        source: obtained.asset ?? 'installed on PATH',
+        // A launcher shim's bytes are not the tool's: when a payload was
+        // resolved, the size metric follows it (see resolveGwsPayload).
+        bytes: statSync(obtained.payload ?? obtained.exe).size,
+        source: obtained.payload ? 'installed on PATH (npm payload)' : (obtained.asset ?? 'installed on PATH'),
         form: 'binary',
       },
     });
