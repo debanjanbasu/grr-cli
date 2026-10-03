@@ -28,6 +28,8 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write
+      # gh workflow run below — dispatching release-binaries and publish.
+      actions: write
     steps:
       - uses: actions/checkout@v7
         timeout-minutes: 2
@@ -36,6 +38,9 @@ jobs:
 
       - name: Tag when the version has no tag
         timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           # Read the version bare, whatever is in the manifest. A previous
           # release bump wrote `version = "v0.6.0"` into Cargo.toml, and this
@@ -67,4 +72,11 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "$TAG" "$GITHUB_SHA"
           git push origin "$TAG"
-          echo "Pushed $TAG — release-binaries.yml (5 platforms) and publish.yml (crates.io) fire on it."
+          # A tag pushed with GITHUB_TOKEN starts no workflows (push events
+          # from the token are not among the documented exceptions), so the
+          # native `tags: ["v*"]` triggers on release-binaries.yml and
+          # publish.yml stay silent for this automated path. workflow_dispatch
+          # is the exception — fire the two consumers here instead.
+          gh workflow run release-binaries.yml --ref "$TAG" || echo "::warning::release dispatch failed"
+          gh workflow run publish.yml --ref "$TAG" || echo "::warning::publish dispatch failed"
+          echo "Pushed $TAG and dispatched release-binaries.yml + publish.yml at it."

@@ -3,6 +3,10 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # Dispatched by tag-release.yml, which pushes the tag with GITHUB_TOKEN —
+  # a token-authored push starts no workflows, so the native tag trigger
+  # never fires for the automated path. workflow_dispatch is the exception.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -229,6 +233,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      # gh workflow run below — dispatching the release watchers.
+      actions: write
     steps:
       - uses: actions/download-artifact@v8
         timeout-minutes: 5
@@ -247,3 +253,20 @@ jobs:
             assets/grr-${{ github.ref_name }}-linux-aarch64.tar.zst
             assets/grr-${{ github.ref_name }}-macos-aarch64.tar.zst
             assets/SHA256SUMS
+
+      - name: Dispatch the release watchers
+        # The release is created with GITHUB_TOKEN, and a release event from
+        # the token starts no workflows — the same anti-recursion rule that
+        # swallowed the tag (see tag-release.yml). workflow_dispatch is the
+        # exception, so the watchers are fired by hand:
+        #   demo re-records against the new version, benchmark re-measures
+        #   when the version gate says so, stats refresh the download tiles.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        timeout-minutes: 5
+        run: |
+          for wf in demo.yml benchmark.yml stats.yml; do
+            echo "dispatching $wf"
+            gh workflow run "$wf" --ref main || echo "::warning::$wf dispatch failed"
+          done
