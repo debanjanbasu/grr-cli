@@ -1,4 +1,4 @@
-﻿use grr_cli::core::ConfigLoader;
+use grr_cli::core::ConfigLoader;
 use std::env;
 use tempfile::tempdir;
 
