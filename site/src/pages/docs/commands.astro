@@ -222,7 +222,7 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
         />
         <div class="container prose reveal max-w-[68ch]">
           <CodeBlock code={naming} label="method id → command" />
-          <p>Top level: <code>grr auth</code>, <code>grr api</code>, <code>grr schema</code>, <code>grr transport</code>, plus one subcommand per service. The tree is emitted into <code>src/commands/generated.rs</code> by a generator that reads the committed Discovery index, and a daily workflow opens a PR when Google adds a method &mdash; so new surface arrives without a grr release.</p>
+          <p>Top level: <code>grr auth</code>, <code>grr api</code>, <code>grr mcp</code>, <code>grr schema</code>, <code>grr transport</code>, <code>grr ask</code>, plus one subcommand per service. The tree is emitted into <code>src/commands/generated.rs</code> by a generator that reads the committed Discovery index, and a daily workflow opens a PR when Google adds a method &mdash; so new surface arrives without a grr release.</p>
           <p>Flag names come from the same ids, camelCase collapsed to kebab-case, typed by what Discovery declares:</p>
           <ul>
             <li><strong>Integers</strong> are parsed as numbers: <code>--max-results 10</code>.</li>
