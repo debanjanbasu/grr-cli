@@ -53,6 +53,8 @@ jobs:
       # Push the benchmark branch; never main.
       contents: write
       pull-requests: write
+      # gh workflow run below — waking the merge poller.
+      actions: write
     steps:
       - uses: actions/checkout@v7
         timeout-minutes: 5
@@ -181,6 +183,7 @@ jobs:
           git --no-pager diff -- site/src/data/benchmarks.json
 
       - name: Open a pull request
+        id: pr
         if: steps.bench.outputs.changed == 'true' && inputs.dry_run != true
         timeout-minutes: 5
         uses: peter-evans/create-pull-request@v8
@@ -209,3 +212,16 @@ jobs:
             diff here means something actually moved.
 
             The full measurement log is in the workflow's step summary.
+
+      - name: Wake the merge poller
+        # CI on a token-authored PR waits in action_required until the poller
+        # approves it (GitHub's 2026-06 bot-event gate). Waking the poller now
+        # instead of waiting for the next cron tick removes the measured 5-7
+        # minutes of approval latency before any CI compute starts. The poller
+        # is idempotent, and the cron remains the safety net.
+        if: steps.pr.outputs.pull-request-number != ''
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run automation-merge.yml --ref main || echo "::warning::poller dispatch failed"
