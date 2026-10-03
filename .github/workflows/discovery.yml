@@ -44,7 +44,7 @@ jobs:
       - uses: actions/setup-node@v7
         timeout-minutes: 5
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: Refetch, distil, and regenerate the command tree
         id: refresh
@@ -118,6 +118,14 @@ jobs:
           title: "chore(discovery): refresh Google Discovery index"
           commit-message: "chore(discovery): refresh Google Discovery index"
           labels: dependencies
+          # Spell out the same paths the changed-detection step checked, so
+          # the default commit-all cannot sweep an unrelated modified file
+          # into the PR. Exactly one convention across every automation PR.
+          add-paths: |
+            src/discovery
+            src/commands/generated.rs
+            skills
+            site/src/data/discovery-coverage.ts
           body: |
             Automated refresh of `src/discovery/` from Google's Discovery
             Service, run by `.github/workflows/discovery.yml`. The
