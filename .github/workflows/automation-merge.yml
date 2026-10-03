@@ -106,17 +106,25 @@ jobs:
             local n="$1"
             if output="$(gh pr merge "$n" --squash --admin --delete-branch 2>&1)"; then
               printf '%s\n' "$output"
-            elif printf '%s\n' "$output" | grep -qi "not allowed\|permission\|protected branch\|resource not accessible"; then
-              printf '%s\n' "$output" >&2
-              echo "::notice::Cannot bypass branch protection; falling back to auto-merge."
-              gh pr merge "$n" --squash --auto --delete-branch
-            elif printf '%s\n' "$output" | grep -qi "already enabled"; then
-              printf '%s\n' "$output"
+              gh pr comment "$n" --body "Artifact-only refresh: merged immediately with --admin."
+              return 0
+            fi
+            # Any rejection — "protected branch", "not allowed", or the
+            # expected "required status checks are expected" (the app token
+            # is not an admin, so --admin has no bypass) — falls back to
+            # native auto-merge: the approved CI run completes and GitHub
+            # merges without another human or poller pass.
+            printf '%s\n' "$output" >&2
+            echo "::notice::--admin rejected; falling back to auto-merge."
+            if out2="$(gh pr merge "$n" --squash --auto --delete-branch 2>&1)"; then
+              printf '%s\n' "$out2"
+            elif printf '%s\n' "$out2" | grep -qi "already enabled"; then
+              printf '%s\n' "$out2"
             else
-              printf '%s\n' "$output" >&2
+              printf '%s\n' "$out2" >&2
               return 1
             fi
-            gh pr comment "$n" --body "Artifact-only refresh: merged immediately without waiting for CI. These are self-validating generated artifacts; a revert is cheaper than a held-back refresh — same philosophy as this repo's patch policy."
+            gh pr comment "$n" --body "Artifact-only refresh: auto-merge is enabled; it lands the moment the approved CI run goes green. These are self-validating generated artifacts — a revert is cheaper than a held-back refresh."
           }
           merge_code() {
             # Code-affecting PRs (discovery refresh rewrites the generated
