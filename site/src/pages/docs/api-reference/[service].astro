@@ -233,7 +233,7 @@ const anchor = (value: string) => value.replace(/[^a-zA-Z0-9]+/g, '-');
                   ) : (
                     <p class="api-noparams">No parameters.</p>
                   )}
-                  <p class="api-scopes-line">
+                  <div class="api-scopes-line">
                     {leastPrivilege(method.scopes ?? []) ? (
                       <span class="api-scope-least">
                         <code>{leastPrivilege(method.scopes ?? [])}</code>
@@ -256,7 +256,7 @@ const anchor = (value: string) => value.replace(/[^a-zA-Z0-9]+/g, '-');
                         </ul>
                       </details>
                     )}
-                  </p>
+                  </div>
                   <CodeBlock code={exampleCommand(doc.name, method)} label={treeCommand(doc.name, method.id)} />
                 </article>
               ))}

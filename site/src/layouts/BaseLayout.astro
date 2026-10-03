@@ -2,6 +2,7 @@
 import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import stats from '../data/stats.json';
 import '../styles/global.css';
 
 interface Props {
@@ -48,7 +49,7 @@ const jsonLd = JSON.stringify({
     name: 'grr project',
     url: 'https://github.com/debanjanbasu/grr-cli',
   },
-  softwareVersion: '0.5.0',
+  softwareVersion: stats.version,
   datePublished: '2026-09-22',
   isAccessibleForFree: true,
   sameAs: ['https://github.com/debanjanbasu/grr-cli', 'https://crates.io/crates/grr-cli'],
