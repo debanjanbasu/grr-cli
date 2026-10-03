@@ -123,11 +123,11 @@ jobs:
           # otherwise make the weekly release unretryable.
           git push origin --delete "$BRANCH" 2>/dev/null || true
           git add Cargo.toml Cargo.lock CHANGELOG.md site/src/data/changelog.json
-          git commit -m "chore(release): grr v$NEXT"
+          git commit -m "chore(release): grr $NEXT"
           git push origin "$BRANCH"
           gh pr create \
-            --title "chore(release): grr v$NEXT" \
-            --body "Automated version bump — computed by the changelog generator from the conventional-commit history; opened by auto-release.yml. Merging publishes v$NEXT: tag-release.yml tags, release-binaries.yml builds the 5 platforms, publish.yml ships to crates.io." \
+            --title "chore(release): grr $NEXT" \
+            --body "Automated version bump — computed by the changelog generator from the conventional-commit history; opened by auto-release.yml. Merging publishes $NEXT: tag-release.yml tags, release-binaries.yml builds the 5 platforms, publish.yml ships to crates.io." \
             --base main --head "$BRANCH" --label dependencies || true
           # Auto-merge: the GITHUB_TOKEN cannot push to protected main, but
           # it can enable GitHub's native auto-merge, which completes when
