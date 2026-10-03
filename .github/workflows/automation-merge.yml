@@ -144,7 +144,7 @@ jobs:
             # Approve every pending run for this head first — without an
             # approval the CI never starts and --auto can never complete.
             sha="$(gh pr view "$n" --json headRefOid --jq .headRefOid)"
-            state="$(gh pr view "$n" --json state --jq .state)"
+            state="$(gh pr view "$n" --json state --jq '.state | ascii_downcase')"
             if [ "$state" != "open" ]; then
               echo "::notice::PR #$n is $state; skipping."
               continue
