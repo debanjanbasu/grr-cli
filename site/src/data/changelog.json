@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T10:25:29.022Z",
+  "generatedAt": "2026-10-03T12:30:52.972Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -94,6 +94,24 @@
               "scope": "bench",
               "type": "fix",
               "note": null
+            },
+            {
+              "description": "\\`gh pr view --json state\\` returns OPEN, not open",
+              "scope": "ci",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "merging needs contents:write, not contents:read",
+              "scope": "ci",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "--admin has no bypass for the app token; fall back on any rejection",
+              "scope": "ci",
+              "type": "fix",
+              "note": null
             }
           ]
         },
@@ -104,12 +122,6 @@
             {
               "description": "0.6.0 release stats - 5-platform binary sizes",
               "scope": null,
-              "type": "docs",
-              "note": null
-            },
-            {
-              "description": "regenerate for v0.6.0",
-              "scope": "changelog",
               "type": "docs",
               "note": null
             },
@@ -126,32 +138,8 @@
               "note": null
             },
             {
-              "description": "regenerate for the automation, site and release fixes",
-              "scope": "changelog",
-              "type": "docs",
-              "note": null
-            },
-            {
-              "description": "pick up the benchmark and demo refreshes",
-              "scope": "changelog",
-              "type": "docs",
-              "note": null
-            },
-            {
-              "description": "regenerate for the sidenav, benchmark and release fixes",
-              "scope": "changelog",
-              "type": "docs",
-              "note": null
-            },
-            {
               "description": "22 corrections against the current tree",
               "scope": null,
-              "type": "docs",
-              "note": null
-            },
-            {
-              "description": "regenerate for the docs audit and crate metadata",
-              "scope": "changelog",
               "type": "docs",
               "note": null
             }
@@ -201,6 +189,12 @@
               "description": "link the homepage and docs from the crate metadata",
               "scope": "crate",
               "type": "chore",
+              "note": null
+            },
+            {
+              "description": "the unblocker polls, because target events are gated too",
+              "scope": null,
+              "type": "ci",
               "note": null
             }
           ]
@@ -333,18 +327,6 @@
             {
               "description": "0.5.0 release stats - 4-platform binary sizes",
               "scope": null,
-              "type": "docs",
-              "note": null
-            },
-            {
-              "description": "regenerate for v0.5.0",
-              "scope": "changelog",
-              "type": "docs",
-              "note": null
-            },
-            {
-              "description": "regenerate for v0.5.0",
-              "scope": "changelog",
               "type": "docs",
               "note": null
             }
