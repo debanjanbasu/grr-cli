@@ -138,7 +138,7 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
           <li><strong>It works offline.</strong> The index is compiled in, not fetched at runtime. <code>grr api list</code> and <code>grr api describe</code> need no network, no cache directory, and no API key, so an agent can discover what is available before it has a credential.</li>
           <li><strong>It is per-method authorized.</strong> Each method carries its own scope list, and grr asks for what the requested method needs. Requesting the union of every Workspace scope up front would exceed the ceiling Google applies to unverified apps and fail at the consent screen.</li>
         </ul>
-        <p>The distilled index is about 360 KiB across eleven files, against several megabytes for the raw documents &mdash; a meaningful difference in a binary whose size is a selling point.</p>
+        <p>The distilled index is a few hundred KiB across {discoveryServiceCount} service documents plus the manifest, against several megabytes for the raw documents &mdash; a meaningful difference in a binary whose size is a selling point.</p>
       </div>
     </section>
 

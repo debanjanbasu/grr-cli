@@ -71,8 +71,16 @@ const isActive = (href: string) => {
           its own tabindex, so keyboard users landed on a non-interactive <ul>.
           A real <button> is focusable and activatable natively, and the panel
           no longer needs a tab stop of its own. */}
-      <div class="dropdown dropdown-end md:hidden">
-        <button type="button" class="btn btn-ghost btn-square min-h-12 min-w-12" aria-label="Open the navigation menu">
+      <div class="dropdown dropdown-end md:hidden" data-nav-disclosure>
+        <button
+          type="button"
+          class="btn btn-ghost btn-square min-h-12 min-w-12"
+          aria-label="Open the navigation menu"
+          aria-haspopup="menu"
+          aria-expanded="false"
+          aria-controls="mobile-nav-menu"
+          data-nav-toggle
+        >
           <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" focusable="false" shape-rendering="crispEdges">
             <g fill="currentColor">
               <rect x="8" y="10" width="32" height="4"></rect>
@@ -81,7 +89,8 @@ const isActive = (href: string) => {
             </g>
           </svg>
         </button>
-        <ul class="dropdown-content menu z-50 mt-2 w-56 border border-base-300 bg-base-200 p-2 shadow-lg">
+        <nav id="mobile-nav-menu" aria-label="Mobile navigation">
+          <ul class="dropdown-content menu z-50 mt-2 w-56 border border-base-300 bg-base-200 p-2 shadow-lg">
           {
             links.map((link) => (
               <li>
@@ -92,7 +101,35 @@ const isActive = (href: string) => {
             ))
           }
         </ul>
+        </nav>
       </div>
     </div>
   </div>
 </header>
+
+{/*
+  The mobile nav is a DaisyUI focus-within dropdown: focusing the trigger opens
+  it, and it closes when focus leaves the widget. aria-expanded has to mirror
+  that real state, so this delegated listener flips it on focus in and out of
+  the disclosure. It runs once per document (guarded) and is attached to the
+  document rather than the button, so the header ClientRouter swaps in after a
+  client-side navigation keeps working without re-binding.
+*/}
+<script is:inline>
+  (function () {
+    if (window.__grrMobileNavBound) return;
+    window.__grrMobileNavBound = true;
+    var setExpanded = function (widget, open) {
+      var toggle = widget.querySelector('[data-nav-toggle]');
+      if (toggle) toggle.setAttribute('aria-expanded', String(open));
+    };
+    document.addEventListener('focusin', function (event) {
+      var widget = event.target && event.target.closest ? event.target.closest('[data-nav-disclosure]') : null;
+      if (widget) setExpanded(widget, true);
+    });
+    document.addEventListener('focusout', function (event) {
+      var widget = event.target && event.target.closest ? event.target.closest('[data-nav-disclosure]') : null;
+      if (widget && !widget.contains(event.relatedTarget)) setExpanded(widget, false);
+    });
+  })();
+</script>
