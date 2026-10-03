@@ -33,7 +33,7 @@ cargo build --release --locked
         <article class="install-card card card-border border-base-300 bg-base-100 lg:col-span-2">
           <div class="card-body gap-1 p-5">
             <h2 class="card-title m-0 text-base">Prebuilt binaries</h2>
-            <p class="m-0 text-[13px] text-base-content/70">Download the archive for your platform from GitHub Releases. The release workflow publishes Windows x64, Windows on ARM, Linux x64, and macOS ARM binaries with checksums. Every build is UPX-packed, so the archives stay small.</p>
+            <p class="m-0 text-[13px] text-base-content/70">Download the archive for your platform from GitHub Releases. The release workflow publishes Windows x64, Windows on ARM, Linux x64, Linux ARM, and macOS ARM binaries with checksums. Every build is UPX-packed, so the archives stay small.</p>
             <DownloadSizes note="Compressed release archives for the current GitHub release. A dash means that platform is not published yet." />
             <a class="btn btn-primary btn-sm mt-3 w-fit" href={releaseUrl} target="_blank" rel="noreferrer">Open GitHub Releases <span aria-hidden="true">↗</span></a>
           </div>
@@ -49,7 +49,7 @@ cargo build --release --locked
         <article class="install-card card card-border border-base-300 bg-base-100">
           <div class="card-body gap-1 p-5">
             <h2 class="card-title m-0 text-base">Windows</h2>
-            <p class="m-0 text-[13px] text-base-content/70">The Windows package is available through winget, for both x64 and ARM64 machines. The published manifest is 0.3.0; updated manifests for the current release are in the repository and land on winget when their review clears.</p>
+            <p class="m-0 text-[13px] text-base-content/70">winget has no published version yet — the first submission is held on Microsoft's validation, and the manifests in <code>packaging/winget/</code> are x64-only. Until it lands, use the Windows release archive (x64 or ARM64).</p>
             <CodeBlock code="winget install debanjanbasu.grr" label="winget" />
           </div>
         </article>
