@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **site:** the homepage stops advertising commands that do not exist
 - **site:** the live demo plays the cast on main, not a rotted copy
 - **site:** honest data displays on compare and the stats strip
+- **release:** the bump PR title said vv0.7.0
 
 ### Documentation
 

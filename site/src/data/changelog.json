@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T15:00:55.671Z",
+  "generatedAt": "2026-10-03T15:09:57.055Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -152,6 +152,12 @@
             {
               "description": "honest data displays on compare and the stats strip",
               "scope": "site",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "the bump PR title said vv0.7.0",
+              "scope": "release",
               "type": "fix",
               "note": null
             }
