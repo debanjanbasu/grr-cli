@@ -1,4 +1,4 @@
-﻿//! Minimal local HTTP server to receive the OAuth callback.
+//! Minimal local HTTP server to receive the OAuth callback.
 
 use std::sync::Arc;
 use std::time::Duration;
