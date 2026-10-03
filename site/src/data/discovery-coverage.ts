@@ -93,7 +93,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v4',
     methods: 17,
     scopes: 5,
-    revision: '20260923',
+    revision: '20260928',
     note: 'Spreadsheet values, batch updates, data filters, and developer metadata.',
   },
   {
