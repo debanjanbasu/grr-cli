@@ -39,12 +39,12 @@ const services = [
     accent: '#f97316',
     description: 'Search, read, compose, label, filter, route mail, and batch without leaving your shell.',
     subfeatures: ['Search and read messages', 'Compose, label, and route mail', 'Batch and filter messages', 'Manage threads, history, and send-as'],
-    command: 'grr gmail message search "in:inbox" --max 5',
+    command: 'grr gmail users messages list --user-id me --q "in:inbox" --max-results 5',
     commands: [
-      'grr gmail message search "in:inbox" --max 5',
-      'grr gmail msg filter-list',
-      'grr gmail thread list',
-      'grr gmail send-as verify alias@example.com',
+      'grr gmail users messages list --user-id me --q "in:inbox" --max-results 5',
+      'grr gmail users settings filters list --user-id me',
+      'grr gmail users threads list --user-id me --max-results 10',
+      'grr gmail users settings sendAs verify --user-id me --send-as-email alias@example.com',
     ],
   },
   {
@@ -54,11 +54,11 @@ const services = [
     accent: '#fb923c',
     description: 'List calendars, manage events, watch changes, and check free-busy windows in one pass.',
     subfeatures: ['List calendars and events', 'Create, update, move, and delete', 'Watch changes and free-busy', 'Manage sharing, settings, and colors'],
-    command: 'grr calendar events --max 10',
+    command: 'grr calendar events list --calendar-id primary --max-results 10',
     commands: [
-      'grr calendar events --max 10',
-      'grr calendar patch <calendar-id> <event-id> --summary "Updated"',
-      'grr calendar watch <calendar-id> --webhook https://example.com/hook',
+      'grr calendar events list --calendar-id primary --max-results 10',
+      'grr calendar events patch --calendar-id primary --event-id <event-id> --params \'{"summary":"Updated"}\'',
+      'grr calendar events watch --calendar-id primary --params \'{"type":"web_hook","address":"https://example.com/hook"}\'',
     ],
   },
   {
@@ -68,11 +68,11 @@ const services = [
     accent: '#ea580c',
     description: 'Find files, inspect metadata, manage sharing and comments, and control storage.',
     subfeatures: ['Find files and inspect metadata', 'Upload, download, and export', 'Manage sharing and comments', 'Restore, rename, and control storage'],
-    command: 'grr drive list --trashed --max 20',
+    command: 'grr drive files list --q "trashed = true" --page-size 20',
     commands: [
-      'grr drive list --trashed --max 20',
-      'grr drive comment-add <file-id> --text "Note"',
-      'grr drive quota',
+      'grr drive files list --q "trashed = true" --page-size 20',
+      'grr drive comments create --file-id <file-id> --params \'{"content":"Note"}\'',
+      'grr drive about get',
     ],
   },
   {
@@ -82,11 +82,11 @@ const services = [
     accent: '#c2410c',
     description: 'Query people, organize groups, batch-read profiles, and keep photos close to your workflows.',
     subfeatures: ['Search and organize people', 'Create, update, and manage groups', 'Batch-read profiles and photos', 'Adopt contacts and keep photos close'],
-    command: 'grr contacts list --max 20',
+    command: 'grr people people connections list --resource-name people/me --page-size 20',
     commands: [
-      'grr contacts list --max 20',
-      'grr contacts get-batch --people people/123',
-      'grr contacts photo-set <people/123> --path photo.jpg',
+      'grr people people connections list --resource-name people/me --page-size 20',
+      'grr people people getBatchGet --resource-names people/123',
+      'grr people people updateContactPhoto --resource-name people/123 --body-file photo.json',
     ],
   },
   {
@@ -96,11 +96,11 @@ const services = [
     accent: '#fdba74',
     description: 'Browse spaces, manage members, read messages, and react without context switching.',
     subfeatures: ['Browse spaces and members', 'Add and remove members', 'Read and send messages', 'React and unreact to messages'],
-    command: 'grr chat spaces --max 10',
+    command: 'grr chat spaces list --page-size 10',
     commands: [
-      'grr chat spaces --max 10',
-      'grr chat member-add <space-id> --user user@example.com',
-      'grr chat react <space-id> <message-id> --emoji "👍"',
+      'grr chat spaces list --page-size 10',
+      'grr chat spaces members create --parent spaces/<space-id> --params \'{"member":{"name":"users/user@example.com"}}\'',
+      'grr chat spaces messages reactions create --parent spaces/<space-id>/messages/<message-id> --params \'{"emoji":"👍"}\'',
     ],
   },
   {
@@ -110,11 +110,11 @@ const services = [
     accent: '#c2410c',
     description: 'Read and update forms, pull responses, and manage watch channels for lightweight automation.',
     subfeatures: ['Read and update forms', 'Pull response data', 'Create and manage watch channels', 'Renew and delete watches'],
-    command: 'grr forms get <form-id>',
+    command: 'grr forms forms get --form-id <form-id>',
     commands: [
-      'grr forms get <form-id>',
-      'grr forms responses <form-id> --max 50',
-      'grr forms watch-renew <form-id> <watch-id>',
+      'grr forms forms get --form-id <form-id>',
+      'grr forms forms responses list --form-id <form-id> --page-size 50',
+      'grr forms forms watches renew --form-id <form-id> --watch-id <watch-id>',
     ],
   },
 ];
@@ -183,18 +183,25 @@ const architecture = [
   },
 ];
 const sessionExample = `$ grr auth login
-✓ browser consent complete
+{"authenticated":true,"account":null,"token_backend":"os-keyring","token_preview":"ya29.a0AfH6SMBxLqKm..."}
 
-$ grr gmail message search "in:inbox" --max 1
-[{"id":"191f8ab2","threadId":"191f8ab2","subject":"Build notes"}]
+$ grr gmail users messages list --user-id me --q "in:inbox" --max-results 1
+{"messages":[{"id":"19f8ab2c","threadId":"19f8ab2c"}],"resultSizeEstimate":1}
 
-$ grr gmail message get 191f8ab2 --message-format metadata --body --max-length 2000
-{"message":{...},"body":"..."}`;
-const pipeExample = `$ grr gmail message search "from:github.com" --max 10 | jq -r '.[0].id'
-191f8ab2
+$ grr gmail users messages get --user-id me --id 19f8ab2c --param-format metadata
+{"id":"19f8ab2c","threadId":"19f8ab2c","labelIds":["UNREAD","INBOX"],"payload":{"headers":[{"name":"Subject","value":"Build notes"}]},"sizeEstimate":4821}`;
+const pipeExample = `$ grr gmail users messages list --user-id me --q "from:github.com" --max-results 10 | jq -r '.messages[0].id'
+19f8ab2c
 
 $ grr transport
-{"http_version":"h3","fallback":"h2"}`;
+negotiated_protocol: HTTP_3
+http3_requested: true
+http3_effective: true
+fell_back: false
+cpus: 10
+io_uring: false
+http3_always_compiled: true
+runtime: tokio multi-thread (auto-sized to cores)`;
 const askPlan = `$ grr ask "show my unread gmail"
 {"body":null,"confidence":0.88,"dryRun":true,"httpMethod":"GET",
  "leastPrivilegeScope":"https://www.googleapis.com/auth/gmail.readonly",
@@ -240,7 +247,7 @@ const storySteps = [
   {
     index: '01',
     title: 'Waves when you arrive.',
-    copy: 'One OAuth login unlocks six services in a single namespaced binary.',
+    copy: `One OAuth login unlocks all ${discoveryServiceCount} Google Workspace APIs in a single namespaced binary.`,
   },
   {
     index: '02',
@@ -267,12 +274,12 @@ const storySteps = [
   <section class="hero section" aria-labelledby="hero-title">
     <div class="container hero-grid grid grid-cols-1 items-center gap-[clamp(28px,4vw,64px)] lg:grid-cols-[1.02fr_0.98fr]">
       <div class="hero-copy">
-        <span class="eyebrow hero-fade">Rust Rewrite · six services · one login</span>
+        <span class="eyebrow hero-fade">Rust Rewrite · all {discoveryServiceCount} APIs · one login</span>
         <h1 id="hero-title" class="mt-2.5 mb-4 text-[clamp(30px,2.2rem+2.2vw,54px)] leading-[1.06]">
           <span class="hero-line"><span class="hero-line-inner">Google tools,</span></span>
           <span class="hero-line"><span class="hero-line-inner hero-line-accent">at terminal speed.</span></span>
         </h1>
-        <p class="hero-lede hero-fade m-0 max-w-[44ch] text-[15px] text-base-content/70">Zero-config, maximum-performance Google tools from the terminal. One binary, six services, and output that plays nicely with jq.</p>
+        <p class="hero-lede hero-fade m-0 max-w-[44ch] text-[15px] text-base-content/70">Zero-config, maximum-performance Google tools from the terminal. One binary, all {discoveryServiceCount} Google Workspace APIs, and output that plays nicely with jq.</p>
         <div class="hero-actions hero-fade mt-[22px] flex flex-wrap gap-3">
           <a class="btn btn-primary" href={releaseUrl} target="_blank" rel="noreferrer">GitHub releases <span aria-hidden="true">↗</span></a>
           <a class="btn btn-outline" href={`${base}install/`}>Install grr <span aria-hidden="true">→</span></a>
@@ -354,7 +361,7 @@ const storySteps = [
     <div class="container">
       <SectionIntro
         id="services-title"
-        eyebrow="six services · one login"
+        eyebrow={`all ${discoveryServiceCount} APIs · one login`}
         title="The useful parts of your Google account, namespaced."
         copy="Keep commands close to the work they support. Every data command accepts JSON, JSONL, table, or pretty output; JSON is the default."
       />
@@ -413,7 +420,7 @@ const storySteps = [
         <div class="session-copy reveal">
           <span class="eyebrow">one clean session</span>
           <h3 class="mt-1.5 mb-2 text-[clamp(19px,2.2vw,24px)] leading-[1.2]">From inbox to insight, without the tab.</h3>
-          <p class="m-0 text-sm text-base-content/70">Search a message, fetch a bounded body, and keep the output parseable. The command tree is available as JSON for agents with <code>grr schema</code>.</p>
+          <p class="m-0 text-sm text-base-content/70">Search a message, fetch exactly the format you need, and keep the output parseable. The command tree is available as JSON for agents with <code>grr schema</code>.</p>
           <a class="btn btn-outline mt-4" href="https://github.com/debanjanbasu/grr-cli#usage-highlights" target="_blank" rel="noreferrer">Browse command examples <span aria-hidden="true">↗</span></a>
         </div>
         <div class="session-terminal reveal">
