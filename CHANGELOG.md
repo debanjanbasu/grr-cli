@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Performance
 
 - **site:** 100 in every Lighthouse category
+- **release:** pack with UPX --lzma — measured 20% smaller
 
 ### Fixed
 
@@ -46,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ci:** merging needs contents:write, not contents:read
 - **ci:** --admin has no bypass for the app token; fall back on any rejection
 - **changelog:** the file cannot list the commit that writes it
+- **site:** the gutter rule was losing to Tailwind's core .container
+- **site:** stale metadata and doc counts, now derived
+- **site:** the homepage stops advertising commands that do not exist
+- **site:** the live demo plays the cast on main, not a rotted copy
+- **site:** honest data displays on compare and the stats strip
 
 ### Documentation
 
@@ -53,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **demo:** the README matches the self-maintaining reality
 - bring the prose back in line with the tree
 - 22 corrections against the current tree
+- the Homebrew tap is debanjanbasu/tap
 
 ### Internal
 
