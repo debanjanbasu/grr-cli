@@ -1,8 +1,8 @@
 //! `grr mcp` — the Model Context Protocol server. // wired in cli.rs
 //!
 //! The protocol implementation lives in [`crate::mcp`]; this module is the
-//! clap surface (the owner wires the `mcp` subcommand into `src/cli.rs`)
-//! and the startup path: one `GoogleAuth` built the same way `run()` does,
+//! clap surface (the `mcp` subcommand is registered in `src/cli.rs`) and
+//! the startup path: one `GoogleAuth` built the same way `run()` does,
 //! reused for every call, plus the `--readonly` safety profile the server
 //! honors exactly as the CLI dispatch does.
 //!
@@ -11,6 +11,7 @@
 //! grr mcp --readonly     # writes refused with MCP error results
 //! ```
 
+use crate::commands::build_auth;
 use crate::commands::safety::SafetyProfile;
 use crate::core::prelude::*;
 use anyhow::Result;
@@ -21,21 +22,6 @@ pub struct McpArgs {
     /// Refuse every write method (POST/PATCH/PUT/DELETE); only reads run
     #[arg(long)]
     pub readonly: bool,
-}
-
-async fn build_auth(config: &GrrConfig) -> Result<GoogleAuth> {
-    // Mirrors `run()` in cli.rs: fail here rather than letting an empty
-    // client_id reach Google's token endpoint and come back as an opaque
-    // 400. Duplicated only because cli.rs is outside this change's scope.
-    if config.oauth.client_id.trim().is_empty() {
-        anyhow::bail!(crate::core::config::NO_CLIENT_HELP);
-    }
-
-    Ok(AuthConfigBuilder::new()
-        .client_id(config.oauth.client_id.clone())
-        .client_secret(config.oauth.client_secret.clone())
-        .build()
-        .await?)
 }
 
 pub async fn run_mcp(args: McpArgs) -> Result<()> {

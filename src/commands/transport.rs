@@ -5,9 +5,8 @@
 //! Everything shown is auto-tuned — there is no user-facing transport
 //! configuration, this command exists to prove it.
 //!
-//! The probe is the same one the typed Gmail client runs at construction
-//! (Gmail base URL + `users/me/profile`), issued through a plain
-//! `HttpCore` so no typed client is needed. The report's shape is quoted
+//! The probe targets the Gmail API (base URL + `users/me/profile`),
+//! issued through a plain `HttpCore`. The report's shape is quoted
 //! verbatim in the site docs and must not change.
 
 use crate::core::RuntimeFeatures;
@@ -16,9 +15,8 @@ use crate::core::http::{HttpCore, TransportInfo};
 use anyhow::Result;
 use clap::Args;
 
-/// The Gmail base URL and probe path the typed Gmail client used at
-/// construction — keeping them identical keeps the report's meaning
-/// identical.
+/// The Gmail base URL and probe path used for the probe — keeping them
+/// identical keeps the report's meaning identical.
 const PROBE_BASE_URL: &str = "https://gmail.googleapis.com/gmail/v1/";
 const PROBE_PATH: &str = "users/me/profile";
 

@@ -46,10 +46,6 @@ fn detect_io_uring() -> bool {
     }
 }
 
-pub async fn has_io_uring() -> bool {
-    detect_runtime_features().await.io_uring
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -57,7 +53,6 @@ mod tests {
     #[tokio::test]
     async fn io_uring_report_matches_target_gate() {
         let features = detect_runtime_features().await;
-        assert_eq!(has_io_uring().await, features.io_uring);
         assert!(!features.io_uring || cfg!(target_os = "linux"));
     }
 }
