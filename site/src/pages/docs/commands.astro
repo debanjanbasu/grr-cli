@@ -7,8 +7,10 @@ import PageHero from '../../components/PageHero.astro';
 import SectionIntro from '../../components/SectionIntro.astro';
 import { discoveryMethodTotal, discoveryServiceCount, discoveryServices } from '../../data/discovery-coverage';
 
+// Every per-service count in the copy below is read from the committed index,
+// so a service that gains or loses methods updates this page with it.
+const serviceMethods = (name: string) => discoveryServices.find((service) => service.name === name)?.methods ?? 0;
 
-const tasksMethodCount = discoveryServices.find((service) => service.name === 'tasks')?.methods ?? 0;
 const base = import.meta.env.BASE_URL;
 
 const safety = `# --readonly refuses every write verb, before or after the subcommand
@@ -58,7 +60,7 @@ const services = [
     name: 'Gmail',
     namespace: 'grr gmail',
     description:
-      '79 methods. Messages, threads, drafts, labels, history, attachments, filters, forwarding, POP/IMAP, send-as, CSE, delegates, and watches — the deepest tree.',
+      `${serviceMethods('gmail')} methods. Messages, threads, drafts, labels, history, attachments, filters, forwarding, POP/IMAP, send-as, CSE, delegates, and watches — the deepest tree.`,
     commands: `grr gmail users messages list --user-id me --q "in:inbox" --max-results 5
 grr gmail users messages get --user-id me --id <message-id> --param-format metadata
 grr gmail users messages attachments get --user-id me --message-id <message-id> --id <attachment-id>
@@ -71,7 +73,7 @@ grr gmail users settings filters list --user-id me`,
     name: 'Calendar',
     namespace: 'grr calendar',
     description:
-      '38 methods. Calendars, events, recurring instances, ACL, free/busy, colors, and settings. The calendar id is a parameter like any other — `primary` where one is accepted.',
+      `${serviceMethods('calendar')} methods. Calendars, events, recurring instances, ACL, free/busy, colors, and settings. The calendar id is a parameter like any other — \`primary\` where one is accepted.`,
     commands: `grr calendar events list --calendar-id primary --max-results 10
 grr calendar events get --calendar-id primary --event-id <event-id>
 grr calendar events insert --calendar-id primary --body-file ./event.json
@@ -83,7 +85,7 @@ grr calendar colors get`,
     name: 'Drive',
     namespace: 'grr drive',
     description:
-      '64 methods. Files, permissions, comments, replies, revisions, changes, drives, and approvals — including the long tail no CLI ever wraps by hand.',
+      `${serviceMethods('drive')} methods. Files, permissions, comments, replies, revisions, changes, drives, and approvals — including the long tail no CLI ever wraps by hand.`,
     commands: `grr drive files list --q "name contains 'report'" --page-size 10
 grr drive files get --file-id <file-id>
 grr drive files export --file-id <document-id> --mime-type application/pdf
@@ -96,7 +98,7 @@ grr drive files emptyTrash`,
     name: 'People',
     namespace: 'grr people',
     description:
-      '24 methods. The People API verbatim: resource names look like people/c12345, and the API nests one `people` level, so the command says it twice.',
+      `${serviceMethods('people')} methods. The People API verbatim: resource names look like people/c12345, and the API nests one \`people\` level, so the command says it twice.`,
     commands: `grr people people connections list --resource-name people/me
 grr people people get --resource-name people/c12345
 grr people contactGroups list
@@ -106,7 +108,7 @@ grr people otherContacts list`,
     name: 'Chat',
     namespace: 'grr chat',
     description:
-      '54 methods. Spaces, members, messages, reactions, media, custom emoji, and read state. Space-scoped methods take --parent spaces/… .',
+      `${serviceMethods('chat')} methods. Spaces, members, messages, reactions, media, custom emoji, and read state. Space-scoped methods take --parent spaces/… .`,
     commands: `grr chat spaces list --page-size 10
 grr chat spaces messages create --parent spaces/AAAA --body-file ./message.json
 grr chat spaces messages list --parent spaces/AAAA --page-size 25
@@ -116,7 +118,7 @@ grr chat spaces members list --parent spaces/AAAA`,
     name: 'Forms',
     namespace: 'grr forms',
     description:
-      '10 methods. Form bodies, responses, publish settings, and push-notification watches. The API nests one `forms` level, like People does with `people`.',
+      `${serviceMethods('forms')} methods. Form bodies, responses, publish settings, and push-notification watches. The API nests one \`forms\` level, like People does with \`people\`.`,
     commands: `grr forms forms get --form-id <form-id>
 grr forms forms responses list --form-id <form-id>
 grr forms forms watches list --form-id <form-id>`,
@@ -125,7 +127,7 @@ grr forms forms watches list --form-id <form-id>`,
     name: 'Tasks',
     namespace: 'grr tasks',
     description:
-      `${tasksMethodCount} methods. Task lists and the tasks inside them. Note the scope caveat: this build does not consent to the Tasks scope, so live calls can 403.`,
+      `${serviceMethods('tasks')} methods. Task lists and the tasks inside them. Note the scope caveat: this build does not consent to the Tasks scope, so live calls can 403.`,
     commands: `grr tasks tasklists list
 grr tasks tasks list --tasklist @default
 grr tasks tasks insert --tasklist @default --body-file ./task.json`,
@@ -134,7 +136,7 @@ grr tasks tasks insert --tasklist @default --body-file ./task.json`,
     name: 'Sheets',
     namespace: 'grr sheets',
     description:
-      '17 methods. Spreadsheets, values (read, write, append, batch), and developer metadata. Colon-verb paths like values/{range}:append are handled for you.',
+      `${serviceMethods('sheets')} methods. Spreadsheets, values (read, write, append, batch), and developer metadata. Colon-verb paths like values/{range}:append are handled for you.`,
     commands: `grr sheets spreadsheets values get --spreadsheet-id <id> --range Sheet1!A1:B10
 grr sheets spreadsheets values update --spreadsheet-id <id> --range Sheet1!A1 --body-file ./values.json
 grr sheets spreadsheets values append --spreadsheet-id <id> --range Sheet1!A:A --value-input-option USER_ENTERED
@@ -144,7 +146,7 @@ grr sheets spreadsheets get --spreadsheet-id <id>`,
     name: 'Docs',
     namespace: 'grr docs',
     description:
-      '3 methods. Documents get, create, and batchUpdate — the smallest service in the index.',
+      `${serviceMethods('docs')} methods. Documents get, create, and batchUpdate — the smallest service in the index.`,
     commands: `grr docs documents get --document-id <id>
 grr docs documents create --body-file ./new-doc.json
 grr docs documents batchUpdate --document-id <id> --body-file ./requests.json`,
@@ -153,7 +155,7 @@ grr docs documents batchUpdate --document-id <id> --body-file ./requests.json`,
     name: 'Slides',
     namespace: 'grr slides',
     description:
-      '5 methods. Presentations, pages, and thumbnails. camelCase methods keep their casing as aliases: getThumbnail, not get-thumbnail.',
+      `${serviceMethods('slides')} methods. Presentations, pages, and thumbnails. camelCase methods keep their casing as aliases: getThumbnail, not get-thumbnail.`,
     commands: `grr slides presentations get --presentation-id <id>
 grr slides presentations pages getThumbnail --presentation-id <id> --page-object-id g1
 grr slides presentations batchUpdate --presentation-id <id> --body-file ./requests.json`,

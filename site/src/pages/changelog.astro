@@ -45,7 +45,7 @@ const formatDate = (iso: string | null) => (iso ? dateFormatter.format(new Date(
           newest.unreleased ? (
             <>
               Unreleased work is on <a href={`${REPO_URL}/commits/main`}>main</a>. The newest tag is{' '}
-              {newest === releases[1] ? releases[1].version : 'none yet'}.
+              {releases.find((release) => !release.unreleased)?.version ?? 'none yet'}.
             </>
           ) : (
             <>
