@@ -38,7 +38,6 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { tmpdir } from 'node:os';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT = resolve(ROOT, 'demo', 'demo.cast');
@@ -431,7 +430,6 @@ function truncateAgent(lines: string[]): string[] {
 function carrySegment(
   castPath: string,
   startMarker: string,
-  display: string,
 ): { lines: string[] } | null {
   let raw: string;
   try {
@@ -479,7 +477,7 @@ function carrySegment(
  * never strips the agent demo from the site.
  */
 function carryAgentSegment(castPath: string): { seg: PreparedAgent; report: SegmentReport } | null {
-  const carried = carrySegment(castPath, 'opencode agent driving', `opencode run "${AGENT_PROMPT}"`);
+  const carried = carrySegment(castPath, 'opencode agent driving');
   if (!carried) return null;
   return {
     seg: { kind: 'agent', mode: 'local', display: `opencode run "${AGENT_PROMPT}"`, lines: carried.lines },
@@ -624,7 +622,7 @@ async function buildSegments(mode: 'ci' | 'local' | 'ci-record'): Promise<{ segs
     // committed segment is carried forward: the transport facts (HTTP/3
     // negotiated, runtime features) only change when the transport code
     // itself changes, and a fresh --local run refreshes them.
-    const carriedTransport = carrySegment(DEFAULT_OUT, 'grr transport', 'grr transport');
+    const carriedTransport = carrySegment(DEFAULT_OUT, 'grr transport');
     if (carriedTransport) {
       segs.push({ kind: 'command', mode: 'local', display: 'grr transport', lines: carriedTransport.lines });
       reports.push({
@@ -845,7 +843,6 @@ function validateCast(path: string): boolean {
 
   // The expected command sequence: the offline commands must be present in
   // both the CI and the local flavor of the cast.
-  const flat = texts.join('');
   const required: Array<[string, RegExp]> = [
     ['grr --version output', /grr \d+\.\d+\.\d+/],
     ['grr api list JSON', /gmail\.users\.messages\.list/],
@@ -952,7 +949,6 @@ async function main(): Promise<number> {
     frames.push({ kind: 'seg', seg });
   }
   const ran = reports.filter((r) => r.status === 'ran');
-  const skipped = reports.filter((r) => r.status === 'skipped');
   const closing = `# grr ${versionLine.replace(/^grr /, '')} — ${ran.length} segments recorded by scripts/generate-demo.ts`;
 
   const { events, duration } = buildCast(frames, closing);

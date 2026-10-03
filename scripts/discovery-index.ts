@@ -1,9 +1,10 @@
 // Shared type definitions for the distilled Discovery index
 // (src/discovery/*.json): the contract between fetch-discovery.ts, which
-// writes the index, and generate-commands.ts, which reads it, so the two can
-// never drift. Type-only on purpose — every import of this module must be
-// `import type`, which Node's native type stripping (>= 23.6) erases before
-// execution, so this file is never loaded at runtime.
+// writes the index, and the generator scripts (generate-commands.ts,
+// generate-skills.ts), which read it, so the two can never drift. Type-only
+// on purpose — every import of this module must be `import type`, which
+// Node's native type stripping (>= 23.6) erases before execution, so this
+// file is never loaded at runtime.
 
 /** One (name-sorted) Discovery parameter on a distilled method. */
 export interface DistilledParameter {

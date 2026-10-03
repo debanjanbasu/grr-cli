@@ -28,6 +28,7 @@ import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DistilledIndex, DistilledMethod, DistilledParameter, Manifest } from './discovery-index.ts';
+import { flagId, kebab } from './script-utils.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const INDEX_DIR = resolve(ROOT, 'src', 'discovery');
@@ -35,11 +36,6 @@ const SKILLS_DIR = resolve(ROOT, 'skills');
 const MANIFEST = resolve(INDEX_DIR, 'manifest.json');
 
 const CHECK_ONLY = process.argv.includes('--check');
-
-// Escape-hatch flag ids reserved on every generated leaf. A Discovery
-// parameter whose kebab-case name lands here is renamed `param-<kebab>` —
-// must agree with scripts/generate-commands.ts and gen_dispatch::flag_id.
-const RESERVED_FLAG_IDS = new Set(['params', 'body-file', 'query', 'dry-run', 'format', 'help']);
 
 // The generated marker: provenance + the index's own timestamp, so it only
 // moves when the index moves. pruneStaleSkills matches on the constant
@@ -72,20 +68,6 @@ function assert(condition: unknown, message: string): void {
 /** Code-unit comparison — locale-independent, so output is stable everywhere. */
 function cmp(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
-}
-
-/** camelCase (or dotted, or $-prefixed) Discovery name -> kebab-case flag. */
-function kebab(name: string): string {
-  return name
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase();
-}
-
-function flagId(name: string): string {
-  const s = kebab(name);
-  return RESERVED_FLAG_IDS.has(s) ? `param-${s}` : s;
 }
 
 /**

@@ -816,25 +816,6 @@ function printableDiff(before: string, after: string): string {
 
 /* -------------------------------------------------------------------- main */
 
-// Exported so the parsing rules can be exercised directly (a squash-merge title
-// with a (#NN) suffix, a BREAKING CHANGE: footer, a prerelease tag) without
-// standing up a git repository for each case.
-export {
-  HEADER,
-  SECTIONS,
-  START_MARKER,
-  END_MARKER,
-  breakingFooter,
-  bumpVersion,
-  cleanText,
-  compareVersions,
-  groupCommits,
-  parseSubject,
-  parseTag,
-  recommendVersion,
-  renderBody,
-};
-
 function main(): void {
   const tags = listTags();
 

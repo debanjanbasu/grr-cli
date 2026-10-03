@@ -5,15 +5,11 @@
 // Why this exists: a comparison page is only worth anything if its numbers
 // are measured, dated, and reproducible. Everything here runs without Google
 // credentials — startup, the `grr schema` contract dump, the `grr api list`
-// index, binary size and the headline memory/CPU workloads are all
-// properties of the binaries themselves, so a CI run can collect them and
-// open a PR with the fresh snapshot.
+// index and binary size are all properties of the binaries themselves, so a
+// CI run can collect them and open a PR with the fresh snapshot.
 //
-// The headline metrics are peak memory (RSS) and CPU time (user+sys) for a
-// documented heavy workload per tool (`workload` block in the snapshot);
-// startup and binary size stay measured but secondary. Memory/CPU come from
-// `/usr/bin/time -v`, which only exists on the Linux CI runner — everywhere
-// else they are recorded unavailable with that reason, never estimated.
+// Startup is the headline metric (median of 15 timed runs); the schema dump,
+// the api-index listing and binary size are measured alongside it.
 //
 // Honesty rules, enforced structurally:
 //   - A tool that cannot be obtained is recorded as `available: false` with
@@ -79,29 +75,12 @@ function errorMessage(error: unknown): string {
 const NOISE_ABS_MS = 15;
 const NOISE_REL = 0.06;
 
-// Same idea for the memory/CPU medians. RSS on a given Linux host is stable
-// to roughly a percent run-to-run, so a 3% band with a 1 MB floor hides a
-// morning, not a regression; GNU time reports CPU in 10 ms ticks, so the CPU
-// band floors at 30 ms and 20% relative.
-const MEMORY_RSS_ABS_KB = 1024;
-const MEMORY_RSS_REL = 0.03;
-const MEMORY_CPU_ABS_SEC = 0.03;
-const MEMORY_CPU_REL = 0.2;
-
 const withinBand = (a: number, b: number, abs: number, rel: number): boolean =>
   Math.abs(a - b) <= Math.max(abs, rel * Math.max(a, b));
 const withinNoise = (a: number, b: number): boolean => withinBand(a, b, NOISE_ABS_MS, NOISE_REL);
 
-// GNU time's `-v` report is the Linux measurement surface for the headline
-// memory metrics. The reason string is deterministic so an unavailable metric
-// stays byte-stable across runs (idempotency compares it verbatim).
-const GNU_TIME = '/usr/bin/time';
-const MEMORY_PLATFORM_REASON = `peak RSS and CPU time are measured with ${GNU_TIME} -v on the Linux CI runner — not estimated on ${process.platform}`;
-
 const round1 = (value: number): number => Math.round(value * 10) / 10;
-const round2 = (value: number): number => Math.round(value * 100) / 100;
 const firstLine = (text: string): string => text.split('\n')[0].trim();
-const median = (sorted: number[]): number => sorted[Math.floor(sorted.length / 2)];
 
 /* ------------------------------------------------------------- snapshot shapes */
 
@@ -112,32 +91,6 @@ const median = (sorted: number[]): number => sorted[Math.floor(sorted.length / 2
 type Metric =
   | { available: true; medianMs: number; p95Ms: number; minMs: number }
   | { available: false; reason: string };
-
-/**
- * The headline memory metric: median peak RSS and median user/sys CPU time
- * over the same warm-up + 15-run protocol as the timings, measured by
- * `/usr/bin/time -v`. That binary exists on the Linux CI runner; every other
- * platform records the metric unavailable with the reason below instead of
- * estimating (Windows and macOS have no `time -v`; faking the numbers from a
- * local dev box would put an unmeasured figure on the page).
- */
-type MemoryMetric =
-  | { available: true; rssKb: number; userSec: number; sysSec: number; runs: number; via: string }
-  | { available: false; reason: string };
-
-/**
- * One tool's documented workload for the memory/CPU metrics. `outputBytes`
- * is the measured byte length of one run's stdout — how much JSON the tool
- * actually serialized — or the reason it could not be captured.
- */
-interface WorkloadSnapshot {
-  command: string;
-  what: string;
-  offline: boolean;
-  note?: string;
-  outputBytes?: number;
-  outputBytesReason?: string;
-}
 
 /**
  * Binary size entry. Success shape: `{ bytes, source, form }`. Failure
@@ -197,13 +150,7 @@ interface BenchmarkSnapshot {
     warmupRunsDiscarded: number;
     timer: string;
     stability: string;
-    memoryTimer?: string;
-    memoryStability?: string;
   };
-  /** The documented workload each tool runs for the memory/CPU headline. */
-  workload?: Record<string, WorkloadSnapshot>;
-  /** Peak RSS + CPU time per tool for that workload (unavailable off-Linux). */
-  memory?: Record<string, MemoryMetric>;
   grr: {
     startup: Metric | null;
     schemaDump: Metric | null;
