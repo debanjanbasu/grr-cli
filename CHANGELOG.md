@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **site:** the last stale counts - 401/14 everywhere
 - **automation:** release correctness, dependency freshness and workflow cost
 - **site:** stop deriving the site's numbers by hand
+- **changelog:** restore the PR body swallowed by add-paths
+- **site:** a real gutter between the docs sidenav and the content
+- **assets:** the repo-root logos are the current pixel art
+- strip UTF-8 BOMs from twelve tracked files
+- **bench:** the arm runner measured the wrong gog binary
 
 ### Documentation
 
@@ -45,10 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **demo:** the README matches the self-maintaining reality
 - bring the prose back in line with the tree
 - **changelog:** regenerate for the automation, site and release fixes
+- **changelog:** pick up the benchmark and demo refreshes
 
 ### Internal
 
-- 3 internal commits (chore 3)
+- 5 internal commits (chore 4, ci 1)
 
 ### Other
 
