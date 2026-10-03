@@ -31,14 +31,28 @@ interface Props {
   duration?: string;
 }
 
-const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = Astro.props;
+// Single source of truth: demo/demo.cast at the repo root — the file demo.yml
+// regenerates on every CLI or version change. It used to be mirrored by hand
+// into site/public/demo/, and the mirror rotted: the live site kept playing a
+// 0.5.0-era recording while the real cast on main was three re-recordings
+// newer. Importing it as an asset emits it content-hashed under _astro/, so a
+// re-recorded cast is a new URL and the immutable-cache rule for built assets
+// can never serve a stale one.
+import demoCastUrl from '../../../demo/demo.cast?url';
+// The same file as text, for the caption's pre-hydration value: the header
+// line's `duration`, the exact field the player itself reads at mount. No
+// hand-maintained number, so the server-rendered caption cannot drift either.
+import demoCastRaw from '../../../demo/demo.cast?raw';
+
+const castDuration = (JSON.parse(demoCastRaw.split('\n')[0]) as { duration?: number }).duration ?? 0;
+const { src = demoCastUrl, duration = `${Math.round(castDuration)}s` } = Astro.props;
 ---
 
 <div class="demo-shell" data-demo-player data-demo-src={src}>
   <div class="demo-bar" aria-hidden="true">
     <span class="demo-dots"><i></i><i></i><i></i></span>
     <span class="demo-title">grr — a real terminal, a real agent</span>
-    <span class="demo-dims">{duration} · asciinema</span>
+    <span class="demo-dims" data-demo-dims>{duration} · asciinema</span>
   </div>
   <div class="demo-stage" data-demo-stage></div>
 </div>
@@ -86,6 +100,35 @@ const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = 
   const loadPlayer = () =>
     (player ??= Promise.all([ensureStyles(), import('asciinema-player')]).then(([, mod]) => mod.create));
 
+  // The cast carries its own `duration`, and the player parses it: reading it
+  // back keeps the caption tied to the file that actually plays instead of a
+  // number typed into the markup. `getDuration()` is undefined until the
+  // recording is parsed; the `playing` event usually signals that, but a
+  // blocked autoplay can parse without ever playing, so a short bounded poll
+  // covers that case too. First value wins; the rest become no-ops.
+  function syncCaption(instance: ReturnType<CreateFn>, shell: HTMLElement | null) {
+    if (!shell) return;
+    let applied = false;
+    const apply = () => {
+      if (applied) return;
+      const seconds = instance.getDuration();
+      if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) return;
+      applied = true;
+      const dims = shell.querySelector<HTMLElement>('[data-demo-dims]');
+      if (dims) dims.textContent = `${Math.round(seconds)}s · asciinema`;
+    };
+    instance.addEventListener('playing', apply);
+    apply();
+    let attempts = 0;
+    const poll = () => {
+      if (applied || attempts >= 20) return;
+      attempts += 1;
+      apply();
+      if (!applied) setTimeout(poll, 100);
+    };
+    setTimeout(poll, 100);
+  }
+
   // Mounts every player on the page that has not mounted yet. Driven by a
   // query rather than a parameter so the DOM types flow in from
   // querySelectorAll (this block is plain JS, not TS). The player module is
@@ -111,9 +154,15 @@ const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = 
 
     for (const stage of pending) {
       const shell = stage.closest<HTMLElement>('[data-demo-player]');
-      const src = shell?.dataset.demoSrc ?? '/demo/demo.cast';
+      // Always set by the component above; the guard keeps a hand-copied
+      // shell from fetching the old site/public path, which no longer exists.
+      const src = shell?.dataset.demoSrc;
+      if (!src) {
+        stage.textContent = 'demo unavailable';
+        continue;
+      }
       try {
-        create(src, stage, {
+        const instance = create(src, stage, {
           loop: true,
           autoPlay: true,
           // The brand font — the demo renders in the same IBM 3270 the site
@@ -126,6 +175,7 @@ const { src = `${import.meta.env.BASE_URL}demo/demo.cast`, duration = '41s' } = 
           fit: 'width',
           theme: 'asciinema',
         });
+        syncCaption(instance, shell);
       } catch (error) {
         // A failed mount must never take the page down: the shell keeps its
         // terminal styling and the caption still reads.
