@@ -22,9 +22,6 @@ pub enum GrrError {
     #[error("Configuration error: {0}")]
     Config(String),
 
-    #[error("Token error: {0}")]
-    Token(String),
-
     #[error("Rate limited: retry after {retry_after_secs}s")]
     RateLimited { retry_after_secs: u64 },
 
@@ -34,38 +31,14 @@ pub enum GrrError {
     #[error("Not found: {0}")]
     NotFound(String),
 
-    #[error("Invalid argument: {0}")]
-    InvalidArgument(String),
-
     #[error("Permission denied: {0}")]
     PermissionDenied(String),
-
-    #[error("Quota exceeded: {0}")]
-    QuotaExceeded(String),
 
     #[error("Internal error: {0}")]
     Internal(String),
 
-    #[error("Streaming error: {0}")]
-    Streaming(String),
-
-    #[error("Batch operation failed: {failed}/{total} operations failed")]
-    BatchPartial { failed: usize, total: usize },
-
-    #[error("Dictionary not found: {0}")]
-    DictionaryNotFound(String),
-
-    #[error("Compression error: {0}")]
-    Compression(String),
-
-    #[error("DNS resolution error: {0}")]
-    Dns(String),
-
     #[error("Timeout: {0}")]
     Timeout(String),
-
-    #[error("Invalid state: {0}")]
-    InvalidState(String),
 
     #[error(transparent)]
     Anyhow(#[from] anyhow::Error),

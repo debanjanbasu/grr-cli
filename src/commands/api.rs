@@ -1,9 +1,9 @@
 //! `grr api` — the discovery-driven escape hatch.
 //!
-//! `grr api call <id>` reaches every method Google publishes across Gmail,
-//! Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets and Slides —
-//! including anything released after grr was built, with no code change
-//! and no new release. The generated service tree
+//! `grr api call <id>` reaches every method Google publishes across the
+//! 14 APIs in the committed Discovery index — including anything released
+//! after grr was built, with no code change and no new release. The
+//! generated service tree
 //! (`src/commands/generated.rs`, dispatched by `gen_dispatch.rs`) is the
 //! same engine with a friendlier shape: both funnel through
 //! [`call_method`], so a dry-run of the same method and parameters is
@@ -47,7 +47,8 @@ pub enum ApiCommands {
 #[derive(Args, Debug)]
 pub struct ApiRefreshArgs {
     /// Refresh one service only (gmail, calendar, drive, people, chat,
-    /// forms, tasks, docs, sheets, slides)
+    /// forms, tasks, docs, sheets, slides, script, analyticsadmin,
+    /// analyticsdata, searchconsole)
     #[arg(long)]
     pub service: Option<String>,
 
@@ -59,7 +60,8 @@ pub struct ApiRefreshArgs {
 #[derive(Args, Debug)]
 pub struct ApiListArgs {
     /// Limit to one service (gmail, calendar, drive, people, chat, forms,
-    /// tasks, docs, sheets, slides)
+    /// tasks, docs, sheets, slides, script, analyticsadmin, analyticsdata,
+    /// searchconsole)
     #[arg(long)]
     pub service: Option<String>,
 
@@ -276,10 +278,11 @@ fn handle_describe(args: ApiDescribeArgs) -> Result<()> {
             // The raw template, not a rendered URL: placeholders are the
             // point, and the caller can see which values are required.
             "urlTemplate": format!(
-                "{}{}",
-                service.root_url.clone().unwrap_or_default(),
-                service.base()
-            ) + &method.path,
+                "{}{}{}",
+                service.root_url.as_deref().unwrap_or_default(),
+                service.base(),
+                method.path
+            ),
             "description": method.description,
             "scopes": method.scopes,
             "leastPrivilegeScope": method.least_privilege_scope(),
@@ -424,7 +427,7 @@ pub(crate) fn plan_request(
     }
     let url = format!(
         "{}{}{}",
-        service.root_url.clone().unwrap_or_default(),
+        service.root_url.as_deref().unwrap_or_default(),
         path,
         query
     );
