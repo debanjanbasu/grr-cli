@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T22:29:54.998Z",
+  "generatedAt": "2026-10-03T06:56:33.603Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -64,6 +64,36 @@
               "scope": "site",
               "type": "fix",
               "note": null
+            },
+            {
+              "description": "restore the PR body swallowed by add-paths",
+              "scope": "changelog",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "a real gutter between the docs sidenav and the content",
+              "scope": "site",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "the repo-root logos are the current pixel art",
+              "scope": "assets",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "strip UTF-8 BOMs from twelve tracked files",
+              "scope": null,
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "the arm runner measured the wrong gog binary",
+              "scope": "bench",
+              "type": "fix",
+              "note": null
             }
           ]
         },
@@ -100,6 +130,12 @@
               "scope": "changelog",
               "type": "docs",
               "note": null
+            },
+            {
+              "description": "pick up the benchmark and demo refreshes",
+              "scope": "changelog",
+              "type": "docs",
+              "note": null
             }
           ]
         },
@@ -123,6 +159,18 @@
               "description": "re-record the terminal demo from source",
               "scope": "demo",
               "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "unattended merging for the automation PRs (approve + merge)",
+              "scope": null,
+              "type": "ci",
               "note": null
             }
           ]
