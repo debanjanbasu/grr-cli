@@ -156,15 +156,17 @@
   --accent: var(--color-primary);
   --accent-hot: light-dark(#ea580c, #fb923c);
   /* Text sitting on the paper needs a deeper orange than the accent to clear
-     AA at 4.82:1; #fb923c does the same job on the dark paper. */
-  --accent-text: light-dark(#c2410c, #fb923c);
+     AA: #b23c0a measures 5.55:1 on base-100 and 5.07:1 on the footer's
+     base-200 cream; #fb923c does the same job on the dark paper. */
+  --accent-text: light-dark(#b23c0a, #fb923c);
   --accent-deep: #c2410c;
   --ink: light-dark(#1a120b, #fff4e8);
   --ink-soft: light-dark(#3f3025, #f0d8c5);
   --muted: light-dark(#6b5c50, #c7ad99);
-  /* #857263 only reached 4.29:1 on the paper; #7d6a5b clears AA at 4.82:1
-     while staying a visible step below --muted. */
-  --quiet: light-dark(#7d6a5b, #a78d7a);
+  /* #7d6a5b only reached 4.40:1 on the footer's base-200; #74624f clears AA
+     at 5.46:1 on base-100 and 4.99:1 on base-200 while staying a visible
+     step below --muted. */
+  --quiet: light-dark(#74624f, #a78d7a);
   --line: light-dark(#eadfd5, #46311f);
   --line-strong: light-dark(#d6c3b0, #76513a);
   --terminal-bg: #241a14;
@@ -254,10 +256,8 @@
 
   /* ── Layout primitives ────────────────────────────────────────────── */
 
-  .container {
-    width: min(calc(100% - 40px), var(--max-width));
-    margin-inline: auto;
-  }
+  /* .container lives unlayered further down (see "Page container"): defined
+     here it lost to Tailwind's core `.container` in @layer utilities. */
 
   .site-shell {
     position: relative;
@@ -683,7 +683,10 @@
   }
 
   .demo-dims {
-    color: var(--quiet);
+    /* The demo card is the dark terminal in both themes, so this cannot ride
+       on --quiet (only 2.9:1 there in light mode). --terminal-dim is the
+       light-on-dark token: 9.4:1 on the #241a14 shell. */
+    color: var(--terminal-dim);
     font-size: 10.5px;
     white-space: nowrap;
   }
@@ -722,11 +725,9 @@
     overflow-wrap: break-word;
   }
 
-  .code-window-label {
-    color: var(--terminal-dim);
-    border-color: var(--terminal-line);
-    background: transparent;
-  }
+  /* .code-window-label / .code-window-tools are declared unlayered further
+     down: inside @layer components they would lose to DaisyUI's .kbd, which
+     ships in @layer utilities. */
 
   .terminal-caret {
     flex: 0 0 auto;
@@ -1412,6 +1413,41 @@
   }
 }
 
+/* ── Page container ──────────────────────────────────────────────────
+   Unlayered on purpose. Tailwind's core `.container` (width:100%) lives in
+   @layer utilities, and the header and footer elements also carry `w-full`
+   in that same layer. Unlayered declarations outrank every layer in the
+   cascade, so this is the only placement where the 20px gutter and the
+   1120px cap actually reach the page. Only `width` is overridden: the core
+   container's breakpoint max-widths stay layered so a `max-w-*` utility on
+   the same element (e.g. `container prose max-w-[68ch]`) still wins. */
+.container {
+  width: min(calc(100% - 40px), var(--max-width));
+  margin-inline: auto;
+}
+
+/* ── Code window bar ─────────────────────────────────────────────────
+   Unlayered because DaisyUI's .kbd ships in @layer utilities and sets
+   display:inline-flex + flex-shrink:0; a components-layer override loses on
+   layer order regardless of specificity. The label must be the one shrinking
+   item so a long command ellipsizes instead of shoving the Copy button off a
+   390px screen; the tools hold their natural width. */
+.code-window-label {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--terminal-dim);
+  border-color: var(--terminal-line);
+  background: transparent;
+}
+
+.code-window-tools {
+  flex: 0 0 auto;
+}
+
 /* The primary button's signature: a hard pixel shadow (the terminal look)
    plus a slowly spinning conic glow ring. Kept as custom CSS because the
    glow rides on the registered --glow-angle property that the animation
@@ -1420,6 +1456,14 @@
   /* DaisyUI renders menu titles as base-content at 40% opacity, which lands
      at 3.58:1 on the dark base-200 — the --muted token clears AA in both
      themes. Unlayered for the same reason as .btn-primary. */
+  color: var(--muted);
+}
+
+.footer-title {
+  /* Same treatment as the docs sidenav's .menu-title above: DaisyUI paints
+     footer titles as base-content at 60% opacity (4.6:1 on base-200);
+     --muted is the shared section-label token and clears AA (5.5:1). */
+  opacity: 1;
   color: var(--muted);
 }
 
