@@ -9,7 +9,11 @@
     ],
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
-    "noEmit": true
+    "noEmit": true,
+    // TypeScript 7 stopped auto-including @types packages when this array is
+    // absent, and every script imports node builtins — without it the
+    // typecheck dies on "Cannot find name 'node:child_process'".
+    "types": ["node"]
   },
   "include": [
     "scripts/**/*"
