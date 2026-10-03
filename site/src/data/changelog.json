@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T15:51:05.157Z",
+  "generatedAt": "2026-10-03T23:27:31.654Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -7,6 +7,24 @@
       "date": null,
       "unreleased": true,
       "sections": [
+        {
+          "key": "changed",
+          "heading": "Changed",
+          "items": [
+            {
+              "description": "delete dead weight, share the flag contract",
+              "scope": "scripts",
+              "type": "refactor",
+              "note": null
+            },
+            {
+              "description": "delete dead code across the CLI",
+              "scope": null,
+              "type": "refactor",
+              "note": null
+            }
+          ]
+        },
         {
           "key": "fixed",
           "heading": "Fixed",
@@ -22,6 +40,30 @@
               "scope": "ci",
               "type": "fix",
               "note": null
+            },
+            {
+              "description": "the live audit's twelve content corrections",
+              "scope": "site",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "poller retry, changelog in the release dispatch, dead input",
+              "scope": "ci",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "documentation",
+          "heading": "Documentation",
+          "items": [
+            {
+              "description": "packaging status told the truth (0.7.0; winget unpublished)",
+              "scope": null,
+              "type": "docs",
+              "note": null
             }
           ]
         },
@@ -30,9 +72,45 @@
           "heading": "Internal",
           "items": [
             {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
               "description": "a push to main sweeps for pending bot PRs too",
               "scope": "poller",
               "type": "ci",
+              "note": null
+            },
+            {
+              "description": "Node 26 everywhere, and gws's size stops being its shim",
+              "scope": "ci",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "TypeScript 7 + types 26, tokio 1.53.2, tsconfig types",
+              "scope": "deps",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
               "note": null
             }
           ]
