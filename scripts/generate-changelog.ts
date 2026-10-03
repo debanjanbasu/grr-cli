@@ -314,6 +314,12 @@ function commitsBetween(from: string | null, to: string): Commit[] {
     if (!trimmed.trim()) continue;
     const [sha, date, subject, body = ''] = trimmed.split(FIELD);
     if (!sha || !subject) continue;
+    // The regeneration workflow's own commits are not changelog-worthy: the
+    // file they write cannot contain the commit that writes it. Filing them
+    // made every merge of a regeneration PR spawn the next one — an endless
+    // chain once auto-merge lands them. Excluded here, the PR for the merge
+    // that lands a regeneration finds nothing new and the chain terminates.
+    if (/^docs\(changelog\):/.test(subject)) continue;
     commits.push({ sha, date, subject, body });
   }
 
