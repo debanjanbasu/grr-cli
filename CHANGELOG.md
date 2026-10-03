@@ -53,10 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **changelog:** pick up the benchmark and demo refreshes
 - **changelog:** regenerate for the sidenav, benchmark and release fixes
 - 22 corrections against the current tree
+- **changelog:** regenerate for the docs audit and crate metadata
 
 ### Internal
 
-- 6 internal commits (chore 5, ci 1)
+- 7 internal commits (chore 6, ci 1)
 
 ### Other
 
