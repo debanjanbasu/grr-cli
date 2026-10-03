@@ -111,7 +111,7 @@ jobs:
           # entries must be KEY=VALUE (a bare path is rejected).
           "$((Split-Path $upx))" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      - name: Pack binary (UPX --best)
+      - name: Pack binary (UPX --best --lzma)
         shell: bash
         timeout-minutes: 10
         run: |
@@ -123,7 +123,20 @@ jobs:
           # only then replace the original. Anything else ships unpacked.
           WORK="$BIN.packed"
           cp "$BIN" "$WORK"
-          if upx --best "$WORK" 2>&1 | tee upx.log; then
+          # --lzma measured 20% smaller than --best alone on the real binary
+          # (4,495,508 -> 3,584,844 bytes, upx 5.2.1); --brute packs to the
+          # identical size and is not worth its minutes. Formats that cannot
+          # do LZMA fall back to plain --best from a fresh copy, since a
+          # failed pack attempt must not be repacked on top of itself.
+          if upx --best --lzma "$WORK" 2>&1 | tee upx.log; then
+            :
+          elif cp "$BIN" "$WORK" && upx --best "$WORK" 2>&1 | tee -a upx.log; then
+            echo "::notice::--lzma unsupported for ${{ matrix.target.name }}; packed with --best"
+          else
+            echo "::warning::UPX failed on ${{ matrix.target.name }}; shipping unpacked"
+            rm -f "$WORK"
+          fi
+          if [ -f "$WORK" ]; then
             if "$WORK" --version >/dev/null 2>&1; then
               AFTER=$(stat -c %s "$WORK" 2>/dev/null || stat -f %z "$WORK")
               mv "$WORK" "$BIN"
@@ -134,9 +147,6 @@ jobs:
               echo "::warning::UPX packed ${{ matrix.target.name }} but the result does not run; shipping unpacked"
               rm -f "$WORK"
             fi
-          else
-            echo "::warning::UPX failed on ${{ matrix.target.name }}; shipping unpacked"
-            rm -f "$WORK"
           fi
           "$BIN" --version
 
