@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ci:** \`gh pr view --json state\` returns OPEN, not open
 - **ci:** merging needs contents:write, not contents:read
 - **ci:** --admin has no bypass for the app token; fall back on any rejection
+- **changelog:** the file cannot list the commit that writes it
 
 ### Documentation
 
@@ -55,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- 8 internal commits (chore 6, ci 2)
+- 10 internal commits (chore 8, ci 2)
 
 ### Other
 
