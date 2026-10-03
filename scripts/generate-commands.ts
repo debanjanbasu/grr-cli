@@ -31,6 +31,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DistilledIndex, DistilledMethod, DistilledParameter, Manifest } from './discovery-index.ts';
+import { flagId, kebab } from './script-utils.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const INDEX_DIR = resolve(ROOT, 'src', 'discovery');
@@ -42,30 +43,11 @@ const CHECK_ONLY = process.argv.includes('--check');
 // The hand-written top-level commands; a service may never shadow them.
 const STATIC_TOP_LEVEL = new Set(['auth', 'api', 'schema', 'transport']);
 
-// Escape-hatch flag ids present on every generated leaf (plus clap's own
-// `help`). A Discovery parameter whose kebab-case name lands here is
-// renamed `param-<kebab>` — see gen_dispatch::flag_id, which must agree.
-const RESERVED_FLAG_IDS = new Set(['params', 'body-file', 'query', 'dry-run', 'format', 'help']);
-
 function assert(condition: unknown, message: string): void {
   if (!condition) {
     console.error(`generate-commands: ${message}`);
     process.exit(1);
   }
-}
-
-/** camelCase (or dotted, or $-prefixed) Discovery name -> kebab-case flag. */
-function kebab(name: string): string {
-  return name
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase();
-}
-
-function flagId(name: string): string {
-  const s = kebab(name);
-  return RESERVED_FLAG_IDS.has(s) ? `param-${s}` : s;
 }
 
 /** snake_case fn-name suffix for one id segment (getProfile -> get_profile). */
@@ -211,7 +193,7 @@ function serviceFnName(service: DistilledIndex): string {
 }
 
 /** One `.arg(...)` chain for a Discovery parameter. */
-function emitParamArg(method: DistilledMethod, param: DistilledParameter, lines: string[]): void {
+function emitParamArg(param: DistilledParameter, lines: string[]): void {
   const id = flagId(param.name);
   const renamed = id !== kebab(param.name);
   let arg = `Arg::new("${rs(id)}").long("${rs(id)}")`;
@@ -260,7 +242,7 @@ function emitLeaf(service: DistilledIndex, method: DistilledMethod, lines: strin
     lines.push(`            .long_about("${rs(longAbout)}")`);
   }
   for (const param of method.parameters) {
-    emitParamArg(method, param, lines);
+    emitParamArg(param, lines);
   }
   lines.push('            .args(escape_hatch_args())');
   lines.push('    }');
