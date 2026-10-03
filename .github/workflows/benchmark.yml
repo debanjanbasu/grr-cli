@@ -65,7 +65,7 @@ jobs:
         timeout-minutes: 5
         with:
           # Matches the Node version the other script-running workflows use.
-          node-version: "24"
+          node-version: "26"
 
       # The gate. Only the cron can be skipped: a manual dispatch or one of
       # our own releases always runs the full suite (hence the event_name

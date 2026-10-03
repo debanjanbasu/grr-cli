@@ -73,7 +73,7 @@ jobs:
         timeout-minutes: 5
         with:
           # Matches the Node version the other script-running workflow uses.
-          node-version: "24"
+          node-version: "26"
 
       - name: Generate CHANGELOG.md
         id: gen
@@ -142,10 +142,14 @@ jobs:
       - name: Open a pull request
         if: steps.gen.outputs.changed == 'true' && inputs.dry_run != true
         uses: peter-evans/create-pull-request@v8
+        timeout-minutes: 5
         with:
           branch: chore/changelog-regenerate
           title: "docs(changelog): regenerate for ${{ steps.gen.outputs.newest_tag }}"
           commit-message: "docs(changelog): regenerate for ${{ steps.gen.outputs.newest_tag }}"
+          # Same triage label every other generated-artifact automation PR
+          # carries (stats/demo/discovery/benchmark).
+          labels: dependencies
           add-paths: |
             CHANGELOG.md
             site/src/data/changelog.json
@@ -208,7 +212,7 @@ jobs:
       - uses: actions/setup-node@v7
         timeout-minutes: 5
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: Check CHANGELOG.md matches the generator output
         timeout-minutes: 5
