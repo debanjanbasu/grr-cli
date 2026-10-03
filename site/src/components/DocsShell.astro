@@ -11,15 +11,16 @@ const { currentPath = '' } = Astro.props;
 
 {/* DaisyUI drawer: a sticky menu sidenav on desktop (lg:drawer-open keeps the
     side visible and sticky), a slide-over drawer on mobile behind the toggle.
-    The toggle is a <label> for the checkbox, so it is not itself focusable —
-    DaisyUI's keyboard path is the checkbox, and `drawer-button` is the class it
-    uses to paint a focus ring on this label when that checkbox takes focus.
-    Without it, tabbing to the (visually collapsed) checkbox moved focus to
-    something invisible and the mobile sidenav looked unreachable. */}
+    The toggle is a <label> for the checkbox, so it is not in the Tab order —
+    DaisyUI's keyboard path is the checkbox, and `drawer-button` is the class
+    it paints a focus ring on when that checkbox takes focus. Without it,
+    tabbing to the (visually collapsed) checkbox moved focus to something
+    invisible and the mobile sidenav looked unreachable. The label carries
+    tabindex="-1" only so the Escape handler can return focus to it. */}
 <div class="drawer lg:drawer-open">
   <input id="docs-nav-toggle" type="checkbox" class="drawer-toggle" />
   <div class="drawer-content min-w-0">
-    <label for="docs-nav-toggle" class="drawer-button btn btn-ghost btn-square btn-sm mt-4 ml-5 lg:hidden">
+    <label for="docs-nav-toggle" tabindex="-1" class="drawer-button btn btn-ghost btn-square btn-sm mt-4 ml-5 lg:hidden">
       <span class="sr-only">Open the docs navigation</span>
       <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" focusable="false" shape-rendering="crispEdges">
         <g fill="currentColor">
@@ -38,3 +39,27 @@ const { currentPath = '' } = Astro.props;
     </div>
   </div>
 </div>
+
+<script>
+  /* Escape closes the mobile docs drawer. DaisyUI models the drawer as a
+     checkbox, so "open" is just :checked; on Escape we clear it and return
+     focus to the toggle. That toggle is a <label>, which is not focusable by
+     default, so it carries tabindex="-1" purely to be a programmatic focus
+     target — it stays out of the Tab order, leaving DaisyUI's checkbox as the
+     keyboard path. Bound once (document-level, re-queries the live DOM) so it
+     keeps working across the ClientRouter's client-side navigations. */
+  const bindDrawerEscape = () => {
+    if (document.documentElement.dataset['drawerEscapeBound'] === 'true') return;
+    document.documentElement.dataset['drawerEscapeBound'] = 'true';
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' && event.key !== 'Esc') return;
+      const toggle = document.getElementById('docs-nav-toggle');
+      if (!(toggle instanceof HTMLInputElement) || !toggle.checked) return;
+      toggle.checked = false;
+      const button = document.querySelector('label.drawer-button[for="docs-nav-toggle"]');
+      if (button instanceof HTMLElement) button.focus();
+    });
+  };
+  bindDrawerEscape();
+  document.addEventListener('astro:page-load', bindDrawerEscape);
+</script>

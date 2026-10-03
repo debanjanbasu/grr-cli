@@ -3,7 +3,7 @@ const base = import.meta.env.BASE_URL;
 ---
 
 <footer class="site-footer border-t border-base-300 bg-base-200">
-  <div class="container footer footer-vertical sm:footer-horizontal w-full gap-12 py-14">
+  <div class="container footer footer-vertical sm:footer-horizontal gap-12 py-14">
     <div class="footer-identity">
       <a class="footer-brand inline-flex items-center gap-3 no-underline" href={base}>
         <img src={`${base}logo.svg`} alt="" width="64" height="64" class="h-10 w-10" />
@@ -20,8 +20,8 @@ const base = import.meta.env.BASE_URL;
         <a class="link link-hover" href={`${base}changelog/`}>Changelog</a>
         <a class="link link-hover" href={`${base}compare/`}>Compare</a>
         <a class="link link-hover" href={`${base}llms.txt`}>llms.txt</a>
-        <a class="link link-hover" href="https://crates.io/crates/grr-cli" target="_blank" rel="noreferrer">crates.io ↗</a>
-        <a class="link link-hover" href="https://docs.rs/grr-cli" target="_blank" rel="noreferrer">API docs ↗</a>
+        <a class="link link-hover" href="https://crates.io/crates/grr-cli" target="_blank" rel="noreferrer">crates.io <span aria-hidden="true">↗</span></a>
+        <a class="link link-hover" href="https://docs.rs/grr-cli" target="_blank" rel="noreferrer">API docs <span aria-hidden="true">↗</span></a>
       </div>
       <div class="footer-links">
         <span class="footer-title">Reference</span>
@@ -32,7 +32,7 @@ const base = import.meta.env.BASE_URL;
       </div>
       <div class="footer-links">
         <span class="footer-title">Project</span>
-        <a class="link link-hover" href="https://github.com/debanjanbasu/grr-cli" target="_blank" rel="noreferrer">GitHub ↗</a>
+        <a class="link link-hover" href="https://github.com/debanjanbasu/grr-cli" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
         <a class="link link-hover" href={`${base}privacy/`}>Privacy</a>
         <a class="link link-hover" href={`${base}terms/`}>Terms</a>
       </div>
