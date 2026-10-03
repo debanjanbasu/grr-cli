@@ -1,6 +1,6 @@
 # grr — Agent Execution Ruleset
 
-`grr` is a Rust CLI for Google Workspace: one binary (`grr`), one crate (`grr-cli`), a generated command tree covering **401 methods across 14 Google APIs** (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, Search Console) — compiled from the committed Discovery index, never hand-written — plus the id-based `grr api` escape hatch and account-level commands (`auth`, `transport`, `schema`). HTTP/3 (QUIC) is always on. Requires **Rust nightly**.
+`grr` is a Rust CLI for Google Workspace: one binary (`grr`), one crate (`grr-cli`), a generated command tree covering **401 methods across 14 Google APIs** (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, Search Console) — compiled from the committed Discovery index, never hand-written — plus the id-based `grr api` escape hatch and static commands (`auth`, `api`, `mcp`, `transport`, `schema`, `ask`). HTTP/3 (QUIC) is always on. Requires **Rust nightly**.
 
 Use this file as the execution ruleset. Deep detail lives in the files linked from it.
 
@@ -49,7 +49,7 @@ grr api list [--service X] [--filter SUBSTR] # the 401 methods, offline, no logi
 
 | Layer | Files | What lives there |
 |---|---|---|
-| CLI | `src/cli.rs`, `src/commands/*.rs` | Static commands (auth, api, schema, transport) as derive types; the entire service tree is `src/commands/generated.rs` (compiled from the index by the generator, dispatched by `gen_dispatch.rs` through the shared call path in `api.rs`). `auth setup` and `schema` run before config load (they must work with zero configuration). |
+| CLI | `src/cli.rs`, `src/commands/*.rs` | Static commands (auth, api, mcp, transport, schema, ask) as derive types; the entire service tree is `src/commands/generated.rs` (compiled from the index by the generator, dispatched by `gen_dispatch.rs` through the shared call path in `api.rs`). `auth setup` and `schema` run before config load (they must work with zero configuration). |
 | Discovery | `src/discovery.rs` | The embedded index + `grr api` resolution: method ids, path templates, scopes, params. Parsed once into a `OnceLock`. This index is the single source of truth for BOTH surfaces — the generated tree is compiled from it. |
 | Core | `src/core/` | Auth (OAuth+PKCE, keyring), HTTP (HTTP/3), config, errors, pagination. |
 | Build | `build.rs`, `.cargo/config.toml` | Nightly guard + compile-time OAuth client injection; build-std + per-target rustflags. |
@@ -59,7 +59,7 @@ grr api list [--service X] [--filter SUBSTR] # the 401 methods, offline, no logi
 ### Invariants worth knowing before you change something
 
 1. **A `[target.*]` rustflags table REPLACES `[build]` rustflags** — cargo does not merge them. The three `--cfg` flags (`reqwest_unstable`, `hyper_unstable_ffi`, `tokio_unstable`) must be repeated in every target table, or crates gating on them fail to compile on that target.
-2. **The discovery index is committed on purpose** (`src/discovery/*.json`, ~434 KiB). Do not move it to runtime-only fetch: that breaks offline use, adds first-run latency, and sacrifices determinism. Refresh via the script; the daily workflow opens a PR.
+2. **The discovery index is committed on purpose** (`src/discovery/*.json`, ~420 KiB across the 14 services). Do not move it to runtime-only fetch: that breaks offline use, adds first-run latency, and sacrifices determinism. Refresh via the script; the daily workflow opens a PR.
 3. **The command tree is generated** — never hand-edit `src/commands/generated.rs`. Change the generator (`scripts/generate-commands.ts`) or the index (`scripts/fetch-discovery.ts`), then regenerate; CI gates both with `--check`. The daily discovery PR regenerates the tree, the skills, and the site coverage table in the same commit as the index, so nothing derived from it can drift.
 4. **Method ids include resource names**: `users.messages.list`, not `messages.list`. The distiller walks `Object.entries(doc.resources)` and passes the name as the path prefix — and the CLI command mirrors the id verbatim (`grr gmail users messages list`), resource segments included.
 5. **`basePath` is inconsistent across Google's docs** (`gmail/v1/` vs `/drive/v3/`). `Service::base()` strips the leading slash — `rootUrl` always ends in `/`, so a naive concat yields `//` and a 404.
@@ -68,7 +68,7 @@ grr api list [--service X] [--filter SUBSTR] # the 401 methods, offline, no logi
 8. **`panic = "immediate-abort"`** in `[profile.release]` (gated by `panic-immediate-abort` in `.cargo/config.toml [unstable]`, paired with `build-std`). Panic messages become context-free; do not write tests that assert on panic text.
 9. **stdout is machine output, stderr is logs** — `grr gmail users messages list --user-id me | jq` must never receive log lines. The known plain-text stdout exceptions are `grr transport` and the pre-JSON device-login line; note any new one in docs when you add it.
 10. **Global args are IDs, not names**: a `global(true)` arg's ID must be the FIELD name (`deny_service`), not the long flag (`deny-service`) - the hyphenated variant is the exact "Mismatch between definition and access" clap panic. And a flag may only be declared ONCE in the tree: a second declaration with the same ID panics arg-matching.
-11. **The demo cast is generated** (`scripts/generate-demo.ts`), never hand-edited; regeneration is local (`npm run demo`) so the opencode agent segment cannot silently regress in CI. The committed cast must never contain private data: no Bearer tokens, no client ids, no real message subjects.
+11. **The demo cast is generated** (`scripts/generate-demo.ts`), never hand-edited; the committed cast is recorded with `--local` on the owner's machine (CI validates via demo.yml and opens PRs from `--ci-record` runs with carry-forward), so the opencode agent segment cannot silently regress. The committed cast must never contain private data: no Bearer tokens, no client ids, no real message subjects.
 12. **Counts in the site are derived, never typed.** `site/src/data/discovery-coverage.ts` is generated by `scripts/generate-coverage.ts` from the index, and every page that prints a method or service count imports `discoveryMethodTotal` / `discoveryServiceCount` from it. Hardcoding "401 methods" or "14 APIs" in an `.astro` file reintroduces the drift the generator exists to remove — the counts in prose belong in the coverage table.
 13. **Site graphics are generated pixel art, never vector.** Every mascot pose, service illustration, glyph, favicon and the og card comes from `site/scripts/generate-mascot.mjs`, which authors them on character grids and emits run-length-merged, axis-aligned `<path>` runs. Two rules hold the style together: no curve commands and no blurred shadows anywhere in the set — a `Q`/`C` or a `<filter>` in an asset means it slipped back into vector, and a shadow is a Bayer-dithered *strip*, not an ellipse (a flat ellipse can only vary along x and renders as a row of bars). The CLI banner in `src/logo.rs` embeds the same mascot map and the same palette, so the terminal and the site are one brand.
 
@@ -100,18 +100,19 @@ For site changes: `npm run build`, `npm run lint`, `npm run typecheck` in `site/
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | PR + push | nextest/clippy/fmt on ubuntu+windows, scripts typecheck, **site `astro check` + `astro build`**, generated-artifact gates, weekly rustsec audit |
-| `release-binaries.yml` | tag `v*` | 4 targets (linux x86_64, macOS arm64, Windows x86_64 **and Windows on ARM** via a native ARM runner), UPX `--best`, zstd-22 `.tar.zst` + max-deflate `.zip`, SHA256SUMS, GitHub Release |
+| `ci.yml` | push/PR to main, weekly Mon 04:00 UTC | nextest/clippy/fmt on ubuntu+windows, scripts typecheck, **site `astro check` + `astro build`**, generated-artifact gates, cli-only feature-subset clippy, weekly rustsec audit |
+| `release-binaries.yml` | tag `v*` | 5 targets (linux x86_64, linux aarch64, macOS arm64, Windows x86_64, Windows on ARM — the ARM legs on native ARM runners), UPX `--best`, zstd-22 `.tar.zst` + max-deflate `.zip`, SHA256SUMS, GitHub Release |
 | `publish.yml` | release/manual | `cargo publish --locked --no-verify` (crate is source-only — read its comment) |
-| `tag-release.yml` | push to main | pushes the tag for a version on main that has none — fires the binary release and the crates.io publish |
+| `tag-release.yml` | push to main touching `Cargo.toml` | pushes the tag for a version on main that has none — fires the binary release and the crates.io publish |
 | `auto-release.yml` | Friday 04:31 UTC | computes the next version from the commit history and opens the bump PR with auto-merge |
-| `discovery.yml` | daily 04:17 UTC | refetches discovery docs, regenerates the index AND everything derived from it (command tree, agent skills, site coverage table), opens a PR when any differs, runs the Rust tests against the new data first |
+| `discovery.yml` | daily 04:17 UTC, manual | refetches discovery docs, regenerates the index AND everything derived from it (command tree, agent skills, site coverage table), opens a PR when any differs, runs `cargo test --lib` against the new data first |
 | `changelog.yml` | push to main + release | regenerates `CHANGELOG.md` + `site/src/data/changelog.json`, opens a PR |
-| `benchmark.yml` | daily | rebuilds grr in release mode, re-measures the credential-free metrics into `site/src/data/benchmarks.json`, opens a PR when they move |
-| `demo.yml` | push to main (CLI/demo/generator/Cargo paths), release, weekly Sun 03:41 UTC | re-records `demo/demo.cast` from the built binary — the cast quotes `grr --version`, so a version bump or a published release both re-record — and opens a PR |
+| `benchmark.yml` | daily 03:23 UTC, release published | rebuilds grr in release mode, re-measures the credential-free metrics into `site/src/data/benchmarks.json`, opens a PR when they move (a version-gate step skips the daily run unless a new version shipped) |
+| `demo.yml` | push to main (CLI/demo/generator/Cargo paths), release, weekly Sun 03:41 UTC | re-records `demo/demo.cast` in CI (`--ci-record`, carry-forward of the transport and agent segments), opens a PR |
+| `automation-merge.yml` | `pull_request_target` (opened/synchronize/reopened) on an automation branch (`chore/changelog-regenerate`, `chore/demo-recording`, `chore/benchmark-refresh`, `chore/stats-refresh`, `chore/discovery-refresh`, `chore/release-v*`) | the unblocker for the bot PRs above: GITHUB_TOKEN-authored events land in `action_required`, so it approves the pending runs (letting the real `ci.yml` gate the merge), then merges artifact-only PRs (changelog/demo/benchmark/stats) immediately with `--admin` and enables auto-merge for code-affecting PRs (discovery refresh, release bump) — never `--admin` on those. Same-repo heads only; never checks out the PR head |
 | `stats.yml` | push to `Cargo.toml`, daily 05:07 UTC, release | refreshes `site/src/data/stats.json` (download counts, latest tag/date, measured archive sizes) and opens a PR; idempotent, so a quiet day opens nothing |
 | `dependabot.yml` | weekly | cargo / github-actions / npm, all version types, grouped; every patch group is named `patches` so the auto-merge workflow can tell patches apart |
-| `dependabot-auto-merge.yml` | dependabot PR opened/reopened | **patches merge immediately with `--admin`, bypassing required checks** — the repo prefers the latest patch even if it regresses; minors and majors wait for green CI |
+| `dependabot-auto-merge.yml` | dependabot PR opened/synchronize/reopened/ready_for_review | **patches merge immediately with `--admin`, bypassing required checks** — the repo prefers the latest patch even if it regresses; minors and majors wait for green CI |
 
 ## Windows PowerShell quirks (for agents on this machine)
 

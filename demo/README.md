@@ -9,19 +9,22 @@ output is real; only the pacing is synthetic.
 ## What's in the recording
 
 - **Offline segments** (no credentials, regenerate anywhere): `grr --version`,
-  `grr api list`, `grr api describe`, the `grr gmail users messages list
-  --user-id me --dry-run` request envelope, `grr schema`, `grr --help`.
-- **Ask segment**: `grr ask "show my unread messages"` — the natural-language
-  plan (a System One model resolving to a typed method + params). Records live
-  wherever a `TYPESAFE_API_KEY` is available; skipped gracefully where not.
+  `grr api list --service gmail --filter "messages.list"`, `grr api describe`,
+  the `grr gmail users messages list --user-id me --dry-run` request envelope,
+  `grr schema | head -c 400`, `grr --help | head`.
+- **Ask segment**: `grr ask "show my unread messages" --dry-run` — the
+  natural-language plan (a System One model resolving to a typed method +
+  params). Records live wherever a `TYPESAFE_API_KEY` is available; skipped
+  gracefully where not.
 - **Transport segment**: `grr transport` (HTTP/3 + runtime features). Needs a
   live Google token, so it records on `--local` runs and is **carried forward**
   unchanged on CI regenerations.
 - **Agent segment**: an `opencode run` transcript in which the
   [opencode](https://opencode.ai) agentic harness drives grr end to end — tool
   calls with their output, rendered to plain text from the agent's raw
-  `--format json` event stream. Recorded live when opencode works (locally, or
-  in CI with its free default models); otherwise carried forward.
+  `--format json` event stream. Recorded live when opencode works (locally;
+  in CI with its free default models or credentials via env secrets);
+  otherwise carried forward from the committed cast.
 
 ## Regenerating
 

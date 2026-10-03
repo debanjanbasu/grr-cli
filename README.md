@@ -123,7 +123,7 @@ grr auth setup --print-only
 
 Because it runs before any client is resolved, `grr auth setup` works even when nothing is configured yet: it is the escape hatch, not a last resort. Under a non-TTY stdin (CI, agents, pipes) it errors instead of hanging, so pass `--client-id` and `--client-secret` explicitly rather than relying on the prompts.
 
-**Resolution order at runtime:** `~/.grr/config.toml` → `GRR_OAUTH__CLIENT_ID` / `GRR_OAUTH__CLIENT_SECRET` → the client compiled into the binary. `GRR_CONFIG_PATH` moves the file; `RUST_LOG` sets the log level.
+**Resolution order at runtime:** `GRR_OAUTH__CLIENT_ID` / `GRR_OAUTH__CLIENT_SECRET` → `~/.grr/config.toml` → the client compiled into the binary (env wins over the file; the compiled-in client is the fallback). `GRR_CONFIG_PATH` moves the file; `RUST_LOG` sets the log level.
 
 Embedding a client secret is acceptable here because Google treats installed-app client secrets as non-confidential — the flow is protected by PKCE, which is always on. The secret lives in GitHub Actions repo secrets and is compiled in at release time; it must never enter the repository or a CI log.
 
@@ -193,13 +193,13 @@ grr --deny-service chat chat spaces list                            # refused: t
 
 ## The generated tree
 
-Every service command above is generated at build time — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~434 KiB across the 14 services) and emits the whole tree into `src/commands/generated.rs` — 401 leaves, 994 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates the index along with the command tree, the per-service agent skills, and the site's coverage table, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
+Every service command above is generated at build time — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~420 KiB across the 14 services) and emits the whole tree into `src/commands/generated.rs` — 401 leaves, 994 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates the index along with the command tree, the per-service agent skills, and the site's coverage table, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
 
 The rules, so you can predict any command without memorizing it:
 
 - **The naming rule.** A leaf mirrors its Discovery method id: `gmail.users.messages.list` → `grr gmail users messages list`. Resources nest as subcommands; each leaf also carries its bare method name as a visible alias (`list`, `get` — camelCase methods keep their casing, e.g. `getProfile`).
 - **Typed flags per method.** Parameter names come from the same ids: `userId` → `--user-id`, `maxResults` → `--max-results`. Integers are parsed as `i64`, booleans are presence flags, repeated parameters repeat (`--label-ids a --label-ids b`), enum parameters validate their values, and required parameters are enforced by clap.
-- **The collision rule.** A parameter literally named `format` or `query` would collide with the shared escape hatches, so it is exposed as `--param-format` / `--param-query`.
+- **The collision rule.** A parameter named `format`, `query`, `params`, `body-file`, `dry-run`, or `help` would collide with the shared escape hatches, so it is exposed as `--param-format` / `--param-query` / … (see `RESERVED_FLAG_IDS` in the generator).
 - **Untyped bodies.** Discovery's request schemas are not part of the index, so `POST`/`PATCH`/`PUT` bodies pass through `--params <JSON>` (merged; typed flags win) or `--body-file <PATH|->` verbatim.
 - **Every leaf also carries the escape hatches:** `--params <JSON>`, `--body-file`, repeatable `--query KEY=VALUE`, `--dry-run`, and `-f json|jsonl|table|pretty`.
 
@@ -255,20 +255,20 @@ Measured startup, binary size, and request-latency numbers against the other Goo
 │   │                         # fs_io.rs, runtime.rs
 │   ├── commands/             # auth.rs, api.rs, setup.rs, transport.rs (the four
 │   │                         # static commands) + generated.rs (GENERATED — the
-│   │                         # whole service tree, ~379 KiB) and gen_dispatch.rs
+│   │                         # whole service tree, ~470 KiB) and gen_dispatch.rs
 │   │                         # (resolves leaf ids, funnels into the shared path)
 │   ├── discovery.rs          # loader over the embedded index
-│   ├── discovery/             # generated *.json index (~360 KiB, committed,
+│   ├── discovery/             # generated *.json index (~420 KiB, committed,
 │   │                         # refreshed daily by workflow PR)
 │   ├── schema.rs
 │   ├── output.rs
 │   ├── cli.rs
 │   ├── lib.rs
 │   └── main.rs
-└── tests/                    # 18 flattened integration test files
+└── tests/                    # 5 integration test files
 ```
 
-One shared core, no per-service client modules: the CLI speaks Discovery through a single call path (`src/commands/api.rs`), and the typed request/response models of the 0.3.x library era are gone. The repository also contains the `assets/`, `site/` (the Astro GitHub Pages site with base `/grr-cli`), `packaging/`, and `scripts/` material used for the project site and distribution.
+One shared core, no per-service client modules: the CLI speaks Discovery through a single call path (`src/commands/api.rs`), and the typed request/response models of the 0.3.x library era are gone. The repository also contains the `assets/`, `site/` (the Astro site at [grr-cli.pages.dev](https://grr-cli.pages.dev/), deployed from main by Cloudflare Pages), `packaging/`, and `scripts/` material used for the project site and distribution.
 
 Every build requires Rust **nightly** and the `reqwest_unstable` cfg (`.cargo/config.toml` supplies it for in-repo builds; downstream users need `RUSTFLAGS="--cfg reqwest_unstable"`). There is deliberately no stable-Rust path. HTTP/3 (rustls + quinn, via reqwest's unstable http3 support) is **always compiled in**, and HTTP/2 exists only as a runtime fallback; io_uring is a Linux-only target-specific dependency that is detected at runtime.
 
@@ -290,8 +290,8 @@ node scripts/generate-changelog.ts       # regenerate CHANGELOG.md + site data
 
 Each generator takes `--check` and exits 1 when its output is stale — that is the CI gate. Change the index or the generator, never `src/commands/generated.rs` by hand.
 
-- Tests never touch real credentials — token paths are injected, and wiremock/mockito serve the API endpoints.
-- `RUST_LOG=debug` traces requests; quinn's harmless IPv6 warnings are muted by default.
+- Tests never touch real credentials — token paths are injected, and wiremock serves the API endpoints.
+- `RUST_LOG=debug` traces requests; the default level mutes quinn_udp's harmless IPv6 warnings (`info,quinn_udp=error`).
 - A local build needs an OAuth client before a live call can work: copy `.env.example` to `.env` and fill it in (compiled in by `build.rs`), or run `grr auth setup` to write `~/.grr/config.toml`. See [CONTRIBUTING.md](CONTRIBUTING.md#local-oauth-defaults).
 - `cargo run -- api list` and `cargo run -- schema` need no client at all — the index is embedded.
 
@@ -299,9 +299,9 @@ Each generator takes `--check` and exits 1 when its output is stale — that is 
 
 | Channel | Install | Status |
 | --- | --- | --- |
-| GitHub Releases | 5-platform binaries (macOS arm64, Linux x86_64, Linux aarch64, Windows x86_64, Windows on ARM) built on `v*` tags, UPX-packed, `.tar.zst` on unix and `.zip` on Windows | **live — 0.5.0** — [releases](https://github.com/debanjanbasu/grr-cli/releases) |
-| crates.io | `cargo install grr-cli` (binary installs as `grr`; needs nightly + `RUSTFLAGS="--cfg reqwest_unstable"` for the default CLI HTTP/3 build, and brings no embedded OAuth client) | **live — 0.5.0, one crate**. Trusted publishing uses OIDC (no stored API tokens) |
-| winget | `winget install debanjanbasu.grr` | live at 0.2.0; the 0.5.0 update PR (x64 + arm64) pending Microsoft review |
+| GitHub Releases | 5-platform binaries (macOS arm64, Linux x86_64, Linux aarch64, Windows x86_64, Windows on ARM) built on `v*` tags, UPX-packed, `.tar.zst` on unix and `.zip` on Windows | **live — 0.6.0** — [releases](https://github.com/debanjanbasu/grr-cli/releases) |
+| crates.io | `cargo install grr-cli` (binary installs as `grr`; needs nightly + `RUSTFLAGS="--cfg reqwest_unstable"` for the default CLI HTTP/3 build, and brings no embedded OAuth client) | **live — 0.6.0, one crate**. Trusted publishing uses OIDC (no stored API tokens) |
+| winget | `winget install debanjanbasu.grr` | live (x64; ARM64 in the manifest waiting on Microsoft review — see `packaging/winget/`) |
 | Homebrew | `brew tap debanjanbasu/homebrew && brew trust debanjanbasu/homebrew && brew install grr` (tap: [debanjanbasu/homebrew](https://github.com/debanjanbasu/homebrew), formula `Formula/grr.rb`) | live (arm64 macOS + x86_64 Linux) |
 
 The project publishes one package, `grr-cli`, whose binary is `grr`. `v*` tags trigger the release workflow, and crates.io publishing is handled through trusted publishing.
