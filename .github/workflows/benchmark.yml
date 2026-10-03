@@ -29,10 +29,6 @@ on:
     - cron: "23 3 * * *"
   workflow_dispatch:
     inputs:
-      force:
-        description: "Run the full suite even if the version gate would skip it"
-        type: boolean
-        default: false
       dry_run:
         description: "Run the benchmark and print the diff, but do not open a pull request"
         type: boolean
@@ -69,13 +65,13 @@ jobs:
 
       # The gate. Only the cron can be skipped: a manual dispatch or one of
       # our own releases always runs the full suite (hence the event_name
-      # check; `force` is the documented override for anything that ever
-      # reuses this path). `--gate` never exits non-zero and prints
+      # check; `inputs` cannot be supplied by a schedule, and a dispatch
+      # never reaches this step). `--gate` never exits non-zero and prints
       # GitHub-output pairs (skip=, reason=); any fetch failure fails OPEN
       # (skip=false) so a flaky GitHub API can never hide a release.
       - name: Version gate (cron only)
         id: gate
-        if: github.event_name == 'schedule' && inputs.force != true
+        if: github.event_name == 'schedule'
         timeout-minutes: 3
         run: |
           node scripts/benchmark.ts --gate >> "$GITHUB_OUTPUT" || echo "skip=false" >> "$GITHUB_OUTPUT"
