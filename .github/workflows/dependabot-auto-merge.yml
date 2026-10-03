@@ -50,7 +50,7 @@ jobs:
           # that is already merged: `gh pr merge` errors on one, which turned a
           # completed auto-merge into a red run on the next event (closed,
           # reopened, or a Dependabot rebase).
-          state="$(gh pr view "$PR_NUMBER" --json state --jq .state)"
+          state="$(gh pr view "$PR_NUMBER" --json state --jq '.state | ascii_downcase')"
           if [ "$state" != "open" ]; then
             echo "::notice::PR #$PR_NUMBER is $state; nothing left to decide."
             echo "skip=true" >> "$GITHUB_OUTPUT"
