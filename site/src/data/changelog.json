@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T23:27:31.654Z",
+  "generatedAt": "2026-10-03T23:42:32.493Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -21,6 +21,18 @@
               "description": "delete dead code across the CLI",
               "scope": null,
               "type": "refactor",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "performance",
+          "heading": "Performance",
+          "items": [
+            {
+              "description": "PR creators wake the merge poller — kill the 5-7 min approval wait",
+              "scope": "ci",
+              "type": "perf",
               "note": null
             }
           ]

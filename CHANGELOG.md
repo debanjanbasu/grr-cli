@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **scripts:** delete dead weight, share the flag contract
 - delete dead code across the CLI
 
+### Performance
+
+- **ci:** PR creators wake the merge poller — kill the 5-7 min approval wait
+
 ### Fixed
 
 - **ci:** merges with GITHUB\_TOKEN fire no downstream workflows
