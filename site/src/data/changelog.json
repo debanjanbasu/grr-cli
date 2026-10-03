@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T15:29:50.568Z",
+  "generatedAt": "2026-10-03T15:51:05.157Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -15,6 +15,24 @@
               "description": "merges with GITHUB\\_TOKEN fire no downstream workflows",
               "scope": "ci",
               "type": "fix",
+              "note": null
+            },
+            {
+              "description": "token-authored pushes and releases start nothing — dispatch the chain",
+              "scope": "ci",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "a push to main sweeps for pending bot PRs too",
+              "scope": "poller",
+              "type": "ci",
               "note": null
             }
           ]

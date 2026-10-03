@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **ci:** merges with GITHUB\_TOKEN fire no downstream workflows
+- **ci:** token-authored pushes and releases start nothing — dispatch the chain
+
+### Internal
+
+- 1 internal commit (ci 1)
 
 ## [0.7.0] - 2026-10-03
 
