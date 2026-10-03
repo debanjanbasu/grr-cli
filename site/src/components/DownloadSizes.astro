@@ -1,8 +1,6 @@
 ---
 import stats from '../data/stats.json';
 
-type PlatformKey = 'linux-x86_64' | 'macos-aarch64' | 'windows-x86_64' | 'windows-aarch64';
-
 interface Props {
   /** Suffix line under the row. Set to an empty string to drop it. */
   note?: string;
@@ -10,16 +8,20 @@ interface Props {
 
 const { note = 'Compressed release archives, straight from the GitHub release.' } = Astro.props;
 
-const platforms: { key: PlatformKey; label: string }[] = [
-  { key: 'linux-x86_64', label: 'Linux x86_64' },
-  { key: 'macos-aarch64', label: 'macOS arm64' },
-  { key: 'windows-x86_64', label: 'Windows x86_64' },
-  { key: 'windows-aarch64', label: 'Windows ARM' },
-];
+// The rendered platforms ARE stats.json's `binarySizes` keys, mapped 1:1, so a
+// shipped target can never be silently dropped the way linux-aarch64 was — the
+// row used to hard-code four targets and omit it. Add a target to the snapshot
+// and it appears here; the count always equals the key count.
+const PLATFORM_LABELS: Record<string, string> = {
+  'linux-aarch64': 'Linux arm64',
+  'linux-x86_64': 'Linux x86_64',
+  'macos-aarch64': 'macOS arm64',
+  'macos-x86_64': 'macOS x86_64',
+  'windows-aarch64': 'Windows ARM',
+  'windows-x86_64': 'Windows x86_64',
+};
 
-// `binarySizes` is optional: older snapshots predate it, and a release is free
-// to omit a platform. Either way the row renders, with an em dash for the gap.
-const sizes = (stats.binarySizes ?? {}) as Partial<Record<PlatformKey, number>>;
+const sizes = (stats.binarySizes ?? {}) as Record<string, number | undefined>;
 
 const formatMegabytes = (bytes: number | undefined) => {
   const size = Number(bytes);
@@ -28,7 +30,11 @@ const formatMegabytes = (bytes: number | undefined) => {
 };
 
 const release = String(stats.latestRelease || `v${stats.version}`).replace(/^v/, '');
-const rows = platforms.map(({ key, label }) => ({ label, size: formatMegabytes(sizes[key]) }));
+const rows = Object.keys(sizes).map((key) => ({
+  key,
+  label: PLATFORM_LABELS[key] ?? key,
+  size: formatMegabytes(sizes[key]),
+}));
 ---
 
 <div class="download-sizes mt-4">
@@ -36,7 +42,7 @@ const rows = platforms.map(({ key, label }) => ({ label, size: formatMegabytes(s
     <span class="stat-label">download sizes</span>
     <span class="badge badge-secondary badge-sm">v{release}</span>
   </div>
-  <dl class="download-sizes-grid grid grid-cols-2 gap-x-6 gap-y-3 m-0 sm:grid-cols-4">
+  <dl class="download-sizes-grid grid grid-cols-2 gap-x-6 gap-y-3 m-0 sm:grid-cols-3 lg:grid-cols-5">
     {
       rows.map((row) => (
         <div class="download-sizes-cell">
