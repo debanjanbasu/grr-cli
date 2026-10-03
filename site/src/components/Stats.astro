@@ -15,6 +15,28 @@ const formatDate = (value: string) => {
 };
 
 const base = import.meta.env.BASE_URL;
+
+// The platform figures come from the same snapshot the download row renders,
+// so the count can never drift from the data again. `binarySizes` carries one
+// key per shipped release target — linux-x86_64, linux-aarch64, macos-aarch64,
+// windows-x86_64 and windows-aarch64 — and this card used to hard-code "3"
+// (OS families) while the download row silently dropped linux-aarch64.
+const binarySizes = (stats.binarySizes ?? {}) as Record<string, number | undefined>;
+const targetKeys = Object.keys(binarySizes);
+const platformCount = targetKeys.length;
+const familyLabels: Record<string, string> = { macos: 'macOS', linux: 'Linux', windows: 'Windows' };
+const archLabels: Record<string, string> = { aarch64: 'ARM', x86_64: 'x86_64' };
+const distinct = (values: string[]) => [...new Set(values)];
+const familyOrder = ['macos', 'linux', 'windows'];
+const platformFamilies = distinct(targetKeys.map((key) => key.split('-')[0])).sort((left, right) => {
+  const leftIndex = familyOrder.indexOf(left);
+  const rightIndex = familyOrder.indexOf(right);
+  return (leftIndex < 0 ? familyOrder.length : leftIndex) - (rightIndex < 0 ? familyOrder.length : rightIndex);
+});
+const platformFamilyLabel = platformFamilies.map((family) => familyLabels[family] ?? family).join(' · ');
+const platformArchLabel = distinct(targetKeys.map((key) => key.split('-')[1]))
+  .map((arch) => archLabels[arch] ?? arch)
+  .join(' + ');
 ---
 
 <section class="stats-section section" aria-labelledby="stats-title">
@@ -40,8 +62,8 @@ const base = import.meta.env.BASE_URL;
         </div>
         <div class="stat stat-card">
           <div class="stat-title stat-label">platforms</div>
-          <div class="stat-value">3</div>
-          <div class="stat-desc">macOS · Linux · Windows</div>
+          <div class="stat-value">{platformCount}</div>
+          <div class="stat-desc">{platformFamilyLabel} ({platformArchLabel})</div>
         </div>
         <div class="stat stat-card">
           <div class="stat-title stat-label">services</div>
