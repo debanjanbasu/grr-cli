@@ -49,7 +49,7 @@ cargo build --release --locked
         <article class="install-card card card-border border-base-300 bg-base-100">
           <div class="card-body gap-1 p-5">
             <h2 class="card-title m-0 text-base">Windows</h2>
-            <p class="m-0 text-[13px] text-base-content/70">The Windows package is available through winget, for both x64 and ARM64 machines. The published manifest is 0.4.0, matching the current GitHub release; 0.5.0 is in preparation and will land in the repository when its manifest review clears.</p>
+            <p class="m-0 text-[13px] text-base-content/70">The Windows package is available through winget, for both x64 and ARM64 machines. The published manifest is 0.3.0; updated manifests for the current release are in the repository and land on winget when their review clears.</p>
             <CodeBlock code="winget install debanjanbasu.grr" label="winget" />
           </div>
         </article>
@@ -65,7 +65,7 @@ cargo build --release --locked
           <div class="card-body gap-1 p-5">
             <h2 class="card-title m-0 text-base">OAuth setup</h2>
             <p class="m-0 text-[13px] text-base-content/70">Release binaries are zero-config: the OAuth client is compiled in at build time, so <code>grr auth login</code> works with no setup. Building from source? Run <code>grr auth setup</code> to create and store your own client, then log in.</p>
-            <CodeBlock code={`grr auth login\ngrr gmail profile`} label="first run" />
+            <CodeBlock code={`grr auth login\ngrr gmail users getProfile --user-id me`} label="first run" />
           </div>
         </article>
       </div>

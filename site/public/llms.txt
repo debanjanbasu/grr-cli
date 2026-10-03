@@ -1,6 +1,6 @@
 # grr
 
-> grr is a zero-config Rust CLI for Google Workspace. One binary, one OAuth login, and a command tree generated from Google's Discovery Service: 401 methods across 14 APIs (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics, Search Console) as namespaced subcommands — `grr gmail users messages list`, `grr calendar events list`, `grr drive files list` — with typed kebab-case flags per method, bodies via `--params`/`--body-file`, and `grr api list|describe|call|refresh` as the flat escape hatch. Results are JSON on stdout and logs on stderr, so `grr … | jq` works. Release binaries ship with an OAuth client compiled in; `grr auth login` is all that is needed.
+> grr is a zero-config Rust CLI for Google Workspace. One binary, one OAuth login, and a command tree generated from Google's Discovery Service: 401 methods across 14 APIs (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, Search Console) as namespaced subcommands — `grr gmail users messages list`, `grr calendar events list`, `grr drive files list` — with typed kebab-case flags per method, bodies via `--params`/`--body-file`, and `grr api list|describe|call|refresh` as the flat escape hatch. Results are JSON on stdout and logs on stderr, so `grr … | jq` works. Release binaries ship with an OAuth client compiled in; `grr auth login` is all that is needed.
 
 ## Agent skill
 
@@ -10,7 +10,7 @@
 ## Agent surfaces
 
 - [MCP server](https://grr-cli.pages.dev/docs/commands/): `grr mcp` serves a Model Context Protocol stdio server exposing every one of the 401 methods as a typed MCP tool; `--readonly` for a read-only server.
-- [Natural language](https://grr-cli.pages.dev/docs/commands/): `grr ask "show my unread mail"` - a System One model (Jev by default) classifies the request hierarchically and fills the typed parameters; prints the plan, `--run` executes.
+- [Natural language](https://grr-cli.pages.dev/docs/commands/): `grr ask "show my unread messages"` - a System One model (Jev by default) classifies the request hierarchically and fills the typed parameters; prints the plan, `--run` executes.
 - [Safety profiles](https://grr-cli.pages.dev/docs/commands/): global `--readonly`, `--deny-service`, `--deny-verb` flags honored by the CLI, `grr api call`, and the MCP server alike.
 - [Multi-account](https://grr-cli.pages.dev/docs/commands/): `grr auth login --account work` keeps a separate token per account in the OS keyring.
 - [Terminal demo](https://grr-cli.pages.dev/): an asciinema cast of real output, including an opencode agent driving grr.

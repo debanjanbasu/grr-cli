@@ -62,7 +62,7 @@ A personal project on the free tier comfortably covers grr's usage of these APIs
 
 ## 4. Enable the APIs
 
-Gmail is required; enable the rest as you need them (Calendar, Drive, Contacts, Chat, and Forms are all live `grr` services):
+Gmail is required; enable the rest as you need them (Calendar, Drive, Contacts, Chat, and Forms are all live `grr` services, and so are Tasks, Docs, Sheets, Slides, Apps Script, Analytics, and Search Console):
 
 ```sh
 gcloud services enable gmail.googleapis.com
@@ -71,12 +71,12 @@ gcloud services enable gmail.googleapis.com
 gcloud services enable calendar-json.googleapis.com drive.googleapis.com people.googleapis.com chat.googleapis.com forms.googleapis.com
 ```
 
-`grr auth setup --enable-apis` runs exactly that first command for you, for all six, when `gcloud` is on `PATH`.
+`grr auth setup --enable-apis` runs `gcloud services enable` for all 14 grr services at once — the five above plus Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, and Search Console — when `gcloud` is on `PATH` ([src/commands/setup.rs](../src/commands/setup.rs) holds the list).
 
-**If you use `grr api`**, four more APIs open up — Tasks, Docs, Sheets, and Slides have no dedicated `grr` command and are reachable only through [`grr api`](../README.md#every-method-not-just-the-curated-ones):
+Enable the remaining service APIs too:
 
 ```sh
-gcloud services enable tasks.googleapis.com docs.googleapis.com sheets.googleapis.com slides.googleapis.com
+gcloud services enable tasks.googleapis.com docs.googleapis.com sheets.googleapis.com slides.googleapis.com script.googleapis.com analyticsadmin.googleapis.com analyticsdata.googleapis.com searchconsole.googleapis.com
 ```
 
 Note: Google Keep's API is Workspace-enterprise-only (no consumer API), so Keep will never appear as a `grr` service.
@@ -136,7 +136,7 @@ Your browser opens, you consent, done. On a headless machine use `grr auth login
 
 ```sh
 grr auth status
-grr gmail profile
+grr gmail users getProfile --user-id me
 ```
 
 ## Agent environments: no MCP setup
