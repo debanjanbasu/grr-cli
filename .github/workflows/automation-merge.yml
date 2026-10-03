@@ -168,5 +168,37 @@ jobs:
               done
             fi
             "$mode_fn" "$n" || echo "::warning::PR #$n merge did not complete this cycle; retried in 10 minutes."
+            # --admin merges land immediately; --auto merges complete later.
+            # Only the immediate kind can be observed in-cycle, and only it
+            # needs the follow-up dispatches below.
+            if [ "$(gh pr view "$n" --json state --jq .state)" = "MERGED" ]; then
+              MERGED_THIS_CYCLE=1
+            fi
           done <<< "$PRS"
+
+          # A merge performed with GITHUB_TOKEN creates a push event that
+          # starts NO downstream workflow runs (the documented anti-recursion
+          # rule), so after our merges tag-release, CI-on-main and the
+          # changelog refresh all stay silent. workflow_dispatch is an
+          # explicit exception to that rule — and this exact gap is how the
+          # v0.7.0 bump once merged without ever being tagged. Both checks
+          # below are idempotent, so re-firing them every cycle is safe.
+          echo "checking follow-ups"
+
+          # 1. A pushed version must always have a tag — that is precisely
+          #    tag-release's job, and it no-ops when the tag exists.
+          ver="$(gh api -H 'Accept: application/vnd.github.raw' \
+            "repos/{owner}/{repo}/contents/Cargo.toml" \
+            | sed -n 's/^version = "\(.*\)"/\1/p' | head -1)"
+          if [ -n "$ver" ] && ! git ls-remote "https://github.com/$GH_REPO" "refs/tags/v$ver" | grep -q .; then
+            echo "version $ver has no tag; dispatching tag-release"
+            gh workflow run tag-release.yml --ref main || echo "::warning::tag-release dispatch failed"
+          fi
+
+          # 2. In-cycle merges still need main's CI gate and the changelog
+          #    refresh re-fired.
+          if [ "${MERGED_THIS_CYCLE:-0}" = "1" ]; then
+            gh workflow run ci.yml --ref main || echo "::warning::ci dispatch failed"
+            gh workflow run changelog.yml --ref main || echo "::warning::changelog dispatch failed"
+          fi
           echo "cycle complete"
