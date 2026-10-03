@@ -35,7 +35,8 @@ on:
 permissions:
   actions: write        # approve pending (action_required) workflow runs
   pull-requests: write  # merge, comment, delete branches
-  contents: read
+  contents: write       # required by mergePullRequest / enablePullRequestAutoMerge —
+                        # read-only tokens get "Resource not accessible by integration"
 
 concurrency:
   # One decision per cycle: two scheduled runs must not race on `gh pr merge`
@@ -105,7 +106,7 @@ jobs:
             local n="$1"
             if output="$(gh pr merge "$n" --squash --admin --delete-branch 2>&1)"; then
               printf '%s\n' "$output"
-            elif printf '%s\n' "$output" | grep -qi "not allowed\|permission\|protected branch"; then
+            elif printf '%s\n' "$output" | grep -qi "not allowed\|permission\|protected branch\|resource not accessible"; then
               printf '%s\n' "$output" >&2
               echo "::notice::Cannot bypass branch protection; falling back to auto-merge."
               gh pr merge "$n" --squash --auto --delete-branch
