@@ -1,4 +1,4 @@
-﻿//! Token type and in-memory expiry tracking.
+//! Token type and in-memory expiry tracking.
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

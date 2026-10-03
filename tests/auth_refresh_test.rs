@@ -1,4 +1,4 @@
-﻿//! Offline regression tests for refresh-token failure handling.
+//! Offline regression tests for refresh-token failure handling.
 //!
 //! Regression: a rejected refresh token (Google 400 `invalid_grant`) used to
 //! silently fall through into the implicit interactive OAuth flow, which binds
