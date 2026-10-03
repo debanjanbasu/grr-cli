@@ -86,7 +86,7 @@ Note: Google Keep's API is Workspace-enterprise-only (no consumer API), so Keep 
 Open <https://console.cloud.google.com/apis/credentials/consent>:
 
 1. User type: **External**
-2. Fill in the minimal form. Use **Rust Rewrite** as the app name, choose a support email, and upload the orange crab logo from [`assets/logo.svg`](../assets/logo.svg). The project/fork is still **Google Rust Rewrite**; **Rust Rewrite** is the name shown by Google's consent screen.
+2. Fill in the minimal form. Use **Rust Rewrite** as the app name, choose a support email, and upload [`assets/logo-google-app.png`](../assets/logo-google-app.png) as the app logo — the form takes a square PNG (≥120×120), and the crab there is the same pixel-art mascot as the repo icon. The project/fork is still **Google Rust Rewrite**; **Rust Rewrite** is the name shown by Google's consent screen.
 3. Use the project's public URLs when the form asks for them:
    - Homepage: <https://grr-cli.pages.dev/>
    - Privacy policy: <https://grr-cli.pages.dev/privacy/>
