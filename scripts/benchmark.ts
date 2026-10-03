@@ -21,6 +21,9 @@
 //     a previous run.
 //   - A command that fails is recorded as unavailable with its exit status,
 //     not skipped silently.
+//   - A competitor metric with no equivalent command is recorded as
+//     `available: false` with the reason, never omitted — so "not measured"
+//     stays distinguishable from "measured and absent".
 //
 // Protocol: 1 warm-up run is discarded per metric (cold filesystem/cache
 // effects are real but are not the steady-state cost agents pay), then 15
@@ -154,13 +157,17 @@ interface BinarySize {
 interface CompetitorRow {
   tool: string;
   project: string;
-  url: string;
   available: boolean;
   reason?: string;        // when available === false
   obtainedVia?: string;   // when available === true
   version?: string;       // when available === true
-  startup?: Metric;       // when available === true
-  binary?: BinarySize;    // when available === true
+  // Per-metric records. Every metric grr measures has a key here for every
+  // competitor: measured, or `available: false` with the reason (no
+  // equivalent command / tool unreachable) — never omitted.
+  startup?: Metric;
+  schemaDump?: Metric;
+  apiList?: Metric;
+  binary?: BinarySize;   // when available === true
 }
 
 /** Version tracking block: what ran, and what was latest at measurement time. */
@@ -359,11 +366,33 @@ type Obtained = ObtainSuccess | { error: string };
  * the tools), then the latest GitHub release asset for this platform.
  * Archives are cached under target/ (gitignored) so re-runs are cheap and
  * identical.
+ *
+ * A PATH hit is not trusted blindly: the daily workflow has pre-installed a
+ * tool with the wrong architecture before (an amd64 ELF placed on an arm64
+ * runner), and spawnSync reported the fallout only later, as every metric's
+ * `--version` failing with exit status 2. The PATH branch therefore
+ * smoke-tests the binary with `--version` and falls back to the
+ * arch-matching release download when it cannot run.
  */
 async function obtainCompetitor({ tool, project, exeName, assetTokens }: CompetitorSpec): Promise<Obtained> {
   const onPath = resolveOnPath(exeName);
   if (onPath) {
-    return { exe: onPath, via: 'path' };
+    const smoke = spawnSync(onPath, ['--version'], { encoding: 'utf8', timeout: COMMAND_TIMEOUT_MS, windowsHide: true });
+    if (!smoke.error && smoke.status === 0) {
+      return { exe: onPath, via: 'path' };
+    }
+    // Wrong-arch or otherwise unrunnable: on Linux, libuv falls back to
+    // /bin/sh for a spawn that returns ENOEXEC, and the shell exits 2
+    // mis-parsing the ELF — so record the smoke failure but keep going:
+    // the release download below is the recovery path.
+    const how = smoke.error
+      ? `spawn failed: ${smoke.error.message}`
+      : smoke.signal
+        ? `signal ${smoke.signal}`
+        : `exit status ${smoke.status}`;
+    process.stderr.write(
+      `bench: ${exeName} on PATH at ${onPath} did not pass the --version smoke test (${how}); trying the release download instead\n`,
+    );
   }
 
   try {
@@ -428,15 +457,30 @@ interface CompetitorSpec {
   url: string;
   exeName: string;
   assetTokens: string[];
+  /**
+   * The credential-free command whose timing is the equivalent of a grr
+   * metric, or the reason no equivalent exists. Verified against each
+   * tool's release binary: gog's `schema` and `api list` both run
+   * credential-free, but `api list` fetches Google's live Discovery
+   * directory over the network, so it is not comparable to `grr api list`'s
+   * offline index. gws's `schema <service.resource.method>` answers one
+   * method's contract offline, but it has no index command at all.
+   */
+  schemaCommand?: string[] | null;
+  apiListCommand?: string[] | null;
+  apiListReason?: string;
 }
 
 const COMPETITORS: CompetitorSpec[] = [
   {
     tool: 'gog',
-    project: 'steipete/gogcli',
-    url: 'https://github.com/steipete/gogcli',
+    project: 'openclaw/gogcli',
+    url: 'https://github.com/openclaw/gogcli',
     exeName: 'gog',
     assetTokens: [OS_TOKEN, gogArchToken],
+    schemaCommand: ['schema'],
+    apiListCommand: null,
+    apiListReason: 'has an `api list` command, but it fetches Google\'s live Discovery directory over the network — not comparable to grr\'s offline index',
   },
   {
     tool: 'gws',
@@ -444,6 +488,9 @@ const COMPETITORS: CompetitorSpec[] = [
     url: 'https://github.com/googleworkspace/cli',
     exeName: 'gws',
     assetTokens: gwsTriple ? [gwsTriple] : [],
+    schemaCommand: ['schema', 'drive.files.list', '--resolve-refs'],
+    apiListCommand: null,
+    apiListReason: 'no api-index equivalent command (`gws api` is unknown-service only)',
   },
 ];
 
@@ -542,8 +589,17 @@ async function buildSnapshot(): Promise<BenchmarkSnapshot> {
 
     versions[competitor.tool] = { local: null, ...(await latestReleaseTag(competitor.project)) };
 
+    // Every metric key is present in every row, always. When the tool could
+    // not run at all, each metric records the same root cause — a missing
+    // key must never be able to masquerade as "measured and absent".
+    const unavailable = (reason: string) => ({
+      startup: { available: false, reason } as Metric,
+      schemaDump: { available: false, reason } as Metric,
+      apiList: { available: false, reason } as Metric,
+    });
+
     if ('error' in obtained) {
-      competitors.push({ ...row, available: false, reason: obtained.error });
+      competitors.push({ ...row, available: false, ...unavailable(obtained.error) });
       continue;
     }
 
@@ -551,22 +607,34 @@ async function buildSnapshot(): Promise<BenchmarkSnapshot> {
     // is what the page cites, and it is what actually ran.
     const version = runCapture(obtained.exe, ['--version']);
     if (!version.ok) {
-      competitors.push({
-        ...row,
-        available: false,
-        reason: `obtained via ${obtained.via} but \`--version\` failed: ${version.reason}`,
-      });
+      const reason = `obtained via ${obtained.via} but \`--version\` failed: ${version.reason}`;
+      competitors.push({ ...row, available: false, ...unavailable(reason) });
       continue;
     }
 
     versions[competitor.tool].local = firstLine(version.text);
+
+    // Per-metric measurement. A metric with a known equivalent command is
+    // measured with the identical warm-up + timed-runs protocol; a metric
+    // with no equivalent (or one that is not comparable, like a command
+    // that needs the network where grr's is offline) is recorded
+    // unavailable with that reason. Nothing is inferred.
     const startup = measure(obtained.exe, ['--version'], `${competitor.exeName} --version`);
+    const schemaDump = competitor.schemaCommand
+      ? measure(obtained.exe, competitor.schemaCommand, `${competitor.exeName} ${competitor.schemaCommand.join(' ')}`)
+      : { available: false, reason: 'no schema-dump equivalent command' } satisfies Metric;
+    const apiList = competitor.apiListCommand
+      ? measure(obtained.exe, competitor.apiListCommand, `${competitor.exeName} ${competitor.apiListCommand.join(' ')}`)
+      : { available: false, reason: competitor.apiListReason ?? 'no api-index equivalent command' } satisfies Metric;
+
     competitors.push({
       ...row,
       available: true,
       obtainedVia: obtained.via,
       version: firstLine(version.text),
       startup,
+      schemaDump,
+      apiList,
       binary: {
         bytes: statSync(obtained.exe).size,
         source: obtained.asset ?? 'installed on PATH',

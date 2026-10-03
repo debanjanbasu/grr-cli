@@ -34,6 +34,8 @@ interface CompetitorRow {
   version?: string;
   reason?: string;
   startup?: Timing;
+  schemaDump?: Timing;
+  apiList?: Timing;
   binary?: Binary;
 }
 
@@ -103,8 +105,8 @@ const cards = [
 // Columns of the numeric comparison: grr plus every competitor that actually
 // produced startup numbers on this snapshot.
 const columns = [
-  { name: 'grr', version: environment?.grrVersion ?? '', startup: grr.startup, binary: grr.binary },
-  ...availableCompetitors.map((row) => ({ name: row.tool, version: row.version ?? '', startup: row.startup, binary: row.binary })),
+  { name: 'grr', version: environment?.grrVersion ?? '', startup: grr.startup, schemaDump: grr.schemaDump, apiList: grr.apiList, binary: grr.binary },
+  ...availableCompetitors.map((row) => ({ name: row.tool, version: row.version ?? '', startup: row.startup, schemaDump: row.schemaDump, apiList: row.apiList, binary: row.binary })),
 ];
 
 // The binary-size row of the feature matrix reads the same measured snapshot
@@ -365,7 +367,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           <div class="compare-table-wrap mt-7 overflow-x-auto border border-base-300 bg-base-100">
             <table class="compare-table table table-zebra">
               <caption class="stat-label">
-                startup time (<code>--version</code>) and unpacked binary size, identical protocol per tool
+                startup (<code>--version</code>), schema-dump, api-index and unpacked binary size — identical protocol per tool, where an equivalent exists
               </caption>
               <thead>
                 <tr>
@@ -373,6 +375,8 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
                   <th scope="col">startup median</th>
                   <th scope="col">startup p95</th>
                   <th scope="col">startup min</th>
+                  <th scope="col">schema dump</th>
+                  <th scope="col">api index</th>
                   <th scope="col">binary size</th>
                 </tr>
               </thead>
@@ -386,6 +390,12 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
                     <td>{ms(column.startup?.available ? column.startup?.medianMs : undefined)}</td>
                     <td>{ms(column.startup?.available ? column.startup?.p95Ms : undefined)}</td>
                     <td>{ms(column.startup?.available ? column.startup?.minMs : undefined)}</td>
+                    <td title={column.schemaDump?.available ? undefined : `not comparable — ${column.schemaDump?.reason ?? 'not measured'}`}>
+                      {ms(column.schemaDump?.available ? column.schemaDump?.medianMs : undefined)}
+                    </td>
+                    <td title={column.apiList?.available ? undefined : `not comparable — ${column.apiList?.reason ?? 'not measured'}`}>
+                      {ms(column.apiList?.available ? column.apiList?.medianMs : undefined)}
+                    </td>
                     <td>{megabytes(column.binary?.bytes)}</td>
                   </tr>
                 ))}
@@ -422,7 +432,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
             : ''}
           . Competitor binaries are their official GitHub release builds, as shipped.
         </span>
-        <a href="https://github.com/debanjanbasu/grr-cli/blob/main/scripts/benchmark.mjs" target="_blank" rel="noreferrer">
+        <a href="https://github.com/debanjanbasu/grr-cli/blob/main/scripts/benchmark.ts" target="_blank" rel="noreferrer">
           The benchmark script <span aria-hidden="true">→</span>
         </a>
       </p>
