@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T12:30:52.972Z",
+  "generatedAt": "2026-10-03T12:36:05.907Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -112,6 +112,12 @@
               "scope": "ci",
               "type": "fix",
               "note": null
+            },
+            {
+              "description": "the file cannot list the commit that writes it",
+              "scope": "changelog",
+              "type": "fix",
+              "note": null
             }
           ]
         },
@@ -176,6 +182,18 @@
             {
               "description": "re-record the terminal demo from source",
               "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh Google Discovery index",
+              "scope": "discovery",
               "type": "chore",
               "note": null
             },
