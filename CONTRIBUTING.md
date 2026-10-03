@@ -26,7 +26,7 @@ If you have no client at all, the full walkthrough is in [`docs/gcp-setup.md`](.
 
 ### Discovery index and the generated tree
 
-The entire service command tree — every `grr gmail …`, `grr calendar …`, … leaf — is generated at build time from a distilled index of Google's Discovery documents, committed at `src/discovery/*.json` (~434 KiB across 14 services) and embedded with `include_str!`. There are no hand-written service commands: the index is the surface.
+The entire service command tree — every `grr gmail …`, `grr calendar …`, … leaf — is generated at build time from a distilled index of Google's Discovery documents, committed at `src/discovery/*.json` (~420 KiB across 14 services) and embedded with `include_str!`. There are no hand-written service commands: the index is the surface.
 
 - **Refresh it**: `node scripts/fetch-discovery.ts` (Node 24+; no dependencies to install). The output is deterministic — sorted keys — so an unchanged upstream produces an empty diff.
 - **Regenerate what depends on it**: `node scripts/generate-commands.ts` re-emits `src/commands/generated.rs` (401 leaves, 994 typed flags), `node scripts/generate-skills.ts` re-emits `skills/<service>/SKILL.md`, and `node scripts/generate-coverage.ts` re-emits the site's `site/src/data/discovery-coverage.ts`. After any index change, run all three; an index and its derived artifacts move together or not at all.
