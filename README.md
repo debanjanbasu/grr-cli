@@ -51,11 +51,11 @@ winget install debanjanbasu.grr       # Windows
 cargo install grr-cli                 # crates.io
 ```
 
-Homebrew (macOS + Linux), from the `debanjanbasu/homebrew` tap:
+Homebrew (macOS + Linux), from the `debanjanbasu/tap` tap:
 
 ```sh
-brew tap debanjanbasu/homebrew
-brew trust debanjanbasu/homebrew
+brew tap debanjanbasu/tap
+brew trust debanjanbasu/tap
 brew install grr
 ```
 
@@ -66,8 +66,8 @@ The crates.io CLI build needs nightly Rust and `RUSTFLAGS="--cfg reqwest_unstabl
 ## 60-second quickstart
 
 ```sh
-brew tap debanjanbasu/homebrew
-brew trust debanjanbasu/homebrew
+brew tap debanjanbasu/tap
+brew trust debanjanbasu/tap
 brew install grr
 
 grr auth login
@@ -302,7 +302,7 @@ Each generator takes `--check` and exits 1 when its output is stale — that is 
 | GitHub Releases | 5-platform binaries (macOS arm64, Linux x86_64, Linux aarch64, Windows x86_64, Windows on ARM) built on `v*` tags, UPX-packed, `.tar.zst` on unix and `.zip` on Windows | **live — 0.6.0** — [releases](https://github.com/debanjanbasu/grr-cli/releases) |
 | crates.io | `cargo install grr-cli` (binary installs as `grr`; needs nightly + `RUSTFLAGS="--cfg reqwest_unstable"` for the default CLI HTTP/3 build, and brings no embedded OAuth client) | **live — 0.6.0, one crate**. Trusted publishing uses OIDC (no stored API tokens) |
 | winget | `winget install debanjanbasu.grr` | live (x64; ARM64 in the manifest waiting on Microsoft review — see `packaging/winget/`) |
-| Homebrew | `brew tap debanjanbasu/homebrew && brew trust debanjanbasu/homebrew && brew install grr` (tap: [debanjanbasu/homebrew](https://github.com/debanjanbasu/homebrew), formula `Formula/grr.rb`) | live (arm64 macOS + x86_64 Linux) |
+| Homebrew | `brew tap debanjanbasu/tap && brew trust debanjanbasu/tap && brew install grr` (tap: [debanjanbasu/homebrew-tap](https://github.com/debanjanbasu/homebrew-tap), formula `Formula/grr.rb`, updated automatically on every release) | live (arm64 macOS + x86_64/arm64 Linux) |
 
 The project publishes one package, `grr-cli`, whose binary is `grr`. `v*` tags trigger the release workflow, and crates.io publishing is handled through trusted publishing.
 
