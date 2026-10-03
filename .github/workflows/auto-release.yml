@@ -41,6 +41,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      # gh workflow run below — waking the merge poller.
+      actions: write
     steps:
       - uses: actions/checkout@v7
         timeout-minutes: 2
@@ -133,6 +135,10 @@ jobs:
           # it can enable GitHub's native auto-merge, which completes when
           # required checks pass.
           gh pr merge "$BRANCH" --squash --auto || true
+          # The poller's cron adds up to 10 minutes before it approves the
+          # bump PR's CI runs (token-authored PRs land in action_required);
+          # waking it now keeps the release chain snappy. Idempotent.
+          gh workflow run automation-merge.yml --ref main || echo "::warning::poller dispatch failed"
           gh pr view "$BRANCH" --json url --jq .url
 
       - name: Nothing further
