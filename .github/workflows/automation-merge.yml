@@ -29,7 +29,15 @@ on:
     # Every 10 minutes, off the top of the hour. The job is seconds when there
     # is nothing to do; the 10-minute ceiling on approval latency is the cost
     # of GitHub's approval gate, and far below the old manual-click latency.
+    # Scheduling is best-effort (GitHub delays or drops ticks under load —
+    # observed), so a push sweep below backs it up.
     - cron: "*/10 * * * *"
+  # Every push to main by a human identity sweeps for pending bot PRs
+  # immediately. The poller's own merges are token-authored and cannot
+  # re-trigger this (no runs are created from token pushes), which is why
+  # the schedule and the follow-up dispatches also exist.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
