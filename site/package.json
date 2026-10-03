@@ -1,6 +1,5 @@
 {
   "name": "grr-site",
-  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
