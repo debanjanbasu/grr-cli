@@ -97,6 +97,28 @@ jobs:
         timeout-minutes: 5
         run: node scripts/generate-demo.ts --validate
 
+      # The GIF is the shareable form of the demo: Reddit and HN posts show
+      # inline media, and a link alone gets scrolled past. Rendered here so
+      # it can never drift from the cast — and attached to the latest
+      # release, so there is always a stable URL and it never grows the git
+      # history. Rendering params are the size/readability point: the raw
+      # recording is 19 MB at native fps; 10 fps at 1.3x is 8 MB.
+      - name: Install agg (cast → gif)
+        timeout-minutes: 10
+        run: cargo install --locked agg
+
+      - name: Render and attach the demo GIF
+        timeout-minutes: 10
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          agg -q --fps-cap 10 --speed 1.3 --idle-time-limit 0.8 --font-size 13 demo/demo.cast grr-demo.gif
+          ls -lh grr-demo.gif
+          tag="$(gh release view --json tagName --jq .tagName)"
+          gh release upload "$tag" grr-demo.gif --clobber
+          echo "attached grr-demo.gif to $tag"
+
       - name: Open a PR when the recording changed
         id: pr
         uses: peter-evans/create-pull-request@v8
