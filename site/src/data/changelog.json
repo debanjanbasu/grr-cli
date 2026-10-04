@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T01:28:39.404Z",
+  "generatedAt": "2026-10-04T01:36:20.938Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -138,6 +138,12 @@
               "note": null
             },
             {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
               "description": "a push to main sweeps for pending bot PRs too",
               "scope": "poller",
               "type": "ci",
@@ -159,6 +165,12 @@
               "description": "re-record the terminal demo from source",
               "scope": "demo",
               "type": "chore",
+              "note": null
+            },
+            {
+              "description": "ship on every push — the Friday cron is a backstop",
+              "scope": "release",
+              "type": "ci",
               "note": null
             }
           ]
