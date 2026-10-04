@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- 7 internal commits (chore 6, ci 1)
+- 9 internal commits (chore 7, ci 2)
 
 ### Other
 
