@@ -1,11 +1,11 @@
 PackageIdentifier: debanjanbasu.grr
-PackageVersion: 0.9.1
+PackageVersion: 0.10.0
 InstallerType: zip
 Installers:
   - Architecture: arm64
     InstallerType: zip
-    InstallerUrl: https://github.com/debanjanbasu/grr-cli/releases/download/v0.9.1/grr-v0.9.1-windows-aarch64.zip
-    InstallerSha256: FBE24B570D20BC6BFFB07589E0C5E2431E1F44D008274324CDA223E6262A0620
+    InstallerUrl: https://github.com/debanjanbasu/grr-cli/releases/download/v0.10.0/grr-v0.10.0-windows-aarch64.zip
+    InstallerSha256: 436A617428528FC6DAFB34B51BC6591560C63AA87746456E10AD213611B4120B
     NestedInstallerType: portable
     NestedInstallerFiles:
       - RelativeFilePath: grr.exe
@@ -13,8 +13,8 @@ Installers:
     ReleaseDate: 2026-10-04
   - Architecture: x64
     InstallerType: zip
-    InstallerUrl: https://github.com/debanjanbasu/grr-cli/releases/download/v0.9.1/grr-v0.9.1-windows-x86_64.zip
-    InstallerSha256: C2FC0CD2D42DB15912672A0F15EE107C8AAF63AEA5F22E6063B5F1563EE12D7F
+    InstallerUrl: https://github.com/debanjanbasu/grr-cli/releases/download/v0.10.0/grr-v0.10.0-windows-x86_64.zip
+    InstallerSha256: 5CD6A72AAB84007364F387492C2B8CA77225E34CA2749767BAD4806B41560FFD
     NestedInstallerType: portable
     NestedInstallerFiles:
       - RelativeFilePath: grr.exe
