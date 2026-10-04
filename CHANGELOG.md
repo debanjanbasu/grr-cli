@@ -22,9 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **release:** archives ship the binary as grr, not the target name
+
 ### Internal
 
-- 1 internal commit (chore 1)
+- 3 internal commits (chore 3)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.8.0] - 2026-10-04
 
