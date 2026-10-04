@@ -79,6 +79,14 @@ jobs:
           BUMP="$(echo "$OUT" | grep -E 'changelog:recommended-bump=' | head -1 | cut -d= -f2)"
           NEXT="$(echo "$OUT" | grep -E 'changelog:recommended-version=' | head -1 | cut -d= -f2)"
           CURRENT="$(grep -m1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')"
+          # Race guard: tag-release cuts the tag for this same push, so the
+          # recommendation can name the version main is ALREADY at (next
+          # v0.8.0, current 0.8.0) — the bump PR would carry an empty diff.
+          # Nothing to do; the tag workflow owns this version.
+          if [ "${NEXT#v}" = "$CURRENT" ]; then
+            echo "::notice::main is already at ${NEXT#v}; the tag workflow owns this version."
+            BUMP="none"
+          fi
           echo "bump=${BUMP:-none}" >> "$GITHUB_OUTPUT"
           echo "next=${NEXT:-$CURRENT}" >> "$GITHUB_OUTPUT"
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
