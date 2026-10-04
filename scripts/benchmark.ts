@@ -49,9 +49,8 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = resolve(import.meta.dirname, '..');
 const OUT_FILE = resolve(ROOT, 'site', 'src', 'data', 'benchmarks.json');
 const CACHE_DIR = resolve(ROOT, 'target', 'benchmark-cache');
 
@@ -826,6 +825,6 @@ async function main(): Promise<number> {
   return 0;
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && resolve(process.argv[1]) === import.meta.filename) {
   process.exit(await main());
 }

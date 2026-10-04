@@ -28,12 +28,11 @@
 //   node scripts/generate-commands.ts --check # exit 1 if stale (CI gate)
 
 import { readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import type { DistilledIndex, DistilledMethod, DistilledParameter, Manifest } from './discovery-index.ts';
 import { flagId, kebab } from './script-utils.ts';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = resolve(import.meta.dirname, '..');
 const INDEX_DIR = resolve(ROOT, 'src', 'discovery');
 const OUT_FILE = resolve(ROOT, 'src', 'commands', 'generated.rs');
 const MANIFEST = resolve(INDEX_DIR, 'manifest.json');
