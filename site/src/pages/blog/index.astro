@@ -313,9 +313,10 @@ const surfaces = [
             deliberate trade: the server knows its capacity, and grr does not second-guess it.
           </li>
           <li>
-            <strong>The scope set is fixed at login.</strong> Tasks needs a scope this build does not
-            request, so a Tasks call can come back 403 with an error naming the missing scope. It is a real
-            gap, not a rounding error.
+            <strong>The scope set is fixed at login.</strong> Tasks, Analytics Admin, Analytics Data, Search
+            Console, and Apps Script (except <code>scripts.run</code>) need scopes this build does not
+            request, so a call to one can come back 403 with an error naming the missing scope. It is a
+            real gap, not a rounding error.
           </li>
           <li>
             <strong>winget is not published yet.</strong> The root cause is fixed and the submission is

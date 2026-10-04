@@ -17,7 +17,7 @@ cargo build --release
 
 <BaseLayout
   title="Install grr"
-  description="Install grr on macOS, Linux, and Windows (x64 and ARM) with Homebrew, winget, or crates.io, or build from source. Release binaries are zero-config."
+  description="Install grr on macOS, Linux, and Windows (x64 and ARM) with Homebrew, crates.io, or a prebuilt release archive. Release binaries are zero-config."
 >
   <PageHero eyebrow="install grr" title="Pick the shortest path to your shell.">
     Prebuilt binaries are the easy default. If you want a package manager, a crates.io install, or a local build, the project documents each route below.
@@ -33,7 +33,7 @@ cargo build --release
         <article class="install-card card card-border border-base-300 bg-base-100 lg:col-span-2">
           <div class="card-body gap-1 p-5">
             <h2 class="card-title m-0 text-base">Prebuilt binaries</h2>
-            <p class="m-0 text-[13px] text-base-content/70">Download the archive for your platform from GitHub Releases. The release workflow publishes Windows x64, Windows on ARM, Linux x64, Linux ARM, and macOS ARM binaries with checksums. Every build is UPX-packed, so the archives stay small.</p>
+            <p class="m-0 text-[13px] text-base-content/70">Download the archive for your platform from GitHub Releases. The release workflow publishes Windows x64, Windows on ARM, Linux x64, Linux ARM, and macOS ARM binaries with checksums. Each build is UPX-packed when UPX succeeds and ships unpacked when it does not, so the archives stay as small as the packer allows.</p>
             <DownloadSizes note="Compressed release archives for the current GitHub release. A dash means that platform is not published yet." />
             <a class="btn btn-primary btn-sm mt-3 w-fit" href={releaseUrl} target="_blank" rel="noreferrer">Open GitHub Releases <span aria-hidden="true">↗</span></a>
           </div>
@@ -49,7 +49,7 @@ cargo build --release
         <article class="install-card card card-border border-base-300 bg-base-100">
           <div class="card-body gap-1 p-5">
             <h2 class="card-title m-0 text-base">Windows</h2>
-            <p class="m-0 text-[13px] text-base-content/70">winget has no published version yet: the first submission stalled because the archives named the binary after its target (<code>windows-x86_64.exe</code>) while the manifest promised <code>grr.exe</code>, so validation could never find the nested installer. The archives and manifest generation are fixed as of v0.8.1 — the fresh submission is in flight. Until it lands, use the Windows release archive (x64 or ARM64).</p>
+            <p class="m-0 text-[13px] text-base-content/70">winget has no published version yet: the first submission stalled because the archives named the binary after its target (<code>windows-x86_64.exe</code>) while the manifest promised <code>grr.exe</code>, so validation could never find the nested installer. The archives and manifest generation are fixed as of v0.8.1, and a corrected submission is prepared — but it is not published, so use the Windows release archive (x64 or ARM64) today.</p>
             <CodeBlock code="winget install debanjanbasu.grr" label="winget" />
           </div>
         </article>
@@ -58,7 +58,7 @@ cargo build --release
             <h2 class="card-title m-0 text-base">crates.io</h2>
             <p class="m-0 text-[13px] text-base-content/70">The crate publishes as <code>grr-cli</code>; the installed executable is <code>grr</code>. The default CLI enables HTTP/3, so a crates.io source install needs nightly Rust and the <code>reqwest_unstable</code> cfg.</p>
             <CodeBlock code={'RUSTFLAGS="--cfg reqwest_unstable" cargo install grr-cli'} label="cargo · unix" />
-            <p class="install-note m-0 mt-2 text-xs text-(--quiet)">PowerShell: set <code>$env:RUSTFLAGS='--cfg reqwest_unstable'</code> before running cargo. Library users can choose stable Rust with <code>default-features = false</code> and select only the service features they need.</p>
+            <p class="install-note m-0 mt-2 text-xs text-(--quiet)">PowerShell: set <code>$env:RUSTFLAGS='--cfg reqwest_unstable'</code> before running cargo. That is the whole feature surface: the crate has one feature, <code>cli</code> (on by default), and no per-service features &mdash; the command tree comes from the embedded Discovery index.</p>
           </div>
         </article>
         <article class="install-card card card-border border-base-300 bg-base-100">
@@ -78,7 +78,7 @@ cargo build --release
         <span class="eyebrow">from source</span>
         <h2 id="source-title" class="mt-1.5 mb-2 text-[clamp(22px,2.6vw,32px)] leading-[1.15]">Build the exact revision you want to run.</h2>
         <p class="m-0 text-sm text-base-content/70">The repository pins Rust nightly in <code>rust-toolchain.toml</code>. A local clone uses the repository&rsquo;s Cargo config, which sets the unstable reqwest cfg and the extra build-std settings needed by the CLI.</p>
-        <p class="m-0 mt-3 text-sm text-base-content/70">The default CLI enables HTTP/3 through reqwest&rsquo;s rustls/quinn path. The <code>grr_cli</code> library can use stable Rust with <code>default-features = false</code> and HTTP/2, while selecting services such as <code>gmail</code> as needed.</p>
+        <p class="m-0 mt-3 text-sm text-base-content/70">There is no stable-Rust or HTTP/2-only build: reqwest&rsquo;s <code>http3</code> feature is compiled in unconditionally, so a source build needs nightly and the unstable cfg. The crate has exactly one feature, <code>cli</code> (on by default), and no per-service features &mdash; the command tree is generated from the embedded Discovery index.</p>
         <a class="btn btn-outline mt-4" href="https://github.com/debanjanbasu/grr-cli#development" target="_blank" rel="noreferrer">Read development notes <span aria-hidden="true">↗</span></a>
       </div>
       <CodeBlock code={sourceExample} label="local clone" />

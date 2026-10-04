@@ -10,18 +10,20 @@
 ## Agent surfaces
 
 - [MCP server](https://grr-cli.pages.dev/docs/commands/): `grr mcp` serves a Model Context Protocol stdio server exposing every one of the 401 methods as a typed MCP tool; `--readonly` for a read-only server.
-- [Natural language](https://grr-cli.pages.dev/docs/commands/): `grr ask "show my unread messages"` - a System One model (Jev by default) classifies the request hierarchically and fills the typed parameters; prints the plan, `--run` executes.
+- [Natural language](https://grr-cli.pages.dev/docs/commands/#system-one): `grr ask "show my unread messages"` - a System One model (Jev by default) classifies the request hierarchically and fills the typed parameters; prints the plan, `--run` executes. The endpoint/model/api-key/confidence-threshold config and the preferred `TYPESAFE_API_KEY` env route are documented there.
 - [Safety profiles](https://grr-cli.pages.dev/docs/commands/): global `--readonly`, `--deny-service`, `--deny-verb` flags honored by the CLI, `grr api call`, and the MCP server alike.
 - [Multi-account](https://grr-cli.pages.dev/docs/commands/): `grr auth login --account work` keeps a separate token per account in the OS keyring.
-- [Skills install](https://grr-cli.pages.dev/docs/commands/): `grr skills install` writes the 16 packaged agent skills into `~/.agents/skills/` with no network (global only, never a project directory); `--claude` mirrors into `~/.claude/skills/`; `grr skills list` reports state as JSON.
+- [Skills install](https://grr-cli.pages.dev/docs/commands/): `grr skills install` writes the packaged skills - the core skill plus one per service, 15 skills across 16 files with their index - into `~/.agents/skills/` with no network (global only, never a project directory); `--claude` mirrors into `~/.claude/skills/`; `grr skills list` reports state as JSON.
 - [Terminal demo](https://grr-cli.pages.dev/): an asciinema cast of real output, including an opencode agent driving grr.
 ## Docs
 
 - [Docs](https://grr-cli.pages.dev/docs/): Documentation index. One generated command tree, the id-based `grr api` surface over the same index, and which to use.
-- [Getting started](https://grr-cli.pages.dev/docs/getting-started/): Install on macOS, Linux, or Windows (incl. the required Homebrew `trust` step and winget), `grr auth login`, first command, and verifying with `grr auth status` and `grr transport`.
-- [Commands](https://grr-cli.pages.dev/docs/commands/): The naming rule that predicts any command from its method id, the typed-flag rules, per-service examples for all 14 services, and the account-level commands.
-- [Discovery API](https://grr-cli.pages.dev/docs/discovery/): `grr api list` / `describe` / `call` / `refresh`, the 401-method coverage table across 14 APIs, `--dry-run`, per-method least-privilege scopes, and the Tasks scope caveat.
+- [Getting started](https://grr-cli.pages.dev/docs/getting-started/): Install on macOS, Linux, or Windows (incl. the required Homebrew `trust` step; winget is not published yet), `grr auth login`, first command, and verifying with `grr auth status` and `grr transport`.
+- [Commands](https://grr-cli.pages.dev/docs/commands/): The naming rule that predicts any command from its method id, the typed-flag rules, per-service examples for all 14 services, the account-level commands, and configuring System One for `grr ask`.
+- [Discovery API](https://grr-cli.pages.dev/docs/discovery/): `grr api list` / `describe` / `call` / `refresh`, the 401-method coverage table across 14 APIs, `--dry-run`, per-method least-privilege scopes, and the five services outside the fixed consent set (Tasks, Analytics Admin, Analytics Data, Search Console, and Apps Script except `scripts.run`).
 - [Agents and harnesses](https://grr-cli.pages.dev/docs/agents/): The contract for AI agents and coding harnesses — parse stdout not stderr, discover with `grr schema` and `grr api list` rather than assuming, `--dry-run` before writes, and keyring token storage. Includes the packaged skill and a copy-pasteable agent quickstart.
+- [API reference](https://grr-cli.pages.dev/docs/api-reference/): One page per service, every method rendered from the committed Discovery index — verb, path, parameters, scopes, and a copyable command per method.
+- [Changelog](https://grr-cli.pages.dev/changelog/): Every release, newest first, generated from the commit history and release tags.
 
 ## Notes
 

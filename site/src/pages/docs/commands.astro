@@ -161,19 +161,29 @@ grr slides presentations pages getThumbnail --presentation-id <id> --page-object
 grr slides presentations batchUpdate --presentation-id <id> --body-file ./requests.json`,
   },
 ];
-const formats = `# Every command accepts -f/--format. JSON is the default.
+const formats = `# Every command accepts -f/--format. JSON is the default. Google's list
+# methods return their own wrapper object -- messages, files, items -- and
+# grr prints it verbatim rather than unwrapping it, so table shows the
+# object Field/Value and jsonl emits that one object:
 $ grr gmail users messages list --user-id me --max-results 5 -f table
-+----------+--------------------+------------------+
-| ID       | THREAD_ID          | SNIPPET          |
-+----------+--------------------+------------------+
-| 19f8ab2c | 19f8ab2c           | Build notes ...  |
-+----------+--------------------+------------------+
++--------------------+-------------------------------------------------+
+| Field              | Value                                           |
++--------------------+-------------------------------------------------+
+| messages           | [{"id":"19f8ab2c","threadId":"19f8ab2c"}, ...]  |
+| resultSizeEstimate | 5                                               |
++--------------------+-------------------------------------------------+
 
 $ grr gmail users messages list --user-id me -f jsonl
-{"id":"19f8ab2c","threadId":"19f8ab2c"}
-{"id":"19f8ab31","threadId":"19f8ab31"}
+{"messages":[{"id":"19f8ab2c","threadId":"19f8ab2c"}],"resultSizeEstimate":1}
 
-$ grr gmail users messages list --user-id me -f pretty`;
+# grr api list is a bare array, so it tables one row per method and streams
+# one element per line -- the shape jsonl is actually for:
+$ grr api list --service docs -f jsonl
+{"http":"POST","id":"docs.documents.batchUpdate","summary":"Applies one or more updates to the document."}
+{"http":"POST","id":"docs.documents.create","summary":"Creates a blank document using the title given in the request."}
+{"http":"GET","id":"docs.documents.get","summary":"Gets the latest version of the specified document."}
+
+$ grr api list --service docs -f pretty`;
 const account = `$ grr auth status
 {"authenticated":true,"email":"you@example.com","messages_total":48213,"threads_total":9120,"history_id":"1280000"}
 
@@ -185,9 +195,9 @@ fell_back: false
 ...
 
 $ grr schema | jq -r '.subcommands[].name'
-["auth","api","mcp","transport","schema","ask","skills","calendar","chat","docs","drive","forms","gmail","people","sheets","slides","tasks"]`;
+["auth","api","mcp","transport","schema","ask","skills","analyticsadmin","analyticsdata","calendar","chat","docs","drive","forms","gmail","people","script","searchconsole","sheets","slides","tasks"]`;
 const pipes = `# stdout is data, stderr is logs -- so this is always valid JSON.
-$ grr gmail users messages list --user-id me --q "from:github.com" --max-results 10 | jq -r '.[0].id'
+$ grr gmail users messages list --user-id me --q "from:github.com" --max-results 10 | jq -r '.messages[0].id'
 19f8ab2c
 
 # --dry-run prints the resolved request as JSON and sends nothing.
@@ -196,15 +206,29 @@ https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is%3Aunread
 
 # The same method, reached through the flat escape hatch, byte-identical:
 $ grr api call gmail.users.messages.list --param userId=me --param 'q=is:unread' --dry-run`;
-const schemaBlock = `$ grr schema > tree.json        # ~290 KB, valid JSON, well under 100 ms
+const schemaBlock = `$ grr schema > tree.json        # ~369 KB, valid JSON, well under 100 ms
 $ grr schema | jq '.subcommands[] | select(.name == "gmail") | .subcommands[].name'
 ["users"]
 $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list") | .args[].name]'`;
-const skillsBlock = `# The 16 packaged skill files (the core skill, one per service, and their index) are compiled into the binary -- install is offline.
+const skillsBlock = `# The 15 packaged skills -- the core skill plus one per service -- are 16 files
+# with their index, and are compiled into the binary, so install is offline.
 $ grr skills install            # all of them into ~/.agents/skills/ (the cross-client location)
 $ grr skills install --claude   # also mirror into ~/.claude/skills/ (all Claude Code reads)
 $ grr skills install --force    # replace files that differ from the packaged copy
 $ grr skills list               # the packaged set, and what each target directory holds`;
+const systemone = `# ~/.grr/config.toml -- every key is optional; the defaults are shown.
+[systemone]
+endpoint = "https://api.typesafe.ai/v1/systemone"
+model = "jev-latest"
+confidence-threshold = 0.6
+# api-key = "..."   # avoid: prefer TYPESAFE_API_KEY so the key stays out of the file`;
+const systemoneEnv = `# Preferred key route: it never sits in a file that can be committed.
+export TYPESAFE_API_KEY="..."
+grr ask "show my unread messages"          # prints the plan, sends nothing to Google
+grr ask "show my unread messages" --run    # executes the resolved request
+
+# The generic GRR_ prefix reaches the rest of the section too:
+# GRR_SYSTEMONE__ENDPOINT, GRR_SYSTEMONE__MODEL, GRR_SYSTEMONE__API_KEY`;
 ---
 
 <BaseLayout
@@ -318,7 +342,7 @@ $ grr skills list               # the packaged set, and what each target directo
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base"><code>grr skills</code></h2>
-              <p class="m-0 text-[13px] text-base-content/70"><code>install</code> writes the 16 packaged skill files (the core skill, one per service, and their index) into <code>~/.agents/skills/</code> &mdash; the cross-client user-level location &mdash; with no network; <code>--claude</code> mirrors into <code>~/.claude/skills/</code>, which is all Claude Code reads. Identical files are a no-op, a locally edited file is refused without <code>--force</code>. <code>list</code> reports what each target holds.</p>
+              <p class="m-0 text-[13px] text-base-content/70"><code>install</code> writes the packaged skills &mdash; the core skill plus one per service, 16 files with their index &mdash; into <code>~/.agents/skills/</code>, the cross-client user-level location, with no network; <code>--claude</code> mirrors into <code>~/.claude/skills/</code>, which is all Claude Code reads. Identical files are a no-op, a locally edited file is refused without <code>--force</code>. <code>list</code> reports what each target holds.</p>
             </div>
           </article>
           <article class="install-card card card-border border-base-300 bg-base-100">
@@ -330,17 +354,41 @@ $ grr skills list               # the packaged set, and what each target directo
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base"><code>grr ask</code></h2>
-              <p class="m-0 text-[13px] text-base-content/70">Natural language in, a typed method + parameters out: a System One model (Jev by default) classifies the request hierarchically &mdash; service, then method, then one typed question per required parameter, every candidate code-supplied. Prints the plan; <code>--run</code> executes.</p>
+              <p class="m-0 text-[13px] text-base-content/70">Natural language in, a typed method + parameters out: a System One model (Jev by default) classifies the request hierarchically &mdash; service, then method, then one typed question per required parameter, every candidate code-supplied. Prints the plan to Google; <code>--run</code> executes. <a class="link link-hover" href="#system-one">Configure System One &rarr;</a></p>
             </div>
           </article>
         </div>
       </div>
       <div class="container prose reveal max-w-[68ch] mt-8">
         <CodeBlock code={account} label="account · transport · schema" />
-        <p><code>grr schema</code> is the canonical reference. It is honest about its own size: roughly 290 KB of valid JSON, emitted in well under 100 ms, with zero configuration and before any OAuth exists. Generate a wrapper or an agent tool definition from it &mdash; because it is derived from the same tree the binary dispatches on, it cannot drift from the commands that actually exist.</p>
+        <p><code>grr schema</code> is the canonical reference. It is honest about its own size: roughly 369 KB of valid JSON, emitted in well under 100 ms, with zero configuration and before any OAuth exists. Generate a wrapper or an agent tool definition from it &mdash; because it is derived from the same tree the binary dispatches on, it cannot drift from the commands that actually exist.</p>
         <CodeBlock code={schemaBlock} label="grr schema · the canonical reference" />
         <p>The same zero-configuration promise covers the packaged agent skills: they are compiled into the binary, so <code>grr skills install</code> writes the whole set into the user-level skills directory with no network &mdash; global only, never a project directory.</p>
         <CodeBlock code={skillsBlock} label="grr skills · offline install" />
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="system-one">
+      <div class="container">
+        <SectionIntro
+          id="system-one"
+          eyebrow="natural language"
+          title="Configuring System One for grr ask."
+          copy="grr ask is the one command with a tunable surface: endpoint, model, key and confidence threshold. Code chooses the candidates; the model only selects among them."
+        />
+      </div>
+      <div class="container prose reveal max-w-[68ch]">
+        <p class="lead"><code>grr ask</code> runs three small judgments against a System One provider, each one HTTP request: a Choice over the {discoveryServiceCount} services, then a Choice over the chosen service&rsquo;s methods, then one typed question per required parameter. The CLI supplies every candidate from the embedded Discovery index, so the model can only <em>select</em> a service, a method, or a value it was handed &mdash; it cannot invent one. The plan is the default output; <code>--run</code> executes the resolved request through the same call path as <code>grr api call</code>.</p>
+        <p>The defaults point at TypeSafe&rsquo;s hosted endpoint and its Jev model, so the only thing you must supply is a key. The provider is agnostic: any endpoint that speaks the same contract &mdash; POST a <code>state</code> plus typed <code>questions</code>, answer with an <code>answers</code> map &mdash; works by pointing <code>endpoint</code> and <code>model</code> at it.</p>
+        <CodeBlock code={systemone} label="~/.grr/config.toml · [systemone]" />
+        <p>Keys are kebab-case (<code>api-key</code>, <code>confidence-threshold</code>); snake_case aliases keep TS-era configs working, and any field left unset falls back to its default. <strong>The env route is preferred</strong> for the key, because a key in a config file can leak with the file:</p>
+        <CodeBlock code={systemoneEnv} label="the preferred key route" />
+        <ul>
+          <li><strong>What the model decides:</strong> which service, which method, and which value for each required parameter &mdash; always a choice among code-supplied options &mdash; plus a confidence for each.</li>
+          <li><strong>What the CLI decides:</strong> the candidate sets, the parameter types and coercion, the scope note, and the safety gate. <code>--readonly</code>/<code>--deny-service</code>/<code>--deny-verb</code> fire the moment the method resolves, before the parameter judgment. A choice confidence below the threshold (default <code>0.6</code>) is flagged on stderr, never blocked.</li>
+          <li><strong>The key rides only in the Authorization header</strong> &mdash; never in a request body, the plan output, or an error message. A missing key fails with the ways to supply one rather than a bare 401.</li>
+          <li><strong>Planning still needs the provider.</strong> Even without <code>--run</code>, the routing judgments are HTTP calls, so <code>grr ask</code> needs a reachable endpoint and a valid key; <code>--service</code> skips the first judgment and <code>--method</code> skips both, going straight to parameter fill.</li>
+        </ul>
       </div>
     </section>
 
