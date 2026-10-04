@@ -1,0 +1,368 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHero from '../../components/PageHero.astro';
+import SectionIntro from '../../components/SectionIntro.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import InlineCode from '../../components/InlineCode.astro';
+import { discoveryMethodTotal, discoveryServiceCount } from '../../data/discovery-coverage';
+
+const base = import.meta.env.BASE_URL;
+const repoUrl = 'https://github.com/debanjanbasu/grr-cli';
+
+// Code samples are the exact commands/outputs quoted in the repo and the
+// release workflows; the essay narrates them rather than paraphrasing them.
+const namingRule = `gmail.users.messages.list        ->  grr gmail users messages list
+sheets.spreadsheets.values.get   ->  grr sheets spreadsheets values get`;
+
+const transportReport = `negotiated_protocol: HTTP_3
+http3_requested: true
+http3_effective: true
+fell_back: false`;
+
+const install = `brew tap debanjanbasu/tap
+brew trust debanjanbasu/tap
+brew install grr`;
+
+const surfaces = [
+  {
+    href: `${base}docs/commands/`,
+    label: 'The generated tree',
+    copy: `How ${discoveryMethodTotal} methods across ${discoveryServiceCount} APIs become one naming rule, with the typed-flag rules and per-service examples.`,
+  },
+  {
+    href: `${base}docs/discovery/`,
+    label: 'The Discovery index',
+    copy: 'The committed index behind the tree: `grr api list`, `describe`, `call`, `refresh`, and the per-method scopes.',
+  },
+  {
+    href: `${base}compare/`,
+    label: 'The benchmark',
+    copy: 'The nightly comparison against gog and gws, including the rows where grr loses. Numbers change; the page is the source.',
+  },
+];
+---
+
+<BaseLayout
+  title="Why grr exists: 9,193 unread emails and a generated command tree"
+  description="The origin of grr and the engineering bets behind it: a 401-method command tree generated from Google's Discovery index, zero-config OAuth, honest HTTP/3, a repository that releases itself, and two real release-war stories."
+>
+  <PageHero eyebrow="notes" title="Why grr exists">
+    The short version: my inbox hit 9,193 unread, so I made it queryable. The long version is a set of
+    engineering bets about generated surfaces, honest transports, and a repository that ships itself —
+    and two release bugs that took a week each to understand.
+    <Fragment slot="aside">origin · design bets · release war stories</Fragment>
+  </PageHero>
+
+  <section class="section" aria-labelledby="inbox-title">
+    <div class="container">
+      <SectionIntro
+        id="inbox-title"
+        eyebrow="01 / the queue"
+        title="There is no mail client built for a queue that happens to be email."
+        copy="The inbox was never the problem. Querying it was."
+      />
+      <div class="container prose reveal max-w-[68ch]">
+        <p class="lead">
+          My inbox had 9,193 unread emails. I sit on a strata committee, which means hundreds of invoices a
+          year, and most of them arrive by email. When I finally looked at the pile, the texture was
+          specific: newsletters I meant to get to, LinkedIn notifications about profile views, security
+          alerts, and — the one that stung — four of the first twelve unread were my own project's CI robots
+          reporting that a workflow had finished.
+        </p>
+        <p>
+          None of that is a mail problem. It is a queue problem, and the tools built for queues — grep, jq,
+          scripts — are not built for Gmail. So I did the thing I know how to do: I made the inbox reachable
+          from a terminal.
+        </p>
+        <p>
+          The first commit was called <code>gmail-opencode-rust</code>: a Rust rewrite of a TypeScript Gmail
+          tool, born less from a product need than from transport curiosity. I wanted to work with QUIC,
+          HTTP/3 and streaming, and Gmail was a real API with real rate limits. The first design decision
+          that survived had nothing to do with mail — do not throttle on the client. Send the request, and
+          honour the server's <code>Retry-After</code> when it pushes back. Client-side rate limiting is
+          guesswork about someone else's capacity; the server already knows.
+        </p>
+        <p>That experiment grew a wider surface than I expected.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="generated-title">
+    <div class="container">
+      <SectionIntro
+        id="generated-title"
+        eyebrow="02 / the bet"
+        title="Generate the tree. Never hand-write it."
+        copy={`${discoveryMethodTotal} methods across ${discoveryServiceCount} APIs cannot be hand-maintained, so they are not.`}
+      />
+      <div class="container prose reveal max-w-[68ch]">
+        <p>
+          A hand-written command tree can never keep up with Google Workspace. There are
+          <strong>{discoveryMethodTotal} methods</strong> across <strong>{discoveryServiceCount} APIs</strong>,
+          and Google adds more on its own schedule. So grr does not hand-write one. Google publishes a
+          machine-readable Discovery document per API; the repository commits a distilled index — a few
+          hundred KiB across the {discoveryServiceCount} services — and
+          <code>scripts/generate-commands.ts</code> compiles the entire command tree from it:
+          {discoveryMethodTotal} leaves and 994 typed flags, built with clap's builder API rather than
+          derive, because the tree is composed at runtime and derive cannot express that.
+        </p>
+        <p>The naming rule is the whole interface: a method id, dots turned into spaces, is the command.</p>
+        <CodeBlock code={namingRule} label="method id → command" />
+        <p>
+          Parameter names become kebab-case flags (<code>userId</code> → <code>--user-id</code>), and a
+          parameter that would collide with a global flag surfaces prefixed (<code>format</code> →
+          <code>--param-format</code>). Because the index is compiled in rather than fetched,{' '}
+          <code>grr schema</code> and <code>grr api list</code> answer with no network and no credential —
+          which means an agent can ask what Sheets can do <em>before</em> it has a login, the order you want
+          to fail in.
+        </p>
+        <p>
+          There is one escape hatch, not two implementations. <code>grr api call &lt;id&gt;</code> reaches
+          any method by id through the same engine as the generated leaf, producing byte-identical
+          requests. That kept testing honest: a behaviour verified on the typed path is verified on the flat
+          path too, because they are the same call.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="oauth-title">
+    <div class="container">
+      <SectionIntro
+        id="oauth-title"
+        eyebrow="03 / first run"
+        title="Remove the step where people quit."
+        copy="A CLI usually dies before its first command. The release build deletes that failure mode."
+      />
+      <div class="container prose reveal max-w-[68ch]">
+        <p>
+          The most common way a command-line tool dies is at the first run: install, then read a page about
+          creating a Cloud project, enabling a dozen APIs, minting an OAuth client, and pasting two secrets
+          into a config file. Every one of those steps is a place to walk away.
+        </p>
+        <p>
+          Release builds remove the step. <code>build.rs</code> reads the OAuth client id and secret from
+          the build environment — GitHub Actions repository secrets for the official binaries — and compiles
+          them in. <code>grr auth login</code> opens a browser, you consent, and every service works. Google
+          treats installed-app client secrets as non-confidential, and PKCE is always on, so the flow does
+          not depend on the secret staying secret. Source builds still bring their own client:
+          <code>grr auth setup</code> writes one to <code>~/.grr/config.toml</code>, so contributors and
+          self-hosters are not locked out — they just opt in.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="transport-title">
+    <div class="container">
+      <SectionIntro
+        id="transport-title"
+        eyebrow="04 / transport"
+        title="Report the protocol you actually negotiated."
+        copy="HTTP/3 is always compiled in with a silent HTTP/2 fallback. The tool tells you which one you got."
+      />
+      <div class="container prose reveal max-w-[68ch]">
+        <p>
+          HTTP/3 is compiled into every build (reqwest's unstable http3 path, rustls plus quinn), with a
+          prior-knowledge probe at startup and a silent fallback to HTTP/2. The honest part is that{' '}
+          <code>grr transport</code> reports what actually happened, not what the README hopes for:
+        </p>
+        <CodeBlock code={transportReport} label="grr transport" />
+        <p>
+          If QUIC is blocked on your network you get <code>fell_back: true</code> and HTTP/2, and nothing is
+          wrong — a harness should not retry or treat it as a fault. The point is that the transport claim
+          is checkable in one command instead of being taken on faith.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="self-title">
+    <div class="container">
+      <SectionIntro
+        id="self-title"
+        eyebrow="05 / maintenance"
+        title="The repository maintains itself."
+        copy="The part I am most pleased with is not a feature. It is that the repo runs itself and ships on every push."
+      />
+      <div class="container prose reveal max-w-[68ch]">
+        <p>
+          A daily workflow refetches Google's Discovery documents and regenerates the index along with
+          everything derived from it — the command tree, the per-service agent skills, and the site's
+          coverage table — then opens a pull request when anything differs. Another regenerates the
+          changelog from the commit history on every push. Another re-records the terminal demo on
+          CLI-surface pushes, so the demo in the README cannot drift from the binary. Stats and the
+          benchmark refresh nightly.
+        </p>
+        <p>
+          As of this release, every push to main ships: the version-bump pull request is opened and
+          auto-merged, the tag is pushed, five platform binaries are built, and the crate publishes to
+          crates.io through trusted publishing. The weekly run is a backstop, not the cadence — after a
+          release the next push's recommendation is <code>none</code>, so the loop converges on its own.
+        </p>
+        <p>
+          This is a bet that the generated surface stays <em>reviewable</em>. A daily pull request that
+          touches the index, the tree, the skills and the coverage table is a real diff to read. If that
+          diff stopped being readable, the whole approach would be worse than hand-writing commands, and I
+          would rather know that than pretend otherwise.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="docsrs-title">
+    <div class="container">
+      <SectionIntro
+        id="docsrs-title"
+        eyebrow="06 / war story"
+        title="docs.rs failed all five builds with a parse error."
+        copy="Two layers, both the same shape: configuration that works here and does not travel with the crate."
+      />
+      <div class="container prose reveal max-w-[68ch]">
+        <p>
+          docs.rs failed all five grr-cli builds with <q>invalid Cargo.toml syntax</q>. Not a compile error
+          — a parse error, at the pre-build step, which is the least debuggable kind.
+        </p>
+        <p>
+          Root cause: <code>trim-paths</code> and <code>panic-immediate-abort</code> are unstable Cargo
+          profile keys, gated locally by <code>.cargo/config.toml</code> — a file that never travels with a
+          published crate. On this machine the manifest parses; uploaded to crates.io and run in a bare
+          environment, plain <code>cargo metadata</code> chokes. That is exactly what docs.rs runs.
+        </p>
+        <p>
+          The fix is a manifest-level opt-in, <code>cargo-features = [&quot;trim-paths&quot;,
+          &quot;panic-immediate-abort&quot;]</code>, the one gate that ships inside the crate. It changes
+          nothing for consumers, because the crate has always required nightly. Then came layer two: with
+          the manifest parsed, reqwest's http3 feature refused to compile there, needing{' '}
+          <code>--cfg reqwest_unstable</code> — which again came from the config file that does not travel.{' '}
+          <code>[package.metadata.docs.rs]</code> now injects the three cfgs through <code>cargo-args</code>,
+          which reaches dependencies as well as the crate. I verified it by building reqwest's http3 both
+          ways: fails bare, compiles injected.
+        </p>
+        <p>
+          The lesson is not <q>read the docs</q>. It is that <q>works on my machine</q> has a precise
+          meaning for published artifacts: the only environment that matters is the one you do not control,
+          and the config file you rely on is the one that is not in the tarball.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="winget-title">
+    <div class="container">
+      <SectionIntro
+        id="winget-title"
+        eyebrow="07 / war story"
+        title="winget validation looped for a week on a file name."
+        copy="The manifest promised one executable; the archive shipped another. Nothing anyone typed was wrong — that was the problem."
+      />
+      <div class="container prose reveal max-w-[68ch]">
+        <p>
+          The winget submission sat on <q>issue with installing the application correctly</q> for a week.
+          Validation kept failing without naming a file.
+        </p>
+        <p>
+          Root cause: the Windows release zip contained <code>windows-x86_64.exe</code> — the binary named
+          after its build target — while the manifest promised <code>grr.exe</code>. Validation could never
+          find the nested installer, so it looped. The same misshapen name forced every human extracting a
+          tarball to rename by hand.
+        </p>
+        <p>
+          The fix is in two places. Archives now stage the binary as <code>grr</code> / <code>grr.exe</code>{' '}
+          inside a per-target directory. And the manifest is no longer written by hand:{' '}
+          <code>scripts/generate-winget.ts</code> downloads the released artifact, reads the zip's real
+          member list, takes the checksum from <code>SHA256SUMS</code>, and derives every field from what
+          actually shipped. Run against v0.7.0's live release it correctly derives{' '}
+          <code>windows-x86_64.exe</code> — both the proof of the root cause and the proof that the
+          derivation is honest. The manifest can no longer name a file the archive does not contain.
+        </p>
+        <p>
+          The listing still has to clear Microsoft's validation, and it has not yet. But the class of bug is
+          closed, because the manifest is now a function of the artifact instead of a second copy of it.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="honest-title">
+    <div class="container">
+      <SectionIntro
+        id="honest-title"
+        eyebrow="08 / limits"
+        title="Publish the losses, then name what is missing."
+        copy="A benchmark you only win is marketing. The compare page carries the rows grr loses too."
+      />
+      <div class="container prose reveal max-w-[68ch]">
+        <p>
+          The site runs a nightly comparison against <code>gog</code> and <code>gws</code> and publishes
+          the rows where grr loses. <code>gog</code> covers 27 services, including domain-locked enterprise
+          APIs that a consumer account cannot authorise and that grr deliberately leaves out.{' '}
+          <code>gws</code> rebuilds its surface from Google's live Discovery Service at runtime, so it has a
+          new method before any release, and it ships 100+ agent skills. Those facts sit on the{' '}
+          <a href={`${base}compare/`}>compare page</a> next to the numbers grr wins. As of the current
+          nightly snapshot, the startup median is about 4 ms and the <code>grr schema</code> dump about 18
+          ms, with peak memory measured on each tool's closest-equivalent workload rather than a synthetic
+          one — and a daily job that will change those numbers, which is why this essay links the live page
+          instead of printing a fixed table.
+        </p>
+        <p>What is still missing, honestly:</p>
+        <ul>
+          <li>
+            <strong>No client-side throttling, by design.</strong> The tool honours <code>Retry-After</code>,
+            but a script that ignores it can lean on Google's quota harder than it should. That is the
+            deliberate trade: the server knows its capacity, and grr does not second-guess it.
+          </li>
+          <li>
+            <strong>The scope set is fixed at login.</strong> Tasks needs a scope this build does not
+            request, so a Tasks call can come back 403 with an error naming the missing scope. It is a real
+            gap, not a rounding error.
+          </li>
+          <li>
+            <strong>winget is not published yet.</strong> The root cause is fixed and the submission is
+            derived, but Microsoft validation has the final say.
+          </li>
+          <li>
+            <strong>A source build needs Rust nightly</strong>, because HTTP/3 sits behind an unstable cfg.
+            That is a real cost and it is not going away while the transport is where it is.
+          </li>
+        </ul>
+        <p>
+          What I want next is boring: close the winget loop, keep the daily pull request easy to review, and
+          keep the demo honest. The bet that matters is unchanged — the command tree is generated from an
+          index committed to the repository, so it works offline, it is reviewable in a diff, and it cannot
+          quietly drift from Google's own description of its APIs. Everything else is maintenance.
+        </p>
+        <p>Install is one line. The release binary is zero-config:</p>
+        <CodeBlock code={install} label="install · macOS + Linux" />
+        <p>
+          The source, the releases and this site are all linked from the{' '}
+          <a href={repoUrl} target="_blank" rel="noreferrer">repository ↗</a>. If any claim above looks
+          wrong, the diff, the workflow, or the benchmark that produced it is public.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="next-title">
+    <div class="container">
+      <SectionIntro
+        id="next-title"
+        eyebrow="read on"
+        title="Where the details live."
+        copy="This was the story. The reference pages carry the specifics, and the benchmark is the one that stays current."
+      />
+      <div class="grid grid-cols-1 gap-5 md:grid-cols-3">
+        {
+          surfaces.map((surface) => (
+            <a class="card card-border border-base-300 bg-base-100 transition-colors hover:border-primary" href={surface.href}>
+              <div class="card-body gap-2 p-5">
+                <h3 class="card-title m-0 text-base">{surface.label}</h3>
+                <p class="m-0 text-[13px] text-base-content/70"><InlineCode text={surface.copy} /></p>
+              </div>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</BaseLayout>

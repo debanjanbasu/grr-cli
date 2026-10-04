@@ -39,12 +39,6 @@ const rect = (x, y, width, height, fill, extra = '') =>
 const polygon = (points, fill, extra = '') =>
   `<polygon points="${points.map(([x, y]) => `${number(x)},${number(y)}`).join(' ')}" fill="${fill}"${extra ? ` ${extra}` : ''}/>`;
 
-const path = (d, fill = 'none', extra = '') =>
-  `<path d="${d}" fill="${fill}"${extra ? ` ${extra}` : ''}/>`;
-
-const line = (x1, y1, x2, y2, stroke, width = 4, extra = '') =>
-  path(`M${number(x1)} ${number(y1)}L${number(x2)} ${number(y2)}`, 'none', `stroke="${stroke}" stroke-width="${number(width)}" stroke-linecap="square" stroke-linejoin="miter"${extra ? ` ${extra}` : ''}`);
-
 const svgDocument = ({ width, height, viewBox = `0 0 ${width} ${height}`, title, description, body, idPrefix = null }) => {
   const titleId = idPrefix ? `${idPrefix}-title` : 'title';
   const descId = idPrefix ? `${idPrefix}-desc` : 'desc';

@@ -192,25 +192,18 @@ const jsonLd = JSON.stringify({
             }, 1600);
           }
 
-          // execCommand fallback for browsers or contexts without the async
-          // clipboard API (older Safari, non-secure origins).
-          function legacyCopy(text) {
-            var area = document.createElement('textarea');
-            area.value = text;
-            area.setAttribute('readonly', '');
-            area.style.position = 'fixed';
-            area.style.top = '-1000px';
-            area.style.opacity = '0';
-            document.body.appendChild(area);
-            area.select();
-            var ok = false;
-            try {
-              ok = document.execCommand('copy');
-            } catch (error) {
-              ok = false;
-            }
-            document.body.removeChild(area);
-            return ok;
+          /* Fallback when the async clipboard API is unavailable or rejects
+             (older Safari, non-secure origins). Every synchronous copy call is
+             deprecated, so select the command text in place and let the
+             browser's own copy shortcut finish it — the flash already says
+             'Press Ctrl+C'. */
+          function selectForManualCopy(code) {
+            var range = document.createRange();
+            range.selectNodeContents(code);
+            var selection = window.getSelection();
+            if (!selection) return;
+            selection.removeAllRanges();
+            selection.addRange(range);
           }
 
           document.addEventListener('click', function (event) {
@@ -228,11 +221,13 @@ const jsonLd = JSON.stringify({
                   flash(button, 'Copied');
                 },
                 function () {
-                  flash(button, legacyCopy(text) ? 'Copied' : 'Press Ctrl+C');
+                  selectForManualCopy(code);
+                  flash(button, 'Press Ctrl+C');
                 },
               );
             } else {
-              flash(button, legacyCopy(text) ? 'Copied' : 'Press Ctrl+C');
+              selectForManualCopy(code);
+              flash(button, 'Press Ctrl+C');
             }
           });
         };

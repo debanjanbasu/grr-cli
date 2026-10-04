@@ -27,6 +27,7 @@ const pages = [
   'docs/api-reference/tasks/',
   'changelog/',
   'compare/',
+  'blog/',
   'privacy/',
   'terms/',
 ];
