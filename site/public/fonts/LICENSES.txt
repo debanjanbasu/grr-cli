@@ -13,7 +13,7 @@ Source: https://github.com/rbanffy/3270font
 License text: https://github.com/rbanffy/3270font/blob/main/LICENSE.txt
 
 The WOFF2 file in this directory is a SUBSET of the font used by the site.
-It is regenerated with `python3 scripts/subset-font.py` (repo root) from the
+It is regenerated with `node scripts/subset-font.mjs` (repo root) from the
 unmodified upstream build kept in site/fonts-src/, which is deliberately
 outside public/ so it is never served. Subsetting changes only which
 codepoints are present; glyph outlines, metrics and the name table are the
