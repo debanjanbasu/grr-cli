@@ -112,7 +112,7 @@ jobs:
       - name: Build grr (release)
         if: steps.gate.outputs.skip != 'true'
         timeout-minutes: 25
-        run: cargo build --release --locked
+        run: cargo build --release
 
       - name: Obtain gog (best effort)
         if: steps.gate.outputs.skip != 'true'

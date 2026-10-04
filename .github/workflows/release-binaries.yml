@@ -71,7 +71,7 @@ jobs:
 
       - name: Build release binary
         timeout-minutes: 45
-        run: cargo build --release --locked --target ${{ matrix.target.triple }}
+        run: cargo build --release --target ${{ matrix.target.triple }}
 
       - name: Install UPX (linux)
         if: runner.os == 'Linux'
