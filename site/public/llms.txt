@@ -4,7 +4,7 @@
 
 ## Agent skill
 
-- [skills/grr/SKILL.md](https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md): The packaged agent skill — the discovery-first discipline (`grr schema` → `grr api list` → `grr api describe` → `--dry-run`), the method-id naming rule, the typed-flag rules, and the output contract. Install into any harness with `npx skills add https://github.com/debanjanbasu/grr-cli`.
+- [skills/grr/SKILL.md](https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md): The packaged agent skill — the discovery-first discipline (`grr schema` → `grr api list` → `grr api describe` → `--dry-run`), the method-id naming rule, the typed-flag rules, and the output contract. Install into any harness with `npx skills add https://github.com/debanjanbasu/grr-cli`, or offline from the binary with `grr skills install` (global only — `~/.agents/skills/`; `--claude` mirrors into `~/.claude/skills/`, which Claude Code reads exclusively).
 - [skills/<service>/SKILL.md](https://github.com/debanjanbasu/grr-cli/tree/main/skills): One generated skill per service (14) - load progressively alongside the core skill; each covers its method surface, examples, and scope caveats, baked from the same discovery index.
 
 ## Agent surfaces
@@ -13,6 +13,7 @@
 - [Natural language](https://grr-cli.pages.dev/docs/commands/): `grr ask "show my unread messages"` - a System One model (Jev by default) classifies the request hierarchically and fills the typed parameters; prints the plan, `--run` executes.
 - [Safety profiles](https://grr-cli.pages.dev/docs/commands/): global `--readonly`, `--deny-service`, `--deny-verb` flags honored by the CLI, `grr api call`, and the MCP server alike.
 - [Multi-account](https://grr-cli.pages.dev/docs/commands/): `grr auth login --account work` keeps a separate token per account in the OS keyring.
+- [Skills install](https://grr-cli.pages.dev/docs/commands/): `grr skills install` writes the 16 packaged agent skills into `~/.agents/skills/` with no network (global only, never a project directory); `--claude` mirrors into `~/.claude/skills/`; `grr skills list` reports state as JSON.
 - [Terminal demo](https://grr-cli.pages.dev/): an asciinema cast of real output, including an opencode agent driving grr.
 ## Docs
 

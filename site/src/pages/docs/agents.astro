@@ -119,12 +119,13 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
         />
         <div class="container prose reveal max-w-[68ch]">
           <p class="lead">The tracing subscriber is wired to stderr at startup, deliberately, so <code>grr … | jq</code> cannot receive a log line. Data goes to stdout and only data goes to stdout.</p>
-          <p>Two commands annotate that contract in ways an agent should know about:</p>
+          <p>A few commands annotate that contract in ways an agent should know about:</p>
           <CodeBlock code={contract} label="stdout vs stderr" />
           <ul>
             <li><code>grr api list</code> prints its method count to stderr and the array to stdout. That is why <code>grr api list | jq</code> is valid JSON.</li>
             <li><code>grr auth login --device</code> prints its human-readable URL and code to <strong>stdout</strong> with a plain <code>println!</code>, before the JSON result. If you are parsing the result of a device login, do not assume stdout is JSON for that one command.</li>
             <li><code>grr transport</code> prints a plain-text report, not JSON. It is a diagnostic for a human; read it, do not parse it.</li>
+            <li><code>grr skills install</code> prints a plain-text summary of what it wrote (and exits non-zero when it refuses to clobber a locally edited file without <code>--force</code>). <code>grr skills list</code> is JSON, so inspect installation state with that.</li>
             <li>Every <code>--dry-run</code> output is JSON, on either route (generated leaf or <code>grr api call</code>), so it pipes and a <code>jq</code> assertion works on it.</li>
             <li>Suppress logs with <code>2>/dev/null</code> when you want quiet failures, but keep them when you are debugging &mdash; the error text is where the useful detail is.</li>
           </ul>
@@ -295,6 +296,7 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
         <h2 id="harness-title">Mapping this onto a harness</h2>
         <p>Claude Code, Codex, Cursor, Gemini CLI, OpenClaw, and anything else that shells out can be set up from the same sources, in this order:</p>
         <ul>
+          <li><code>grr skills install</code> &mdash; writes the packaged core skill plus the 14 per-service skills into <code>~/.agents/skills/</code>, offline and globally (never a project directory); <code>--claude</code> mirrors into <code>~/.claude/skills/</code> for Claude Code, which reads nothing else. <code>grr skills list</code> reports the state of each target.</li>
           <li><a href="https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md" target="_blank" rel="noreferrer">skills/grr/SKILL.md ↗</a> &mdash; the packaged agent skill: the discovery-first discipline, the naming rule, and the output contract in one file. Install it with <code>npx skills add https://github.com/debanjanbasu/grr-cli</code>.</li>
           <li><a href={`${base}llms.txt`}>llms.txt</a> &mdash; the site&rsquo;s machine-readable index, for orientation. Fetch it once at session start.</li>
           <li><code>grr schema</code> &mdash; the generated command tree, for building tool definitions. Regenerate it rather than hand-writing flags.</li>

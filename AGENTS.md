@@ -1,6 +1,6 @@
 # grr — Agent Execution Ruleset
 
-`grr` is a Rust CLI for Google Workspace: one binary (`grr`), one crate (`grr-cli`), a generated command tree covering **401 methods across 14 Google APIs** (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, Search Console) — compiled from the committed Discovery index, never hand-written — plus the id-based `grr api` escape hatch and static commands (`auth`, `api`, `mcp`, `transport`, `schema`, `ask`). HTTP/3 (QUIC) is always on. Requires **Rust nightly**.
+`grr` is a Rust CLI for Google Workspace: one binary (`grr`), one crate (`grr-cli`), a generated command tree covering **401 methods across 14 Google APIs** (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, Search Console) — compiled from the committed Discovery index, never hand-written — plus the id-based `grr api` escape hatch and static commands (`auth`, `api`, `mcp`, `transport`, `schema`, `ask`, `skills`). HTTP/3 (QUIC) is always on. Requires **Rust nightly**.
 
 Use this file as the execution ruleset. Deep detail lives in the files linked from it.
 
@@ -17,7 +17,7 @@ Use this file as the execution ruleset. Deep detail lives in the files linked fr
 | The pixel-art assets (`site/src/assets/*.svg`, `site/public/*.svg`, favicons, og card) | `site/scripts/generate-mascot.mjs` — GENERATED, never hand-edit; run `node site/scripts/generate-mascot.mjs` |
 | The `grr --version` banner | `src/logo.rs` — the pixel map, palette, half-block renderer, and terminal-capability gate |
 | Docs / changelog automation | `scripts/generate-changelog.ts`, `.github/workflows/changelog.yml`, `.github/workflows/discovery.yml` |
-| The agent skill (`skills/grr/SKILL.md`) | Keep it in lockstep with the output contract and naming rules in `gen_dispatch.rs` and `generated.rs` |
+| The agent skill (`skills/grr/SKILL.md`) | `src/commands/skills.rs` (the embedded table + install/list), `scripts/generate-skills.ts` (the generated service skills and the README template). Keep it in lockstep with the output contract and naming rules in `gen_dispatch.rs` and `generated.rs` |
 | Crates.io publishing | `.github/workflows/publish.yml` (read the comment block first) |
 
 ## Key commands
@@ -43,18 +43,20 @@ npm run demo                             # regenerate demo/demo.cast (local: + o
 
 grr schema                                  # the full command tree as JSON — the contract
 grr api list [--service X] [--filter SUBSTR] # the 401 methods, offline, no login
+grr skills install [--claude] [--force]      # the packaged agent skills into ~/.agents/skills, offline
+grr skills list                              # what is installed, per target directory
 ```
 
 ## Architecture
 
 | Layer | Files | What lives there |
 |---|---|---|
-| CLI | `src/cli.rs`, `src/commands/*.rs` | Static commands (auth, api, mcp, transport, schema, ask) as derive types; the entire service tree is `src/commands/generated.rs` (compiled from the index by the generator, dispatched by `gen_dispatch.rs` through the shared call path in `api.rs`). `auth setup` and `schema` run before config load (they must work with zero configuration). |
+| CLI | `src/cli.rs`, `src/commands/*.rs` | Static commands (auth, api, mcp, transport, schema, ask, skills) as derive types; the entire service tree is `src/commands/generated.rs` (compiled from the index by the generator, dispatched by `gen_dispatch.rs` through the shared call path in `api.rs`). `auth setup`, `schema` and `skills` run before config load (they must work with zero configuration; `skills` embeds its payload with `include_str!`). |
 | Discovery | `src/discovery.rs` | The embedded index + `grr api` resolution: method ids, path templates, scopes, params. Parsed once into a `OnceLock`. This index is the single source of truth for BOTH surfaces — the generated tree is compiled from it. |
 | Core | `src/core/` | Auth (OAuth+PKCE, keyring), HTTP (HTTP/3), config, errors, pagination. |
 | Build | `build.rs`, `.cargo/config.toml` | Nightly guard + compile-time OAuth client injection; build-std + per-target rustflags. |
 | Site | `site/` | Astro static site: docs, changelog, llms.txt. Every image is generated pixel art from `site/scripts/generate-mascot.mjs`. |
-| Skills | `skills/grr/SKILL.md` | The packaged agent skill — discovery-first discipline, naming rule, output contract. |
+| Skills | `skills/grr/SKILL.md`, `src/commands/skills.rs` | The packaged agent skills — discovery-first discipline, naming rule, output contract. `skills.rs` embeds all 16 files (`include_str!`) and serves `grr skills install` / `grr skills list`; installs are global-only (`~/.agents/skills`, plus `~/.claude/skills` under `--claude`). |
 
 ### Invariants worth knowing before you change something
 
@@ -66,7 +68,7 @@ grr api list [--service X] [--filter SUBSTR] # the 401 methods, offline, no logi
 6. **Per-method scope escalation is the design**: 124 unique scopes across the 14 services vs Google's ~25-scope cap on unverified apps means "request everything" fails at consent. A method needing a scope outside the consented set gets a stderr note, not a silent escalation; a resulting 403 names the scope.
 7. **The OAuth client must never enter the repo** — not in source, tests, CI logs, or the `.crate` tarball. `build.rs` reads `GRR_CLIENT_ID`/`GRR_CLIENT_SECRET` from the environment (falling back to a repo-root `.env`) and re-exports via `cargo:rustc-env`. Release binaries embed them (Google treats installed-app secrets as non-confidential; PKCE protects the flow); source builds fall through to `grr auth setup`.
 8. **`panic = "immediate-abort"`** in `[profile.release]` (gated by `panic-immediate-abort` in `.cargo/config.toml [unstable]`, paired with `build-std`). Panic messages become context-free; do not write tests that assert on panic text.
-9. **stdout is machine output, stderr is logs** — `grr gmail users messages list --user-id me | jq` must never receive log lines. The known plain-text stdout exceptions are `grr transport` and the pre-JSON device-login line; note any new one in docs when you add it.
+9. **stdout is machine output, stderr is logs** — `grr gmail users messages list --user-id me | jq` must never receive log lines. The known plain-text stdout exceptions are `grr transport`, `grr skills install` (a human install summary; `grr skills list` is JSON), and the pre-JSON device-login line; note any new one in docs when you add it.
 10. **Global args are IDs, not names**: a `global(true)` arg's ID must be the FIELD name (`deny_service`), not the long flag (`deny-service`) - the hyphenated variant is the exact "Mismatch between definition and access" clap panic. And a flag may only be declared ONCE in the tree: a second declaration with the same ID panics arg-matching.
 11. **The demo cast is generated** (`scripts/generate-demo.ts`), never hand-edited; the committed cast is recorded with `--local` on the owner's machine (CI validates via demo.yml and opens PRs from `--ci-record` runs with carry-forward), so the opencode agent segment cannot silently regress. The committed cast must never contain private data: no Bearer tokens, no client ids, no real message subjects.
 12. **Counts in the site are derived, never typed.** `site/src/data/discovery-coverage.ts` is generated by `scripts/generate-coverage.ts` from the index, and every page that prints a method or service count imports `discoveryMethodTotal` / `discoveryServiceCount` from it. Hardcoding "401 methods" or "14 APIs" in an `.astro` file reintroduces the drift the generator exists to remove — the counts in prose belong in the coverage table.
@@ -130,6 +132,7 @@ These have each caused a real bug in this repo. Do not rediscover them:
 Treat a commit as incomplete if docs are stale. What triggers a doc update:
 
 - Adding/removing/renaming a command or flag → `README.md` command table, `site/src/pages/docs/commands.astro`, `skills/grr/SKILL.md`, `AGENTS.md` key commands
+- Changing `grr skills` (targets, flags, embedded set) → `src/commands/skills.rs`, the `skills/README.md` template in `scripts/generate-skills.ts` (then `node scripts/generate-skills.ts`), `README.md`, `AGENTS.md`, `site/src/pages/docs/commands.astro`, `site/src/pages/docs/agents.astro`, `site/public/llms.txt`
 - Changing auth/config behavior → `README.md`, `docs/gcp-setup.md`, `.env.example`, `config.toml.example`, the FAQ in `site/src/pages/index.astro`
 - Changing packaging/archives → `README.md` packaging table, `site/src/pages/install.astro`
 - Adding a service or changing discovery → `src/discovery/` (via the script, never by hand), `site/src/data/discovery-coverage.ts` (via `node scripts/generate-coverage.ts`, never by hand), the docs discovery page, `site/public/llms.txt`

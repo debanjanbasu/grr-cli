@@ -9,6 +9,19 @@ Agent skills for driving [grr](../README.md), the Rust CLI for Google Workspace.
 
 ## Install
 
+### With grr (offline)
+
+```sh
+grr skills install            # all 16 into ~/.agents/skills/ — the cross-client user-level location
+grr skills install --claude   # mirror into ~/.claude/skills/ too (Claude Code reads only that)
+grr skills install --force    # replace files that differ from the packaged copy
+grr skills list               # the packaged set, and what each target directory holds
+```
+
+The skill files are compiled into the `grr` binary, so install needs no network: writing an identical file is a no-op, and a locally edited file is left alone (with a non-zero exit) unless `--force` is passed.
+
+### With the skills CLI
+
 ```sh
 npx skills add https://github.com/debanjanbasu/grr-cli                          # the whole skills directory (core + services)
 npx skills add https://github.com/debanjanbasu/grr-cli/tree/main/skills/gmail   # one service skill

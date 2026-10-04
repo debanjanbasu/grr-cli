@@ -169,6 +169,7 @@ The command tree is **generated** from the committed Discovery index at build ti
 | `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 401 |
 | `grr schema` | the whole command tree as JSON | — |
 | `grr transport` | negotiated HTTP version + runtime features | — |
+| `grr skills` | `install [--dir PATH] [--claude] [--force]`, `list` — the 16 packaged agent skills into the user-level skills directory (`~/.agents/skills`, offline; `--claude` mirrors to `~/.claude/skills`) | — |
 | `grr gmail` | messages, threads, drafts, labels, history, attachments, filters, forwarding, POP/IMAP, send-as, CSE, delegates, watches | 79 |
 | `grr calendar` | calendars, events, instances, ACL, free/busy, colors, settings | 38 |
 | `grr drive` | files, permissions, comments, replies, revisions, changes, drives, apps, approvals | 64 |
@@ -225,7 +226,16 @@ Authorisation is checked per method: `grr auth login` consents to a fixed set of
 
 ## Agent skills
 
-grr ships a packaged agent skill: [skills/grr/SKILL.md](skills/grr/SKILL.md) — the discovery-first discipline (`schema` → `api list` → `api describe` → `--dry-run`), the method-id naming rule, and the output contract in one file, written for any AI agent. Install it into a harness with:
+grr ships a packaged agent skill: [skills/grr/SKILL.md](skills/grr/SKILL.md) — the discovery-first discipline (`schema` → `api list` → `api describe` → `--dry-run`), the method-id naming rule, and the output contract in one file, written for any AI agent. The core skill plus the 14 generated per-service skills are compiled into the binary, so `grr skills install` writes them into `~/.agents/skills/` with no network (Codex, opencode, Cursor, Gemini CLI, Copilot CLI and omp all read that location; `--claude` mirrors into `~/.claude/skills/` for Claude Code, which reads nothing else):
+
+```sh
+grr skills install            # all 16 into ~/.agents/skills/ (idempotent; identical files are a no-op)
+grr skills install --claude   # also mirror into ~/.claude/skills/
+grr skills install --force    # replace files that differ from the packaged copy
+grr skills list               # the packaged set, and what each target directory holds
+```
+
+or install straight from the repository with the skills CLI:
 
 ```sh
 npx skills add https://github.com/debanjanbasu/grr-cli
@@ -253,8 +263,9 @@ Measured startup, binary size, and request-latency numbers against the other Goo
 │   ├── core/                 # auth/device/oauth/server/store, http.rs,
 │   │                         # config.rs, config_loader.rs, error.rs,
 │   │                         # fs_io.rs, runtime.rs
-│   ├── commands/             # auth.rs, api.rs, setup.rs, transport.rs (the four
-│   │                         # static commands) + generated.rs (GENERATED — the
+│   ├── commands/             # auth.rs, api.rs, setup.rs, transport.rs,
+│   │                         # skills.rs, mcp.rs, ask.rs (the static commands)
+│   │                         # + generated.rs (GENERATED — the
 │   │                         # whole service tree, ~470 KiB) and gen_dispatch.rs
 │   │                         # (resolves leaf ids, funnels into the shared path)
 │   ├── discovery.rs          # loader over the embedded index
