@@ -185,7 +185,7 @@ fell_back: false
 ...
 
 $ grr schema | jq -r '.subcommands[].name'
-["auth","api","transport","schema","calendar","chat","docs","drive","forms","gmail","people","sheets","slides","tasks"]`;
+["auth","api","mcp","transport","schema","ask","skills","calendar","chat","docs","drive","forms","gmail","people","sheets","slides","tasks"]`;
 const pipes = `# stdout is data, stderr is logs -- so this is always valid JSON.
 $ grr gmail users messages list --user-id me --q "from:github.com" --max-results 10 | jq -r '.[0].id'
 19f8ab2c
@@ -200,6 +200,11 @@ const schemaBlock = `$ grr schema > tree.json        # ~290 KB, valid JSON, well
 $ grr schema | jq '.subcommands[] | select(.name == "gmail") | .subcommands[].name'
 ["users"]
 $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list") | .args[].name]'`;
+const skillsBlock = `# The 16 packaged skills are compiled into the binary -- install is offline.
+$ grr skills install            # all of them into ~/.agents/skills/ (the cross-client location)
+$ grr skills install --claude   # also mirror into ~/.claude/skills/ (all Claude Code reads)
+$ grr skills install --force    # replace files that differ from the packaged copy
+$ grr skills list               # the packaged set, and what each target directory holds`;
 ---
 
 <BaseLayout
@@ -222,7 +227,7 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
         />
         <div class="container prose reveal max-w-[68ch]">
           <CodeBlock code={naming} label="method id → command" />
-          <p>Top level: <code>grr auth</code>, <code>grr api</code>, <code>grr mcp</code>, <code>grr schema</code>, <code>grr transport</code>, <code>grr ask</code>, plus one subcommand per service. The tree is emitted into <code>src/commands/generated.rs</code> by a generator that reads the committed Discovery index, and a daily workflow opens a PR when Google adds a method &mdash; so new surface arrives without a grr release.</p>
+          <p>Top level: <code>grr auth</code>, <code>grr api</code>, <code>grr mcp</code>, <code>grr schema</code>, <code>grr transport</code>, <code>grr ask</code>, <code>grr skills</code>, plus one subcommand per service. The tree is emitted into <code>src/commands/generated.rs</code> by a generator that reads the committed Discovery index, and a daily workflow opens a PR when Google adds a method &mdash; so new surface arrives without a grr release.</p>
           <p>Flag names come from the same ids, camelCase collapsed to kebab-case, typed by what Discovery declares:</p>
           <ul>
             <li><strong>Integers</strong> are parsed as numbers: <code>--max-results 10</code>.</li>
@@ -282,7 +287,7 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
         <SectionIntro
           id="account-title"
           eyebrow="account level"
-          title="The six commands that are not a service."
+          title="The seven commands that are not a service."
           copy="These sit at the top level because they are not about one API. grr schema is the one to build against."
         />
         <div class="install-grid mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -312,6 +317,12 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
           </article>
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base"><code>grr skills</code></h2>
+              <p class="m-0 text-[13px] text-base-content/70"><code>install</code> writes the 16 packaged agent skills (core + one per service) into <code>~/.agents/skills/</code> &mdash; the cross-client user-level location &mdash; with no network; <code>--claude</code> mirrors into <code>~/.claude/skills/</code>, which is all Claude Code reads. Identical files are a no-op, a locally edited file is refused without <code>--force</code>. <code>list</code> reports what each target holds.</p>
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base"><code>grr mcp</code></h2>
               <p class="m-0 text-[13px] text-base-content/70">A Model Context Protocol server over stdio: every method as a typed MCP tool with an inputSchema from Discovery. <code>tools/call</code> shares the engine with <code>grr api call</code>; <code>--readonly</code> refuses writes. Point Claude Desktop, Gemini CLI, VS Code or Cursor at it.</p>
             </div>
@@ -328,6 +339,8 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
         <CodeBlock code={account} label="account · transport · schema" />
         <p><code>grr schema</code> is the canonical reference. It is honest about its own size: roughly 290 KB of valid JSON, emitted in well under 100 ms, with zero configuration and before any OAuth exists. Generate a wrapper or an agent tool definition from it &mdash; because it is derived from the same tree the binary dispatches on, it cannot drift from the commands that actually exist.</p>
         <CodeBlock code={schemaBlock} label="grr schema · the canonical reference" />
+        <p>The same zero-configuration promise covers the packaged agent skills: they are compiled into the binary, so <code>grr skills install</code> writes the whole set into the user-level skills directory with no network &mdash; global only, never a project directory.</p>
+        <CodeBlock code={skillsBlock} label="grr skills · offline install" />
       </div>
     </section>
 
@@ -347,7 +360,7 @@ $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list")
           <li><strong>Paging is yours to drive.</strong> The tree does not follow page tokens: <code>--max-results</code> is the API&rsquo;s own page size, and <code>--page-token</code> takes the <code>nextPageToken</code> from the previous response. That keeps a list command from turning into an unbounded crawl.</li>
           <li><strong>Booleans are presence flags</strong> (<code>--include-spam-trash</code>), a deliberate change from value-taking booleans: a flag is either passed or absent, so a script never has to guess.</li>
           <li><strong>Errors are actionable.</strong> A 403 names the missing scope, an unknown method id returns ranked suggestions, a missing required parameter names itself. Non-zero exit on failure, always.</li>
-          <li><strong>Two commands print plain text, not JSON:</strong> <code>grr transport</code> and the device-login line above. <code>--dry-run</code> output <em>is</em> JSON, so it pipes.</li>
+          <li><strong>Three commands print plain text, not JSON:</strong> <code>grr transport</code>, <code>grr skills install</code> (a human install summary), and the device-login line above. <code>grr skills list</code> is JSON. <code>--dry-run</code> output <em>is</em> JSON, so it pipes.</li>
           <li><strong>Timestamps are RFC 3339</strong> (<code>--time-min 2026-10-01T00:00:00Z</code>), or a bare <code>YYYY-MM-DD</code> where the API accepts a date.</li>
           <li><strong><code>grr --version</code> is a banner.</strong> The semver is its first line, which is what the benchmark script and the Homebrew formula read; below it sits the crab mascot, drawn in 24-bit-colour pixel art on a terminal that advertises <code>COLORTERM</code> or direct colour and as plain ASCII everywhere else. A pipe, <code>TERM=dumb</code> or <code>NO_COLOR</code> all give you the ASCII crab &mdash; so scripts are never handed escape sequences. <code>CLICOLOR_FORCE=1</code> forces the colour logo through a pipe.</li>
         </ul>
