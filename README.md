@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![crates.io](https://img.shields.io/crates/v/grr-cli.svg)](https://crates.io/crates/grr-cli)
 
-**Google tools from the terminal, at maximum performance.** `grr-cli` is one published Rust package built around the `grr` command-line binary. Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, and Slides share one OAuth login and one command tree — generated straight from Google's own Discovery Service — while stdout stays clean and machine-readable.
+**Google tools from the terminal, at maximum performance.** `grr-cli` is one published Rust package built around the `grr` command-line binary. Fourteen Google APIs share one OAuth login and one command tree — generated straight from Google's own Discovery Service — while stdout stays clean and machine-readable.
 
 Project site: [grr-cli.pages.dev](https://grr-cli.pages.dev/) · [Privacy](https://grr-cli.pages.dev/privacy/)
 
@@ -47,7 +47,7 @@ A source build has no OAuth client compiled in — see [Authentication and confi
 **Package managers**:
 
 ```sh
-winget install debanjanbasu.grr       # Windows
+winget install debanjanbasu.grr       # Windows (manifest not yet published — see Packaging & status)
 cargo install grr-cli                 # crates.io
 ```
 
@@ -131,7 +131,29 @@ To create a client from scratch, follow [docs/gcp-setup.md](docs/gcp-setup.md) �
 
 The project/fork is **Google Rust Rewrite**; the Google consent-screen application is named **Rust Rewrite**. The consent screen is where that shorter name appears.
 
-**0.4 re-consent:** if you used a pre-0.4 token, run `grr auth login` again. The new service permissions include `chat.delete`, `chat.memberships`, `chat.messages.reactions`, and `contacts.other.readonly`; an existing grant does not pick them up automatically.
+### `grr ask` and System One (JEV)
+
+`grr ask "<request>"` routes plain words to a typed method + parameters and prints the plan; `--run` executes it through the same call path as `grr api`. Routing is three System One judgments — service, then method, then parameters — each a small HTTP request. The model only ever selects among candidates the CLI supplies: the 14 services, a service's methods, a parameter's enum values or spans found in your request. It cannot invent a method id or a value — the CLI decides what runs.
+
+Set `TYPESAFE_API_KEY` and it works against TypeSafe's hosted Jev:
+
+```sh
+export TYPESAFE_API_KEY=...
+grr ask "show my unread messages"
+```
+
+The env route is preferred: a key in a config file can leak with the file. The `[systemone]` block in `~/.grr/config.toml` is the only other surface:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `endpoint` | `https://api.typesafe.ai/v1/systemone` | any provider speaking the System One contract (POST `state` + typed `questions`, back structured `answers`) |
+| `model` | `jev-latest` | model name sent to that endpoint |
+| `api-key` | — | sent as `Authorization: Bearer`; empty behaves as absent |
+| `confidence-threshold` | `0.6` | below this method-choice confidence the plan is flagged, never blocked |
+
+Any key also accepts the generic `GRR_SYSTEMONE__ENDPOINT` / `GRR_SYSTEMONE__MODEL` / `GRR_SYSTEMONE__API_KEY` env form (the same `GRR_` route as `GRR_OAUTH__*`), and `TYPESAFE_API_KEY` overrides `api-key`. The key never appears in the printed plan or in a request body — it rides only in the `Authorization` header.
+
+Pointing `endpoint`/`model` at your own provider changes only which model ranks the CLI-supplied candidates; the candidate sets, the typed parameter fill, and what actually executes stay grr's. `grr ask` honors the global safety flags (`--readonly`, `--deny-service <name>`, `--deny-verb <VERB>`) whether or not you pass `--run`, and the gate runs as soon as the method is resolved — before the parameter-fill judgment and before any Google request is built or sent.
 
 ## Usage highlights
 
@@ -185,7 +207,7 @@ The command tree is **generated** from the committed Discovery index by `scripts
 | `grr analyticsdata` | standard, realtime, pivot and batch reports, audience exports | 11 |
 | `grr searchconsole` | search analytics queries, sitemaps, sites, URL inspection | 11 |
 
-**Safety profiles.** `--readonly`, `--deny-service <name>` and `--deny-verb <VERB>` are global flags honored by the generated tree, `grr api call` and `grr mcp` alike — they parse before or after the subcommand, and turn destructive methods into actionable errors:
+**Safety profiles.** `--readonly`, `--deny-service <name>` and `--deny-verb <VERB>` are global flags honored by the generated tree, `grr api call`, `grr ask` and `grr mcp` alike — they parse before or after the subcommand, and turn destructive methods into actionable errors:
 
 ```sh
 grr --readonly gmail users messages delete --user-id me --id abc   # refused: DELETE
@@ -194,7 +216,7 @@ grr --deny-service chat chat spaces list                            # refused: t
 
 ## The generated tree
 
-Every service command above is generated from the committed index by `scripts/generate-commands.ts` — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~420 KiB across the 14 services) and emits the whole tree into `src/commands/generated.rs` — 401 leaves, 994 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates the index along with the command tree, the per-service agent skills, and the site's coverage table, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
+Every service command above is generated from the committed index by `scripts/generate-commands.ts` — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~430 KiB across the 14 services) and emits the whole tree into `src/commands/generated.rs` — 401 leaves, 994 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates the index along with the command tree, the per-service agent skills, and the site's coverage table, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
 
 The rules, so you can predict any command without memorizing it:
 
@@ -218,8 +240,8 @@ Authorisation is checked per method: `grr auth login` consents to a fixed set of
 
 ## Design philosophy
 
-- **Zero-config.** Release binaries carry an OAuth client compiled in by `build.rs`, so a fresh install runs `grr auth login` with nothing to configure. `~/.grr/config.toml` is the override, not the prerequisite, and holds only the OAuth client (ID, optionally a secret) plus — if you point `grr ask` at your own model — its `[systemone]` block. Scopes, redirect URI, pool sizes, timeouts, and retry policy are compile-time constants tuned for Google's frontends ([src/core/http.rs](src/core/http.rs)). `GRR_CONFIG_PATH` overrides the file location, `RUST_LOG` the log level (`GRR_OAUTH__*` env vars exist for headless overrides) — nothing else is configurable, on purpose.
-- **Generated, namespaced services.** The command tree is compiled from the Discovery index — the same machine-readable description Google publishes — so method additions land as a daily PR instead of a hand-written backlog. Mail is `grr gmail …`; Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, and Slides live alongside it, and account-level concerns stay top-level (`grr auth`, `grr api`, `grr transport`, `grr schema`). One login covers every service.
+- **Zero-config.** Release binaries carry an OAuth client compiled in by `build.rs`, so a fresh install runs `grr auth login` with nothing to configure. `~/.grr/config.toml` is the override, not the prerequisite, and holds only the OAuth client (ID, optionally a secret) plus — if you point `grr ask` at your own model — its `[systemone]` block (see [`grr ask` and System One](#grr-ask-and-system-one-jev)). Scopes, redirect URI, pool sizes, timeouts, and retry policy are compile-time constants tuned for Google's frontends ([src/core/http.rs](src/core/http.rs)). `GRR_CONFIG_PATH` overrides the file location, `RUST_LOG` the log level (`GRR_OAUTH__*` env vars exist for headless overrides) — nothing else is configurable, on purpose.
+- **Generated, namespaced services.** The command tree is compiled from the Discovery index — the same machine-readable description Google publishes — so method additions land as a daily PR instead of a hand-written backlog. Mail is `grr gmail …`; Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, and Slides live alongside it, and account-level concerns stay top-level (`grr auth`, `grr api`, `grr ask`, `grr mcp`, `grr transport`, `grr schema`, `grr skills`). One login covers every service.
 - **stdout purity.** Logs go to stderr, results go to stdout, so `| jq` always works. `-f jsonl` streams arrays one object per line.
 - **Keyring-first token storage.** Tokens live in the OS keyring (Windows Credential Manager, macOS Keychain, Linux Secret Service via D-Bus), with automatic fallback to `<cache dir>/grr/token.json` on headless systems. A token found in the fallback file auto-imports into the keyring on first sight.
 - **Agent-first.** `grr schema` dumps the complete command tree as JSON with zero configuration — the machine-readable contract for AI agents, discoverable without touching a config file or scraping `--help`. One fast CLI replaces per-service MCP servers: no MCP setup, just `grr schema`. There is also a packaged agent skill at [skills/grr/SKILL.md](skills/grr/SKILL.md) — see [Agent skills](#agent-skills).
@@ -269,7 +291,7 @@ Measured startup, binary size, and request-latency numbers against the other Goo
 │   │                         # whole service tree, ~470 KiB) and gen_dispatch.rs
 │   │                         # (resolves leaf ids, funnels into the shared path)
 │   ├── discovery.rs          # loader over the embedded index
-│   ├── discovery/             # generated *.json index (~420 KiB, committed,
+│   ├── discovery/             # generated *.json index (~430 KiB, committed,
 │   │                         # refreshed daily by workflow PR)
 │   ├── schema.rs
 │   ├── output.rs
@@ -280,8 +302,6 @@ Measured startup, binary size, and request-latency numbers against the other Goo
 ```
 
 One shared core, no per-service client modules: the CLI speaks Discovery through a single call path (`src/commands/api.rs`), and the typed request/response models of the 0.3.x library era are gone. The repository also contains the `assets/`, `site/` (the Astro site at [grr-cli.pages.dev](https://grr-cli.pages.dev/), deployed from main by Cloudflare Pages), `packaging/`, and `scripts/` material used for the project site and distribution.
-
-Every build requires Rust **nightly** and the `reqwest_unstable` cfg (`.cargo/config.toml` supplies it for in-repo builds; downstream users need `RUSTFLAGS="--cfg reqwest_unstable"`). There is deliberately no stable-Rust path. HTTP/3 (rustls + quinn, via reqwest's unstable http3 support) is **always compiled in**, and HTTP/2 exists only as a runtime fallback; io_uring is a Linux-only target-specific dependency that is detected at runtime.
 
 ## Development
 
@@ -296,6 +316,8 @@ cargo run -- api list
 
 node scripts/fetch-discovery.ts          # refresh the Discovery index
 node scripts/generate-commands.ts        # regenerate the service command tree
+node scripts/generate-skills.ts          # regenerate skills/<service>/SKILL.md
+node scripts/generate-coverage.ts        # regenerate the site coverage table
 node scripts/generate-changelog.ts       # regenerate CHANGELOG.md + site data
 ```
 

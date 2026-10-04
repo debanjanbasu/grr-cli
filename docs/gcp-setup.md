@@ -71,7 +71,7 @@ gcloud services enable gmail.googleapis.com
 gcloud services enable calendar-json.googleapis.com drive.googleapis.com people.googleapis.com chat.googleapis.com forms.googleapis.com
 ```
 
-`grr auth setup --enable-apis` runs `gcloud services enable` for all 14 grr services at once — the five above plus Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, and Search Console — when `gcloud` is on `PATH` ([src/commands/setup.rs](../src/commands/setup.rs) holds the list).
+`grr auth setup --enable-apis` runs `gcloud services enable` for all 14 grr services at once — Gmail, the five above, and Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, and Search Console — when `gcloud` is on `PATH` ([src/commands/setup.rs](../src/commands/setup.rs) holds the list).
 
 Enable the remaining service APIs too:
 
