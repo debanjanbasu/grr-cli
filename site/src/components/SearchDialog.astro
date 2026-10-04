@@ -1,0 +1,333 @@
+---
+/**
+ * The sitewide search overlay. The trigger lives in the header (it has to sit
+ * in the nav row); this component owns the dialog and the Pagefind wiring, and
+ * BaseLayout mounts it once per document at the end of <body>.
+ *
+ * Search is a static, client-side index built post-build by Pagefind, so there
+ * is no backend and no network request at query time: the JS API imports the
+ * generated /pagefind/pagefind.js bundle and searches the fragment files served
+ * from the same origin. The import is lazy (first open) so pages that never
+ * search pay nothing, and the module is left unresolved for Vite (@vite-ignore)
+ * because it does not exist until after the build.
+ */
+---
+
+<div class="search-overlay" data-search-overlay data-pagefind-path={`${import.meta.env.BASE_URL}pagefind/pagefind.js`} hidden>
+  <div class="search-backdrop" data-search-close></div>
+  <div class="search-dialog" role="dialog" aria-modal="true" aria-label="Search the site">
+    <div class="search-field">
+      <span class="search-prompt" aria-hidden="true">//</span>
+      <input
+        id="search-input"
+        class="search-input"
+        type="search"
+        name="q"
+        placeholder="Search docs, blog, changelog, install…"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        aria-label="Search query"
+        aria-controls="search-results"
+        role="combobox"
+        aria-expanded="false"
+        data-search-input
+      />
+      <button class="search-close" type="button" data-search-close aria-label="Close search">
+        <span aria-hidden="true">Esc</span>
+      </button>
+    </div>
+    <p class="search-status" data-search-status role="status" aria-live="polite"></p>
+    <ul id="search-results" class="search-results" role="listbox" aria-label="Search results" data-search-results></ul>
+    <p class="search-hint">
+      <span><kbd>↑</kbd><kbd>↓</kbd> to move</span>
+      <span><kbd>Enter</kbd> to open</span>
+      <span><kbd>Esc</kbd> to close</span>
+    </p>
+  </div>
+</div>
+
+<script>
+  /* One document-level set of handlers, guarded so it binds once per document
+     and keeps working across the ClientRouter's client-side navigations (the
+     header — and therefore the trigger — is swapped, but the listeners and the
+     lazily imported module survive). Every handler re-queries the live DOM
+     instead of closing over elements that a swap may have replaced. */
+  const PAGE_DEBOUNCE = 160;
+  const MAX_RESULTS = 12;
+  const root = document.documentElement;
+
+  type PagefindResult = {
+    data: () => Promise<{ url: string; excerpt: string; meta?: { title?: string } }>;
+  };
+  type PagefindModule = {
+    search: (query: string) => Promise<{ results: PagefindResult[] }>;
+  };
+
+  let pagefindPromise: Promise<PagefindModule> | null = null;
+
+  function loadPagefind(): Promise<PagefindModule> {
+    if (!pagefindPromise) {
+      const el = document.querySelector<HTMLElement>('[data-search-overlay]');
+      const url = el?.dataset.pagefindPath || '/pagefind/pagefind.js';
+      pagefindPromise = import(/* @vite-ignore */ url) as Promise<PagefindModule>;
+      // A rejected load (e.g. `astro dev` before any build) must not be cached,
+      // so a later open can retry once the index exists.
+      pagefindPromise.catch(() => {
+        pagefindPromise = null;
+      });
+    }
+    return pagefindPromise;
+  }
+
+  function bindSearch() {
+    if (root.dataset.searchBound === 'true') return;
+    root.dataset.searchBound = 'true';
+
+    let seq = 0;
+    let timer = 0;
+    let activeIndex = -1;
+    let resultCount = 0;
+
+    const overlay = () => document.querySelector<HTMLElement>('[data-search-overlay]');
+    const input = () => document.querySelector<HTMLInputElement>('[data-search-input]');
+    const list = () => document.querySelector<HTMLElement>('[data-search-results]');
+    const statusEl = () => document.querySelector<HTMLElement>('[data-search-status]');
+
+    function setStatus(text: string) {
+      const el = statusEl();
+      if (el) el.textContent = text;
+    }
+
+    function clearResults() {
+      const el = list();
+      if (el) el.replaceChildren();
+      resultCount = 0;
+      activeIndex = -1;
+      const inp = input();
+      if (inp) inp.removeAttribute('aria-activedescendant');
+    }
+
+    function highlight(next: number) {
+      const el = list();
+      if (!el || !el.children.length) return;
+      const count = el.children.length;
+      if (next < 0) next = count - 1;
+      if (next >= count) next = 0;
+      activeIndex = next;
+      Array.from(el.children).forEach((child, index) => {
+        const on = index === activeIndex;
+        child.classList.toggle('is-active', on);
+        child.setAttribute('aria-selected', String(on));
+        if (on && child.scrollIntoView) child.scrollIntoView({ block: 'nearest' });
+      });
+      const inp = input();
+      const active = el.children[activeIndex] as HTMLElement | undefined;
+      if (inp) {
+        if (active) inp.setAttribute('aria-activedescendant', active.id);
+        else inp.removeAttribute('aria-activedescendant');
+      }
+    }
+
+    function render(items: Array<{ url: string; title: string; excerpt: string }>) {
+      const el = list();
+      if (!el) return;
+      el.replaceChildren();
+      items.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.className = 'search-result';
+        li.id = `search-result-${index}`;
+        li.setAttribute('role', 'option');
+        li.setAttribute('aria-selected', 'false');
+
+        const anchor = document.createElement('a');
+        anchor.className = 'search-result-link';
+        anchor.href = item.url;
+
+        const title = document.createElement('span');
+        title.className = 'search-result-title';
+        title.textContent = item.title;
+
+        const excerpt = document.createElement('span');
+        excerpt.className = 'search-result-excerpt';
+        // Pagefind's excerpt carries its own <mark> highlights; it is HTML
+        // generated from the built index, not user input.
+        excerpt.innerHTML = item.excerpt;
+
+        anchor.append(title, excerpt);
+        li.append(anchor);
+        el.append(li);
+      });
+      resultCount = items.length;
+      activeIndex = -1;
+    }
+
+    async function run(rawQuery: string) {
+      const query = rawQuery.trim();
+      seq += 1;
+      const token = seq;
+      if (!query) {
+        clearResults();
+        setStatus('Type to search docs, blog, changelog and install.');
+        return;
+      }
+      setStatus('Searching…');
+      let pagefind: PagefindModule;
+      try {
+        pagefind = await loadPagefind();
+      } catch {
+        if (token === seq) setStatus('Search index unavailable — run a production build first.');
+        return;
+      }
+      let found: PagefindResult[];
+      try {
+        const search = await pagefind.search(query);
+        found = search.results.slice(0, MAX_RESULTS);
+      } catch {
+        if (token === seq) setStatus('Search failed. Try a different term.');
+        return;
+      }
+      const data = await Promise.all(found.map((result) => result.data()));
+      if (token !== seq) return;
+      if (!data.length) {
+        clearResults();
+        setStatus(`No results for “${query}”.`);
+        return;
+      }
+      render(
+        data.map((entry) => ({
+          url: entry.url,
+          title: entry.meta?.title || entry.url,
+          excerpt: entry.excerpt || '',
+        })),
+      );
+      setStatus(`${data.length} result${data.length === 1 ? '' : 's'} for “${query}”.`);
+    }
+
+    function open() {
+      const el = overlay();
+      if (!el || !el.hidden) return;
+      el.hidden = false;
+      root.dataset.searchOpen = 'true';
+      const inp = input();
+      if (inp) {
+        inp.setAttribute('aria-expanded', 'true');
+        setStatus('Type to search docs, blog, changelog and install.');
+        inp.focus();
+        inp.select();
+        if (inp.value.trim()) void run(inp.value);
+      }
+    }
+
+    function close(restoreFocus = true) {
+      const el = overlay();
+      if (!el || el.hidden) return;
+      el.hidden = true;
+      delete root.dataset.searchOpen;
+      window.clearTimeout(timer);
+      seq += 1;
+      const inp = input();
+      if (inp) {
+        inp.removeAttribute('aria-activedescendant');
+        inp.setAttribute('aria-expanded', 'false');
+      }
+      if (restoreFocus) {
+        const trigger = document.querySelector<HTMLElement>('[data-search-open]');
+        if (trigger) trigger.focus();
+      }
+    }
+
+    document.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement | null;
+      if (!target || !target.closest) return;
+      if (target.closest('[data-search-open]')) {
+        event.preventDefault();
+        open();
+        return;
+      }
+      if (target.closest('[data-search-close]')) {
+        event.preventDefault();
+        close();
+        return;
+      }
+      if (target.closest('.search-result-link')) close(false);
+    });
+
+    document.addEventListener('input', (event) => {
+      const target = event.target as HTMLInputElement | null;
+      if (!target || !target.matches || !target.matches('[data-search-input]')) return;
+      window.clearTimeout(timer);
+      const value = target.value;
+      timer = window.setTimeout(() => void run(value), PAGE_DEBOUNCE);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      const el = overlay();
+      const isOpen = Boolean(el && !el.hidden);
+      const target = event.target as HTMLElement | null;
+      const typing = Boolean(
+        target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable),
+      );
+
+      if (!isOpen) {
+        if ((event.key === 'k' || event.key === 'K') && (event.metaKey || event.ctrlKey)) {
+          event.preventDefault();
+          open();
+          return;
+        }
+        if (event.key === '/' && !typing) {
+          event.preventDefault();
+          open();
+        }
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        highlight(activeIndex + 1);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        highlight(activeIndex - 1);
+        return;
+      }
+      if (event.key === 'Enter') {
+        const el2 = list();
+        if (!el2 || !resultCount) return;
+        const index = activeIndex >= 0 ? activeIndex : 0;
+        const item = el2.children[index] as HTMLElement | undefined;
+        const anchor = item?.querySelector('a');
+        if (anchor) {
+          event.preventDefault();
+          close(false);
+          window.location.href = anchor.href;
+        }
+      }
+    });
+
+    /* After a client-side navigation the swapped header ships a closed panel
+       again, but the document-level state from the previous page still says
+       otherwise; reset it and drop any stale query. */
+    document.addEventListener('astro:page-load', () => {
+      const el = overlay();
+      if (el) el.hidden = true;
+      delete root.dataset.searchOpen;
+      window.clearTimeout(timer);
+      seq += 1;
+      const inp = input();
+      if (inp) {
+        inp.value = '';
+        inp.setAttribute('aria-expanded', 'false');
+      }
+      clearResults();
+    });
+  }
+
+  bindSearch();
+</script>

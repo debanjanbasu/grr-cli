@@ -378,6 +378,277 @@
     }
   }
 
+  /* ── Search ───────────────────────────────────────────────────────── */
+
+  /* Progressive enhancement: the trigger only paints once the header's inline
+     script has run, so a JS-disabled browser gets no dead control — only the
+     <noscript> docs-index link. */
+  .search {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+  }
+
+  .search-trigger {
+    display: none;
+  }
+
+  html[data-search-ready] .search-trigger {
+    display: inline-flex;
+  }
+
+  .search-noscript {
+    color: var(--muted);
+    font-size: 13px;
+    text-decoration: none;
+  }
+
+  .search-noscript:hover {
+    color: var(--ink);
+  }
+
+  /* Same bordered-square language as the theme toggle, widened for the label. */
+  .search-trigger {
+    align-items: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--line-strong);
+    color: var(--muted);
+    background: transparent;
+    cursor: pointer;
+    transition: transform var(--motion-1) var(--ease-out), border-color var(--motion-1) var(--ease-out),
+      color var(--motion-1) var(--ease-out);
+  }
+
+  .search-trigger:hover {
+    border-color: var(--accent-hot);
+    color: var(--ink);
+    transform: translateY(-1px);
+  }
+
+  .search-trigger:active {
+    transform: translateY(1px);
+  }
+
+  .search-trigger-label,
+  .search-trigger-kbd {
+    display: none;
+  }
+
+  .search-trigger-label {
+    font-size: 13px;
+  }
+
+  .search-trigger-kbd {
+    padding: 0 5px;
+    border: 1px solid var(--line);
+    color: var(--quiet);
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  @media (min-width: 900px) {
+    .search-trigger-label,
+    .search-trigger-kbd {
+      display: inline;
+    }
+  }
+
+  /* The magnifier is two borders, not a new SVG asset. */
+  .search-icon {
+    position: relative;
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+  }
+
+  .search-icon::before {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 9px;
+    height: 9px;
+    border: 2px solid currentcolor;
+    content: '';
+  }
+
+  .search-icon::after {
+    position: absolute;
+    bottom: 1px;
+    left: 11px;
+    width: 2px;
+    height: 6px;
+    content: '';
+    background: currentcolor;
+    transform: rotate(-45deg);
+    transform-origin: center;
+  }
+
+  .search-overlay {
+    position: fixed;
+    z-index: 100;
+    inset: 0;
+    display: grid;
+    align-items: start;
+    justify-items: center;
+    padding: clamp(52px, 12vh, 140px) 16px 24px;
+  }
+
+  /* Author styles beat the UA [hidden] rule, so the hidden state is explicit. */
+  .search-overlay[hidden] {
+    display: none;
+  }
+
+  .search-backdrop {
+    position: absolute;
+    inset: 0;
+    background: color-mix(in oklab, #1a120b, transparent 35%);
+    backdrop-filter: blur(2px);
+    cursor: pointer;
+  }
+
+  .search-dialog {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(680px, 100%);
+    max-height: min(72vh, 620px);
+    border: 1px solid var(--line-strong);
+    background: var(--color-base-100);
+    box-shadow: 0 24px 60px -24px rgb(0 0 0 / 55%);
+    animation: fade-rise var(--motion-2) var(--ease-out) both;
+  }
+
+  .search-field {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .search-prompt {
+    flex: 0 0 auto;
+    color: var(--accent-text);
+    font-size: 13px;
+  }
+
+  .search-input {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    color: var(--ink);
+    background: transparent;
+    font: inherit;
+    font-size: 15px;
+  }
+
+  .search-input::placeholder {
+    color: var(--quiet);
+  }
+
+  .search-close {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    height: 24px;
+    padding: 0 7px;
+    border: 1px solid var(--line);
+    color: var(--quiet);
+    background: transparent;
+    font: inherit;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .search-close:hover {
+    border-color: var(--accent-hot);
+    color: var(--ink);
+  }
+
+  .search-status {
+    margin: 0;
+    padding: 9px 14px 0;
+    color: var(--quiet);
+    font-size: 12px;
+  }
+
+  .search-results {
+    flex: 1;
+    margin: 0;
+    padding: 8px;
+    overflow-y: auto;
+    list-style: none;
+  }
+
+  .search-result-link {
+    display: block;
+    padding: 9px 10px;
+    border-left: 2px solid transparent;
+    color: var(--ink);
+    text-decoration: none;
+  }
+
+  .search-result.is-active .search-result-link {
+    border-left-color: var(--accent);
+    background: color-mix(in oklab, var(--accent), transparent 90%);
+  }
+
+  .search-result-title {
+    display: block;
+    font-size: 14px;
+  }
+
+  .search-result-excerpt {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .search-result-excerpt mark {
+    color: var(--accent-text);
+    background: transparent;
+  }
+
+  .search-hint {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 0;
+    padding: 9px 14px;
+    border-top: 1px solid var(--line);
+    color: var(--quiet);
+    font-size: 11px;
+  }
+
+  .search-hint kbd {
+    padding: 1px 5px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font: inherit;
+  }
+
+  @media (max-width: 600px) {
+    .search-trigger {
+      height: 48px;
+      padding: 0 12px;
+    }
+
+    .search-dialog {
+      max-height: 80vh;
+    }
+
+    .search-hint {
+      display: none;
+    }
+  }
+
   /* ── Typography ───────────────────────────────────────────────────── */
 
   .eyebrow {

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && pagefind --site dist",
     "preview": "astro preview",
     "check": "astro check",
     "lint": "astro check",
@@ -17,6 +17,7 @@
     "@types/node": "^26.6.4",
     "astro": "^7.3.5",
     "daisyui": "^5.7.47",
+    "pagefind": "^1.5.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3"
   },

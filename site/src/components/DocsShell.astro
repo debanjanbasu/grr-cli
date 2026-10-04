@@ -21,13 +21,13 @@ const { currentPath = '' } = Astro.props;
 <div class="drawer lg:drawer-open">
   <input id="docs-nav-toggle" type="checkbox" class="drawer-toggle" />
   <div class="drawer-content min-w-0">
-    <label for="docs-nav-toggle" tabindex="-1" class="drawer-button btn btn-ghost btn-square btn-sm mt-4 ml-5 lg:hidden">
+    <label for="docs-nav-toggle" tabindex="-1" class="drawer-button btn btn-ghost btn-square btn-sm mt-4 ml-5 lg:hidden" data-pagefind-ignore>
       <span class="sr-only">Open the docs navigation</span>
       <MenuIcon />
     </label>
     <slot />
   </div>
-  <div class="drawer-side lg:top-20">
+  <div class="drawer-side lg:top-20" data-pagefind-ignore>
     <label for="docs-nav-toggle" class="drawer-overlay"></label>
     <div class="min-h-full bg-base-200 p-4 lg:min-h-0 lg:bg-transparent lg:py-0 lg:pl-0 lg:pr-6">
       <DocsSidenav currentPath={currentPath} />
