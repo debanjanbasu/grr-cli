@@ -13,6 +13,13 @@ on:
     branches: [main]
     paths:
       - Cargo.toml
+  # The merge poller (automation-merge.yml) and auto-release dispatch this
+  # workflow after a bot merge, because a GITHUB_TOKEN push starts no runs.
+  # Without the trigger those dispatches failed with HTTP 422 and the tag
+  # never appeared — the exact gap that left v0.8.0 sitting merged and
+  # untagged until a human push landed. The body is idempotent (it no-ops
+  # when the tag exists), so dispatch is always safe.
+  workflow_dispatch:
 
 permissions:
   contents: read
