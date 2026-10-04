@@ -22,13 +22,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Documentation
 
-- **release:** archives ship the binary as grr, not the target name
+- **site:** the getting-started page tells the winget story straight
 
 ### Internal
 
-- 3 internal commits (chore 3)
+- 2 internal commits (chore 2)
+
+## [0.8.1] - 2026-10-04
+
+### Fixed
+
+- **release:** archives ship the binary as grr, not the target name
+- **docs-rs:** inject the cfg gates through cargo-args; render the demo GIF per release
+- **release:** tag-release finally accepts the dispatch it has always been sent
+
+### Internal
+
+- 4 internal commits (chore 4)
 
 ### Other
 
@@ -264,7 +276,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.8.0...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/debanjanbasu/grr-cli/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.5.0...v0.6.0
