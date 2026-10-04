@@ -2,7 +2,7 @@
   "version": "0.8.0",
   "crateDownloads": 54,
   "crateDownloads30d": 54,
-  "githubDownloads": 43,
+  "githubDownloads": 52,
   "latestRelease": "v0.8.0",
   "latestReleaseDate": "2026-10-04T02:24:55Z",
   "binarySizes": {
@@ -12,5 +12,5 @@
     "windows-aarch64": 3859817,
     "windows-x86_64": 3071296
   },
-  "updatedAt": "2026-10-04T02:25:16.090Z"
+  "updatedAt": "2026-10-04T02:54:10.780Z"
 }
