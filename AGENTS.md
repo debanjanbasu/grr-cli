@@ -37,6 +37,7 @@ node scripts/generate-skills.ts        # regenerate skills/<service>/SKILL.md + 
 node scripts/generate-skills.ts --check    # exit 1 if stale (CI gate, offline)
 node scripts/generate-coverage.ts      # regenerate the site's coverage table
 node scripts/generate-coverage.ts --check   # exit 1 if stale (CI gate)
+node scripts/generate-winget.ts v0.8.1      # regenerate the winget submission (downloads the release; not a CI gate)
 node scripts/generate-changelog.ts     # regenerate CHANGELOG.md + site data
 node scripts/generate-changelog.ts --check # idempotency gate
 npm run demo                             # regenerate demo/demo.cast (local: + opencode segment)
@@ -103,7 +104,7 @@ For site changes: `npm run build`, `npm run lint`, `npm run typecheck` in `site/
 | Workflow | Trigger | What it does |
 |---|---|---|
 | `ci.yml` | push/PR to main, weekly Mon 04:00 UTC | nextest/clippy/fmt on ubuntu+windows, scripts typecheck, **site `astro check` + `astro build`**, generated-artifact gates, cli-only feature-subset clippy, weekly rustsec audit |
-| `release-binaries.yml` | tag `v*` | 5 targets (linux x86_64, linux aarch64, macOS arm64, Windows x86_64, Windows on ARM — the ARM legs on native ARM runners), UPX `--best`, zstd-22 `.tar.zst` + max-deflate `.zip`, SHA256SUMS, GitHub Release |
+| `release-binaries.yml` | tag `v*` | 5 targets (linux x86_64, linux aarch64, macOS arm64, Windows x86_64, Windows on ARM — the ARM legs on native ARM runners), UPX `--best`, zstd-22 `.tar.zst` + max-deflate `.zip` (archive members are `grr`/`grr.exe`, never the target name), SHA256SUMS, GitHub Release, plus the generated winget submission (`grr-<tag>-winget-manifests.tar.gz`) |
 | `publish.yml` | release/manual | `cargo publish --locked --no-verify` (crate is source-only — read its comment) |
 | `tag-release.yml` | push to main touching `Cargo.toml` | pushes the tag for a version on main that has none — fires the binary release and the crates.io publish |
 | `auto-release.yml` | push to main (every push), Friday 04:31 UTC backstop, manual dispatch | computes the next version from the commit history and opens the bump PR with auto-merge — releases ship immediately after any meaningful push |

@@ -310,9 +310,9 @@ Each generator takes `--check` and exits 1 when its output is stale — that is 
 
 | Channel | Install | Status |
 | --- | --- | --- |
-| GitHub Releases | 5-platform binaries (macOS arm64, Linux x86_64, Linux aarch64, Windows x86_64, Windows on ARM) built on `v*` tags, UPX-packed, `.tar.zst` on unix and `.zip` on Windows | **live — v0.7.0** — [releases](https://github.com/debanjanbasu/grr-cli/releases) |
-| crates.io | `cargo install grr-cli` (binary installs as `grr`; needs nightly + `RUSTFLAGS="--cfg reqwest_unstable"` for the default CLI HTTP/3 build, and brings no embedded OAuth client) | **live — 0.7.0, one crate**. Trusted publishing uses OIDC (no stored API tokens) |
-| winget | `winget install debanjanbasu.grr` | **not yet published** — the first submission is held on Microsoft's validation; manifests live in `packaging/winget/` |
+| GitHub Releases | 5-platform binaries (macOS arm64, Linux x86_64, Linux aarch64, Windows x86_64, Windows on ARM) built on `v*` tags, UPX-packed, `.tar.zst` on unix and `.zip` on Windows | **live** — every push to main releases; [releases](https://github.com/debanjanbasu/grr-cli/releases) always carries the newest |
+| crates.io | `cargo install grr-cli` (binary installs as `grr`; needs nightly + `RUSTFLAGS="--cfg reqwest_unstable"` for the default CLI HTTP/3 build, and brings no embedded OAuth client) | **live — one crate, published on every release**. Trusted publishing uses OIDC (no stored API tokens) |
+| winget | `winget install debanjanbasu.grr` | **not yet published** — the first submission stalled because the archives named the binary after its target (`windows-x86_64.exe`) while the manifest promised `grr.exe`; winget validation could never find the nested installer. Both sides are fixed (v0.8.1 archives ship `grr.exe`; `node scripts/generate-winget.ts <tag>` derives the manifest from the released archive and rides every release as `grr-<tag>-winget-manifests.tar.gz`) |
 | Homebrew | `brew tap debanjanbasu/tap && brew trust debanjanbasu/tap && brew install grr` (tap: [debanjanbasu/homebrew-tap](https://github.com/debanjanbasu/homebrew-tap), formula `Formula/grr.rb`, updated automatically on every release) | live (arm64 macOS + x86_64/arm64 Linux) |
 
 The project publishes one package, `grr-cli`, whose binary is `grr`. `v*` tags trigger the release workflow, and crates.io publishing is handled through trusted publishing.
