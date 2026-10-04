@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T05:38:30.314Z",
+  "generatedAt": "2026-10-04T09:50:37.182Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -8,12 +8,36 @@
       "unreleased": true,
       "sections": [
         {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "installs that migrate themselves",
+              "scope": "skills",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "sitewide search — a Pagefind index and a keyboard dialog",
+              "scope": "site",
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
           "key": "changed",
           "heading": "Changed",
           "items": [
             {
               "description": "out with the deprecated, in with the dead weight cut",
               "scope": "site",
+              "type": "refactor",
+              "note": null
+            },
+            {
+              "description": "one token\\_request helper for the three token flows",
+              "scope": "auth",
               "type": "refactor",
               "note": null
             }
@@ -52,6 +76,18 @@
               "scope": null,
               "type": "docs",
               "note": null
+            },
+            {
+              "description": "the live-site audit's fixes + the System One section",
+              "scope": "site",
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "README, CONTRIBUTING and the GCP walkthrough, reviewed and trimmed",
+              "scope": null,
+              "type": "docs",
+              "note": null
             }
           ]
         },
@@ -68,6 +104,12 @@
             {
               "description": "refresh download counts and archive sizes",
               "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
               "type": "chore",
               "note": null
             },
@@ -93,6 +135,18 @@
               "description": "the locale description counts nine more services, not ten",
               "scope": "winget",
               "type": "chore",
+              "note": null
+            },
+            {
+              "description": "the font subsetter is Node, and so is everything else",
+              "scope": "scripts",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "delivery verification, metadata sync, and the release-chain fixes",
+              "scope": null,
+              "type": "ci",
               "note": null
             }
           ]

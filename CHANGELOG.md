@@ -22,9 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **skills:** installs that migrate themselves
+- **site:** sitewide search — a Pagefind index and a keyboard dialog
+
 ### Changed
 
 - **site:** out with the deprecated, in with the dead weight cut
+- **auth:** one token\_request helper for the three token flows
 
 ### Fixed
 
@@ -35,10 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **site:** the getting-started page tells the winget story straight
 - the audit's drift sweep
+- **site:** the live-site audit's fixes + the System One section
+- README, CONTRIBUTING and the GCP walkthrough, reviewed and trimmed
 
 ### Internal
 
-- 6 internal commits (chore 6)
+- 9 internal commits (chore 8, ci 1)
 
 ### Other
 
