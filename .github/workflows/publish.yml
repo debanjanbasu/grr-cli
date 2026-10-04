@@ -50,6 +50,6 @@ jobs:
         id: auth
       - name: Publish grr-cli
         timeout-minutes: 60
-        run: cargo publish --locked --no-verify
+        run: cargo publish --no-verify
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}

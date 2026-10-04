@@ -53,10 +53,10 @@ jobs:
       # twice on a cold cache. A build error surfaces here instead.
       - name: Test
         timeout-minutes: 30
-        run: cargo nextest run --locked --all-features
+        run: cargo nextest run --all-features
       - name: Test doctests
         timeout-minutes: 15
-        run: cargo test --locked --doc
+        run: cargo test --doc
 
   clippy:
     if: github.event_name != 'schedule'
@@ -73,7 +73,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         timeout-minutes: 5
       - name: Lint
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: cargo clippy --all-targets -- -D warnings
 
   fmt:
     if: github.event_name != 'schedule'
@@ -105,7 +105,7 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install script toolchain
-        run: npm ci
+        run: npm install
       - name: Typecheck scripts
         run: npm run typecheck
       - name: Generated artifacts are current
@@ -138,7 +138,7 @@ jobs:
           cache: npm
           cache-dependency-path: site/package-lock.json
       - name: Install site dependencies
-        run: npm ci
+        run: npm install
         working-directory: site
       - name: Type-check the Astro sources
         run: npm run check
@@ -170,7 +170,7 @@ jobs:
           # different target dir; sharing a key would evict each other.
           key: cli-only
       - name: Clippy (no default features, cli only)
-        run: cargo clippy --locked --no-default-features --features cli -- -D warnings
+        run: cargo clippy --no-default-features --features cli -- -D warnings
 
   security:
     name: security audit

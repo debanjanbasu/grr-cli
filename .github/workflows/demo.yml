@@ -25,7 +25,6 @@ on:
       - scripts/generate-demo.ts
       - src/**
       - Cargo.toml
-      - Cargo.lock
       - .github/workflows/demo.yml
   schedule:
     # 03:41 UTC Sundays — off the hour, off the weekday peak.
@@ -67,7 +66,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         timeout-minutes: 10
       - name: Build grr from source
-        run: cargo build --release --locked
+        run: cargo build --release
         timeout-minutes: 30
 
       - uses: actions/setup-node@v7
@@ -104,8 +103,16 @@ jobs:
       # history. Rendering params are the size/readability point: the raw
       # recording is 19 MB at native fps; 10 fps at 1.3x is 8 MB.
       - name: Install agg (cast → gif)
-        timeout-minutes: 10
-        run: cargo install --locked agg
+        # asciinema's agg is NOT on crates.io (a `cargo install agg` resolves a
+        # wrong/old crate and exits 101), so install the static binary from its
+        # GitHub release instead.
+        timeout-minutes: 5
+        run: |
+          url="$(curl -fsSL https://api.github.com/repos/asciinema/agg/releases/latest \
+            | python3 -c 'import json,sys; a=json.load(sys.stdin)["assets"]; print(next(x["browser_download_url"] for x in a if x["name"].endswith("x86_64-unknown-linux-gnu")))')"
+          sudo curl -fsSL -o /usr/local/bin/agg "$url"
+          sudo chmod +x /usr/local/bin/agg
+          agg --version
 
       - name: Render and attach the demo GIF
         timeout-minutes: 10

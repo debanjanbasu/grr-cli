@@ -71,8 +71,9 @@ jobs:
         timeout-minutes: 5
         # One run, one capture: the generator both prints the key=value
         # recommendation lines (stdout) and bakes CHANGELOG.md + the site
-        # changelog.json — files the bump PR carries. Cargo.lock's grr-cli
-        # version is updated in lockstep (the release build uses --locked).
+        # changelog.json — files the bump PR carries. The lock is no longer
+        # tracked: builds resolve the latest semver-compatible versions, so
+        # only Cargo.toml is bumped.
         run: |
           OUT="$(node scripts/generate-changelog.ts 2>&1)"
           echo "$OUT" | grep -E '^changelog:' || true
@@ -92,7 +93,7 @@ jobs:
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
           echo "recommendation: bump=${BUMP:-none} next=${NEXT:-$CURRENT} current=$CURRENT"
 
-      - name: Bump Cargo.toml + Cargo.lock in lockstep
+      - name: Bump Cargo.toml
         if: steps.version.outputs.bump != 'none' || inputs.force == true
         timeout-minutes: 2
         env:
@@ -105,7 +106,6 @@ jobs:
           # "v$VERSION" and the "v" in the manifest became a second one.
           BARE="${NEXT#v}"
           sed -i "s/^version = \".*\"/version = \"$BARE\"/" Cargo.toml
-          sed -i "/^name = \"grr-cli\"/,/^dependencies/ s/^version = \".*\"/version = \"$BARE\"/" Cargo.lock
           # Fail here, loudly, rather than letting a malformed manifest reach
           # the tag step and the release three workflows downstream.
           if ! grep -q "^version = \"$BARE\"$" Cargo.toml; then
@@ -113,7 +113,6 @@ jobs:
             exit 1
           fi
           grep -m1 '^version' Cargo.toml
-          grep -A1 '^name = "grr-cli"' Cargo.lock | grep version
 
       - name: Verify the other generated artifacts are current
         if: steps.version.outputs.bump != 'none' || inputs.force == true
@@ -149,7 +148,7 @@ jobs:
           # clean create instead of a non-fast-forward rejection, which would
           # otherwise make the weekly release unretryable.
           git push origin --delete "$BRANCH" 2>/dev/null || true
-          git add Cargo.toml Cargo.lock CHANGELOG.md site/src/data/changelog.json
+          git add Cargo.toml CHANGELOG.md site/src/data/changelog.json
           git commit -m "chore(release): grr $NEXT"
           git push origin "$BRANCH"
           gh pr create \
