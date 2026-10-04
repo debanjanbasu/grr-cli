@@ -240,16 +240,34 @@ jobs:
         with:
           node-version: "26"
 
-      - name: Check CHANGELOG.md matches the generator output
+      - name: Check the released version has its changelog section
         timeout-minutes: 5
         run: |
           set -euo pipefail
-          if node scripts/generate-changelog.ts --check; then
-            echo "CHANGELOG.md is in sync with the commit history."
+          # Two checks with different strictness, because they answer
+          # different questions:
+          #
+          # 1. HARD: the version being released must have its own section in
+          #    CHANGELOG.md. That is the real invariant — a release with no
+          #    changelog entry is a hole in the historical record, and the
+          #    remedy is merging the regeneration PR (or regenerating before
+          #    tagging).
+          VERSION="$(grep -m1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')"
+          if grep -Eq "^## \[?v?${VERSION}\]?" CHANGELOG.md; then
+            echo "CHANGELOG.md documents ${VERSION}."
           else
-            echo "::error title=CHANGELOG.md is stale::Run"
-            echo "::error::'node scripts/generate-changelog.ts' and merge the"
-            echo "::error::result. The changelog is generated, so it must never"
-            echo "::error::be edited by hand."
+            echo "::error::CHANGELOG.md has no section for the released version ${VERSION}. Merge the regeneration PR (chore/changelog-regenerate), or regenerate before tagging."
             exit 1
+          fi
+          #
+          # 2. ADVISORY: the generated file matching the moving HEAD exactly.
+          #    On a repo that regenerates on every push this is true only in
+          #    quiet windows — a bot merge minutes later re-dilutes it — so a
+          #    mismatch is a warning here, not a failure. The regeneration PR
+          #    is the mechanism that converges it; failing the release verify
+          #    on a race nobody can win would just train everyone to ignore it.
+          if node scripts/generate-changelog.ts --check; then
+            echo "CHANGELOG.md is byte-identical to the generator output."
+          else
+            echo "::warning title=CHANGELOG.md is one regeneration behind::A push landed after the last regeneration; the changelog workflow's PR will converge it. No action needed unless it persists."
           fi

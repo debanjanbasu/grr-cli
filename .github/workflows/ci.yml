@@ -155,6 +155,13 @@ jobs:
       - name: Type-check the Astro sources
         run: npm run check
         working-directory: site
+      # Generated mascot assets plus the CLI-banner parity (AGENTS invariant
+      # 13: src/logo.rs's map must be a crop of this generator's idle map,
+      # with one palette). A separate step on purpose — `npm run check` is
+      # astro check, this is the asset generator's own gate.
+      - name: Check generated mascot assets + banner parity
+        run: node scripts/generate-mascot.mjs --check
+        working-directory: site
       - name: Build the site
         run: npm run build
         working-directory: site

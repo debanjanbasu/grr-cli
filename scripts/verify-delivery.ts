@@ -118,7 +118,11 @@ if (release === null) {
   record(`release ${tag}`, grace ? 'warn' : 'fail', grace ? `not created yet (the release job runs for minutes after the tag)` : `no GitHub release for ${tag} (Cargo.toml is ahead of the release pipeline)`);
 } else {
   const missing = [...ARCHIVE_SUFFIXES.map((s) => `grr-${tag}-${s}`), ...EXPECTED_ASSETS].filter((name) => !assets.includes(name));
-  record(`release ${tag} assets`, missing.length === 0 ? 'ok' : 'fail', missing.length === 0 ? `${assets.length} assets present` : `missing: ${missing.join(', ')}`);
+  // The demo GIF attaches minutes after the release job finishes (the demo
+  // workflow renders it), so a missing asset inside the grace window is
+  // "still landing", not a failure — the verifier caught exactly that race
+  // on v0.9.1 before this policy applied here.
+  record(`release ${tag} assets`, missing.length === 0 ? 'ok' : grace ? 'warn' : 'fail', missing.length === 0 ? `${assets.length} assets present` : `missing: ${missing.join(', ')}${grace ? ' (within the release grace window)' : ''}`);
 }
 
 // crates.io: the published max stable version must be the manifest's.

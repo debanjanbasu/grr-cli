@@ -1,6 +1,15 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+// --check: render everything in memory, compare against the tracked files,
+// exit 1 on any drift (missing, changed, or a rejected file resurrected), and
+// also assert the CLI banner parity — src/logo.rs's CRAB map must be a crop
+// of this generator's idle map with the same palette. This is the gate that
+// keeps AGENTS invariant 13 true in both directions; it is wired into CI.
+// --print-idle-map: print the 64×64 idle map as text (for tests and humans).
+const CHECK = process.argv.includes('--check');
+const PRINT_IDLE_MAP = process.argv.includes('--print-idle-map');
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const siteDirectory = resolve(scriptDirectory, '..');
@@ -1216,6 +1225,69 @@ const rejected = [
   resolve(assetDirectory, 'corner-ornament.svg'),
   resolve(assetDirectory, 'terminal-frame.svg')
 ];
+
+if (PRINT_IDLE_MAP) {
+  process.stdout.write(`${ASCII_SOURCES.idle}\n`);
+  process.exit(0);
+}
+
+if (CHECK) {
+  const problems = [];
+  for (const [path, content] of files) {
+    if (!existsSync(path)) {
+      problems.push(`missing: ${path}`);
+    } else if (readFileSync(path, 'utf8') !== content) {
+      problems.push(`drifted: ${path}`);
+    }
+  }
+  for (const path of rejected) {
+    if (existsSync(path)) problems.push(`should not exist: ${path}`);
+  }
+
+  // CLI banner parity (AGENTS invariant 13): the Rust banner and the site
+  // art are one brand. The Rust side is a static literal, so it is read
+  // here; the map is this generator's, so the comparison must find CRAB as
+  // a contiguous crop of the idle map, with identical palette values for
+  // every cell the crop uses.
+  const logoSource = readFileSync(resolve(siteDirectory, '..', 'src', 'logo.rs'), 'utf8');
+  const crabBlock = /const CRAB: \[&str; \d+\] = \[([\s\S]*?)\n\];/.exec(logoSource);
+  if (!crabBlock) {
+    problems.push('logo parity: no CRAB map in src/logo.rs');
+  } else {
+    const crab = [...crabBlock[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    const idle = ASCII_SOURCES.idle.split('\n');
+    const found = (() => {
+      for (let y = 0; y + crab.length <= idle.length; y += 1) {
+        for (let x = 0; x + crab[0].length <= idle[0].length; x += 1) {
+          if (crab.every((row, dy) => idle[y + dy].slice(x, x + row.length) === row)) return { x, y };
+        }
+      }
+      return null;
+    })();
+    if (!found) problems.push('logo parity: CRAB is not a crop of the idle map in src/logo.rs');
+
+    const palette = new Map([...logoSource.matchAll(/'(\S)' => \[0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2}), 0x([0-9A-Fa-f]{2})\]/g)]
+      .map((m) => [m[1], `#${m[2]}${m[3]}${m[4]}`.toUpperCase()]));
+    const used = new Set(crab.join('').replaceAll('.', ''));
+    for (const cell of used) {
+      const site = PALETTE_LEGEND[cell];
+      const rust = palette.get(cell);
+      if (typeof site !== 'string' || rust === undefined) {
+        problems.push(`logo parity: palette cell '${cell}' missing on one side (site=${site}, rust=${rust})`);
+      } else if (site.toUpperCase() !== rust) {
+        problems.push(`logo parity: palette cell '${cell}' differs (site=${site} rust=${rust})`);
+      }
+    }
+  }
+
+  if (problems.length > 0) {
+    console.error(problems.join('\n'));
+    console.error(`mascot check failed: ${problems.length} problem(s)`);
+    process.exit(1);
+  }
+  console.log(`mascot assets current: ${files.size} files, banner parity holds`);
+  process.exit(0);
+}
 
 mkdirSync(assetDirectory, { recursive: true });
 mkdirSync(publicDirectory, { recursive: true });
