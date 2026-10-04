@@ -116,29 +116,15 @@ impl super::GoogleAuth {
         &self,
         challenge: &mut DeviceAuthChallenge,
     ) -> Result<Option<TokenStorage>> {
-        let mut form = vec![
-            ("client_id", self.config.client_id.clone()),
-            ("device_code", challenge.device_code.clone()),
-            ("grant_type", DEVICE_GRANT.to_string()),
-        ];
-        if let Some(secret) = self.config.client_secret.clone().filter(|s| !s.is_empty()) {
-            form.push(("client_secret", secret));
-        }
-
-        let response = self
-            .http_client
-            .post(self.token_endpoint.as_str())
-            .form(&form)
-            .send()
-            .await
-            .map_err(GrrError::Http)?;
-
         // Device polling reports status via 400 + JSON error codes, so the
-        // body is parsed before looking at the HTTP status.
-        let body_text = response.text().await.map_err(GrrError::Http)?;
-        let body: serde_json::Value = serde_json::from_str(&body_text).map_err(|e| {
-            GrrError::Auth(anyhow!("token endpoint returned unparseable body ({e})").into())
-        })?;
+        // body — not the HTTP status — drives the decision below.
+        let (_, body) = self
+            .token_request(vec![
+                ("client_id", self.config.client_id.clone()),
+                ("device_code", challenge.device_code.clone()),
+                ("grant_type", DEVICE_GRANT.to_string()),
+            ])
+            .await?;
 
         if let Some(code) = body["error"].as_str() {
             match code {

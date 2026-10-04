@@ -235,23 +235,27 @@ impl GoogleAuth {
         Ok(storage.access_token)
     }
 
-    /// Refresh access token using refresh token.
-    /// The secret is sent only when configured (Google mandates it even
-    /// for Desktop clients; PKCE-only providers omit it entirely).
-    async fn refresh_token(&self, refresh_token: &str) -> Result<TokenStorage> {
-        let mut form = vec![
-            ("client_id", self.config.client_id.as_str()),
-            ("refresh_token", refresh_token),
-            ("grant_type", "refresh_token"),
-        ];
+    /// POST one form to the OAuth token endpoint and parse the JSON body a
+    /// single time. The client secret is appended when configured.
+    ///
+    /// Returns `(status, body)` rather than making a success decision here,
+    /// so each caller keeps its own logic and messages: the PKCE exchange
+    /// and the refresh grant report Google's error detail on non-2xx, while
+    /// the device poll reads `error` codes out of a 400 body. Three callers
+    /// previously duplicated this request/parse plumbing byte for byte.
+    async fn token_request(
+        &self,
+        mut form: Vec<(&str, String)>,
+    ) -> Result<(reqwest::StatusCode, serde_json::Value)> {
         if let Some(secret) = self
             .config
             .client_secret
             .as_deref()
             .filter(|s| !s.is_empty())
         {
-            form.push(("client_secret", secret));
+            form.push(("client_secret", secret.to_string()));
         }
+
         let response = self
             .http_client
             .post(self.token_endpoint.as_str())
@@ -262,28 +266,38 @@ impl GoogleAuth {
 
         let status = response.status();
         let body_text = response.text().await.map_err(GrrError::Http)?;
+        let body: serde_json::Value = serde_json::from_str(&body_text).map_err(|e| {
+            GrrError::Auth(
+                anyhow!("token endpoint returned {status}: unparseable body ({e})").into(),
+            )
+        })?;
+        Ok((status, body))
+    }
+
+    /// Refresh access token using refresh token.
+    /// The secret is sent only when configured (Google mandates it even
+    /// for Desktop clients; PKCE-only providers omit it entirely).
+    async fn refresh_token(&self, refresh_token: &str) -> Result<TokenStorage> {
+        let (status, token_data) = self
+            .token_request(vec![
+                ("client_id", self.config.client_id.clone()),
+                ("refresh_token", refresh_token.to_string()),
+                ("grant_type", "refresh_token".to_string()),
+            ])
+            .await?;
 
         if !status.is_success() {
             // Google reports rejection reasons (e.g. invalid_grant) in the
             // response body; surface them instead of a generic parse failure.
-            let body: serde_json::Value = serde_json::from_str(&body_text).map_err(|e| {
-                GrrError::Auth(
-                    anyhow!("token endpoint returned {}: unparseable body ({e})", status).into(),
-                )
-            })?;
             return Err(GrrError::Auth(
                 anyhow!(
                     "token endpoint returned {}: {}",
                     status,
-                    crate::core::error::json_error_detail(&body)
+                    crate::core::error::json_error_detail(&token_data)
                 )
                 .into(),
             ));
         }
-
-        let token_data: serde_json::Value = serde_json::from_str(&body_text).map_err(|e| {
-            GrrError::Auth(anyhow!("token endpoint returned unparseable success body ({e})").into())
-        })?;
 
         let mut storage = self::device::token_storage_from_response(&token_data, SCOPES)?;
 
