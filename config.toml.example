@@ -17,8 +17,9 @@
 # GRR_CONFIG_PATH overrides the file location.
 # Both snake_case and kebab-case key spellings are accepted.
 #
-# Resolution order: this file > GRR_OAUTH__CLIENT_ID / GRR_OAUTH__CLIENT_SECRET
-# > the client compiled into the binary.
+# Resolution order: GRR_OAUTH__CLIENT_ID / GRR_OAUTH__CLIENT_SECRET in the
+# environment (wins over the file) > this file > the client compiled into the
+# binary.
 
 [oauth]
 # Desktop-app OAuth client ID (ends in .apps.googleusercontent.com).
@@ -30,3 +31,14 @@ client_id = ""
 # Desktop clients. Sent at the token endpoint only when present;
 # PKCE is always on. Leave commented out for PKCE-only providers.
 # client_secret = ""
+
+# [systemone]
+# Optional: the System One model behind `grr ask` (plain English -> a typed
+# plan). Release builds target the hosted service; set this only to point
+# the call at your own endpoint/model. TYPESAFE_API_KEY in the environment
+# maps here and is preferred over an api-key in this file — a committed or
+# shared file can leak a key.
+# endpoint = ""
+# model = ""
+# api-key = ""            # sent as `Authorization: Bearer`
+# confidence-threshold = 0.7  # ask defers to the model only below this

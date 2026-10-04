@@ -1,6 +1,6 @@
 # Google Cloud setup for grr — optional
 
-**You probably do not need this page.** Official release binaries (GitHub Releases, Homebrew, winget) ship with an OAuth client already compiled in, so `grr auth login` works the moment you install. Read [Authentication and configuration](../README.md#authentication-and-configuration) first.
+**You probably do not need this page.** Official release binaries (GitHub Releases, Homebrew) ship with an OAuth client already compiled in, so `grr auth login` works the moment you install. Read [Authentication and configuration](../README.md#authentication-and-configuration) first.
 
 This walkthrough is for two cases only:
 
