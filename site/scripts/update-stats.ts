@@ -178,6 +178,10 @@ try {
   console.log(`Updated ${statsPath}: ${stats.crateDownloads} crates.io downloads, ${stats.githubDownloads} GitHub asset downloads, ${sizeSummary}`);
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
-  console.warn(`Stats refresh skipped: ${message}`);
-  console.warn(`Keeping the existing ${statsPath}`);
+  // A skipped refresh used to exit 0 — a broken fetch left the workflow green
+  // and the public counters frozen, indefinitely (nothing else checks this
+  // file's freshness except scripts/verify-delivery.ts, whose age limit is a
+  // week). The daily cron retries, so failing here is the honest signal.
+  console.error(`::error::stats refresh failed: ${message}`);
+  process.exit(1);
 }

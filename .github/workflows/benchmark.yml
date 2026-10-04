@@ -118,24 +118,20 @@ jobs:
         if: steps.gate.outputs.skip != 'true'
         continue-on-error: true
         timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           dir="$RUNNER_TEMP/gog"
           mkdir -p "$dir"
-          # gogcli publishes arch-suffixed assets; the runner is arm, so
-          # pick the arm64 tarball. A hardcoded amd64 token put the wrong
-          # ELF on an arm runner: spawnSync's ENOEXEC fell back to /bin/sh,
-          # which exited 2 mis-parsing the binary — and every gog metric
-          # recorded "unavailable" as a result.
-          url=$(curl -fsSL -H 'Accept: application/vnd.github+json' \
-            'https://api.github.com/repos/steipete/gogcli/releases/latest' \
-            | node -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{
-                 const assets=(JSON.parse(d).assets)||[];
-                 const a=assets.find(x=>/_linux_arm64\.tar\.gz$/.test(x.name));
-                 if(!a) process.exit(1);
-                 console.log(a.browser_download_url);
-               })')
-          curl -fsSL "$url" | tar -xz -C "$dir"
+          # gogcli publishes arch-suffixed assets; the runner is arm, so pick
+          # the arm64 tarball. A hardcoded amd64 token put the wrong ELF on an
+          # arm runner: spawnSync's ENOEXEC fell back to /bin/sh, which exited 2
+          # mis-parsing the binary — and every gog metric recorded "unavailable"
+          # as a result. `gh release download` selects the asset by glob, so
+          # there is no API JSON to parse and no interpreter in the loop.
+          gh release download -R steipete/gogcli -p '*_linux_arm64.tar.gz' -D "$dir"
+          tar -xzf "$dir"/*_linux_arm64.tar.gz -C "$dir"
           echo "$dir" >> "$GITHUB_PATH"
 
       - name: Obtain gws (best effort)

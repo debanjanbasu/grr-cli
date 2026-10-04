@@ -119,8 +119,10 @@ jobs:
         shell: bash
         timeout-minutes: 10
         run: |
+          set -o pipefail
           BIN="target/${{ matrix.target.triple }}/release/${{ matrix.target.artifact }}"
-          BEFORE=$(stat -c %s "$BIN" 2>/dev/null || stat -f %z "$BIN")
+          size() { stat -c %s "$1" 2>/dev/null || stat -f %z "$1"; }
+          BEFORE="$(size "$BIN")"
           # Never pack in place: UPX's win64 packer segfaults (exit 139) on
           # the ARM64 PE and can leave a corrupted binary behind. Pack a
           # copy, require exit 0 AND that the result still executes, and
@@ -132,21 +134,27 @@ jobs:
           # identical size and is not worth its minutes. Formats that cannot
           # do LZMA fall back to plain --best from a fresh copy, since a
           # failed pack attempt must not be repacked on top of itself.
-          if upx --best --lzma "$WORK" 2>&1 | tee upx.log; then
-            :
-          elif cp "$BIN" "$WORK" && upx --best "$WORK" 2>&1 | tee -a upx.log; then
-            echo "::notice::--lzma unsupported for ${{ matrix.target.name }}; packed with --best"
-          else
-            echo "::warning::UPX failed on ${{ matrix.target.name }}; shipping unpacked"
-            rm -f "$WORK"
+          #
+          # No `| tee`: a pipeline reports the LAST command's status, so
+          # `upx ... | tee log` without pipefail made this condition test
+          # tee — every failed --lzma pack looked like success, the --best
+          # fallback below was dead code, and the build reported "packed"
+          # with equal before/after bytes. upx's output already lands in
+          # the step log.
+          if ! upx --best --lzma "$WORK"; then
+            cp "$BIN" "$WORK"
+            if upx --best "$WORK"; then
+              echo "::notice::--lzma unsupported for ${{ matrix.target.name }}; packed with --best"
+            else
+              echo "::warning::UPX failed on ${{ matrix.target.name }}; shipping unpacked"
+              rm -f "$WORK"
+            fi
           fi
           if [ -f "$WORK" ]; then
             if "$WORK" --version >/dev/null 2>&1; then
-              AFTER=$(stat -c %s "$WORK" 2>/dev/null || stat -f %z "$WORK")
+              AFTER="$(size "$WORK")"
               mv "$WORK" "$BIN"
               echo "packed ${{ matrix.target.name }}: $BEFORE -> $AFTER bytes"
-              printf 'target=%s raw=%s packed=%s\n' \
-                "${{ matrix.target.name }}" "$BEFORE" "$AFTER" >> pack-report.txt
             else
               echo "::warning::UPX packed ${{ matrix.target.name }} but the result does not run; shipping unpacked"
               rm -f "$WORK"
@@ -269,20 +277,29 @@ jobs:
         # exception, so the watchers are fired by hand:
         #   demo re-records against the new version, benchmark re-measures
         #   when the version gate says so, stats refresh the download tiles,
-        #   and changelog's release-only verify job finally gets to run.
+        #   verify-delivery checks the delivered artifacts (crate, docs.rs,
+        #   tap, live site), and changelog's release-only verify job finally
+        #   runs — it is dispatched with verify=true because the token-authored
+        #   release event never reaches its `release` trigger.
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         timeout-minutes: 5
         run: |
-          for wf in demo.yml benchmark.yml stats.yml changelog.yml; do
+          for wf in demo.yml benchmark.yml stats.yml verify-delivery.yml; do
             echo "dispatching $wf"
             gh workflow run "$wf" --ref main || echo "::warning::$wf dispatch failed"
           done
+          echo "dispatching changelog.yml (verify=true)"
+          gh workflow run changelog.yml --ref main -f verify=true \
+            || echo "::warning::changelog.yml dispatch failed"
 
   winget:
     name: generate the winget manifests
-    needs: [archive, release]
+    # `release` already depends on `archive`, so listing archive here was
+    # redundant; listing only the tail is the same ordering with less to keep
+    # in sync.
+    needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

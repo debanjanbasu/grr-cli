@@ -1,0 +1,53 @@
+name: Repo metadata
+
+# The GitHub repo's public metadata is read before anything else: the
+# description carries the method/service counts generated from the committed
+# Discovery index, and those counts move whenever Google ships an API method.
+# A description with a stale count is the first thing a visitor reads, so
+# scripts/update-repo-metadata.ts patches the description, homepage, and topics
+# to match the index.
+#
+# Auth: the workflow GITHUB_TOKEN CANNOT write repo metadata — the
+# Administration permission is not available to workflow tokens — so this
+# passes a fine-grained PAT through the REPO_ADMIN_TOKEN secret. That PAT needs
+# Administration: write on this repository. When the secret is unset the script
+# no-ops with a notice and this run stays GREEN (an owner without the token
+# must not see a red workflow); when the token is set but the API refuses, the
+# script fails loudly, because a configured token that cannot do its job is a
+# real error.
+
+on:
+  schedule:
+    # 06:47 UTC Mondays — weekly is enough for a count that only moves when
+    # Google ships a method; off the hour to dodge the :00 scheduler queue.
+    - cron: "47 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repo-metadata
+  cancel-in-progress: false
+
+jobs:
+  metadata:
+    name: sync repo metadata
+    runs-on: ubuntu-26.04-arm
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        timeout-minutes: 2
+
+      - uses: actions/setup-node@v7
+        timeout-minutes: 5
+        with:
+          node-version: "26"
+
+      - name: Sync description, homepage, and topics
+        timeout-minutes: 5
+        env:
+          # Fine-grained PAT with Administration: write. Empty when the secret
+          # is unset — the script detects that and exits 0 with a notice.
+          GH_TOKEN: ${{ secrets.REPO_ADMIN_TOKEN }}
+        run: node scripts/update-repo-metadata.ts
