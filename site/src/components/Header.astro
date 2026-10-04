@@ -1,4 +1,6 @@
 ---
+import MenuIcon from './MenuIcon.astro';
+
 const base = import.meta.env.BASE_URL;
 const currentPath = Astro.url.pathname;
 const links = [
@@ -81,13 +83,7 @@ const isActive = (href: string) => {
           aria-controls="mobile-nav-menu"
           data-nav-toggle
         >
-          <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" focusable="false" shape-rendering="crispEdges">
-            <g fill="currentColor">
-              <rect x="8" y="10" width="32" height="4"></rect>
-              <rect x="8" y="22" width="32" height="4"></rect>
-              <rect x="8" y="34" width="32" height="4"></rect>
-            </g>
-          </svg>
+          <MenuIcon />
         </button>
         <nav id="mobile-nav-menu" aria-label="Mobile navigation">
           <ul class="dropdown-content menu z-50 mt-2 w-56 border border-base-300 bg-base-200 p-2 shadow-lg">

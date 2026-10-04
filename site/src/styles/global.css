@@ -14,101 +14,43 @@
   themes: bumblebee --default, dim --prefersdark;
 }
 
-/* Light theme: bumblebee, tuned to the grr palette. Bumblebee contributes its
-   warm yellow (secondary) and warm neutrals; primary stays the grr orange so
-   the accent identity reads identically, and base keeps the site's cream
-   paper so the brand is unmistakable. Radii are zero: the 3270 terminal
-   identity is sharp and flat.
+/* grr's tuned palette for the two DaisyUI themes: bumblebee (light) and dim
+   (dark) — the warm brown-black pairing that keeps the orange-accent terminal
+   identity (dark, night and black are cool blue-gray and would cold the warm
+   palette). Bumblebee contributes its warm yellow (secondary) and warm
+   neutrals; primary stays the grr orange so the accent identity reads
+   identically, and base keeps the site's cream paper so the brand is
+   unmistakable. Radii are zero: the 3270 terminal identity is sharp and flat.
 
-   The theme values are declared in plain CSS rather than @plugin "daisyui/theme"
-   blocks: the plugin emits a built-in theme's stock values on the default
-   :where(:root) and on the prefers-color-scheme: dark default, so a block
-   override only ever reaches [data-theme=...]. These selectors cover all four
-   cases — no stored choice (light and dark), and an explicit data-theme. */
+   Declared as plain CSS rather than @plugin "daisyui/theme" blocks: DaisyUI
+   emits its stock theme values inside @layer base, while these rules are
+   unlayered, so they win on layer order and reach every case — no stored
+   choice, an explicit data-theme, and both system preferences. The light/dark
+   split is one light-dark() pair per token; light-dark() resolves from the
+   color-scheme DaisyUI sets on :root and on [data-theme], so the dark halves
+   no longer need their own @media and [data-theme='dim'] copies. */
 
 :where(:root) {
-  --color-base-100: #fbf7f1;
-  --color-base-200: #f6ecdf;
-  --color-base-300: #eadfd5;
-  --color-base-content: #1a120b;
-  --color-primary: #f97316;
-  --color-primary-content: #1a120b;
+  --color-base-100: light-dark(#fbf7f1, #1b130e);
+  --color-base-200: light-dark(#f6ecdf, #241a13);
+  --color-base-300: light-dark(#eadfd5, #46311f);
+  --color-base-content: light-dark(#1a120b, #fff4e8);
+  --color-primary: light-dark(#f97316, #fb923c);
+  --color-primary-content: light-dark(#1a120b, #1b130e);
   --color-secondary: #fbbd23;
   --color-secondary-content: #28240f;
   --color-accent: #fdba74;
   --color-accent-content: #431407;
-  --color-neutral: #241a14;
-  --color-neutral-content: #fff8ee;
-  --color-info: #2563eb;
-  --color-info-content: #f8faff;
-  --color-success: #15803d;
-  --color-success-content: #f0fdf4;
-  --color-warning: #b45309;
-  --color-warning-content: #fffbeb;
-  --color-error: #dc2626;
-  --color-error-content: #fef2f2;
-  --radius-selector: 0rem;
-  --radius-field: 0rem;
-  --radius-box: 0rem;
-  --depth: 0;
-  --noise: 0;
-}
-
-/* Dark theme: dim — DaisyUI's warm brown-black dark theme, the pairing that
-   keeps the orange-accent terminal identity (dark, night and black are cool
-   blue-gray and would cold the warm palette). Same grr tuning, with the
-   hotter orange on primary for dark-paper contrast. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
-    --color-base-100: #1b130e;
-    --color-base-200: #241a13;
-    --color-base-300: #46311f;
-    --color-base-content: #fff4e8;
-    --color-primary: #fb923c;
-    --color-primary-content: #1b130e;
-    --color-secondary: #fbbd23;
-    --color-secondary-content: #28240f;
-    --color-accent: #fdba74;
-    --color-accent-content: #431407;
-    --color-neutral: #2c2016;
-    --color-neutral-content: #f0d8c5;
-    --color-info: #60a5fa;
-    --color-info-content: #0b1727;
-    --color-success: #4ade80;
-    --color-success-content: #052e16;
-    --color-warning: #fbbd24;
-    --color-warning-content: #28240f;
-    --color-error: #f87171;
-    --color-error-content: #450a0a;
-    --radius-selector: 0rem;
-    --radius-field: 0rem;
-    --radius-box: 0rem;
-    --depth: 0;
-    --noise: 0;
-  }
-}
-
-[data-theme='dim'] {
-  --color-base-100: #1b130e;
-  --color-base-200: #241a13;
-  --color-base-300: #46311f;
-  --color-base-content: #fff4e8;
-  --color-primary: #fb923c;
-  --color-primary-content: #1b130e;
-  --color-secondary: #fbbd23;
-  --color-secondary-content: #28240f;
-  --color-accent: #fdba74;
-  --color-accent-content: #431407;
-  --color-neutral: #2c2016;
-  --color-neutral-content: #f0d8c5;
-  --color-info: #60a5fa;
-  --color-info-content: #0b1727;
-  --color-success: #4ade80;
-  --color-success-content: #052e16;
-  --color-warning: #fbbd24;
-  --color-warning-content: #28240f;
-  --color-error: #f87171;
-  --color-error-content: #450a0a;
+  --color-neutral: light-dark(#241a14, #2c2016);
+  --color-neutral-content: light-dark(#fff8ee, #f0d8c5);
+  --color-info: light-dark(#2563eb, #60a5fa);
+  --color-info-content: light-dark(#f8faff, #0b1727);
+  --color-success: light-dark(#15803d, #4ade80);
+  --color-success-content: light-dark(#f0fdf4, #052e16);
+  --color-warning: light-dark(#b45309, #fbbd24);
+  --color-warning-content: light-dark(#fffbeb, #28240f);
+  --color-error: light-dark(#dc2626, #f87171);
+  --color-error-content: light-dark(#fef2f2, #450a0a);
   --radius-selector: 0rem;
   --radius-field: 0rem;
   --radius-box: 0rem;
@@ -183,6 +125,9 @@
   --motion-2: 240ms;
   --max-width: 1120px;
   --slab-edge: color-mix(in srgb, var(--terminal-bg), #000 38%);
+  /* Lets the animatable-to-`auto` size keywords work on the DaisyUI
+     details/collapse transitions. */
+  interpolate-size: allow-keywords;
 }
 
 @property --glow-angle {
@@ -195,10 +140,6 @@
   syntax: '<percentage>';
   inherits: false;
   initial-value: -130%;
-}
-
-:root {
-  interpolate-size: allow-keywords;
 }
 
 @layer base {
@@ -330,36 +271,36 @@
     align-items: center;
     justify-content: center;
     gap: clamp(2px, 1.2vw, 14px);
-  }
 
-  .primary-nav a {
-    position: relative;
-    padding: 8px 10px;
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 18px;
-    text-decoration: none;
-  }
+    a {
+      position: relative;
+      padding: 8px 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 18px;
+      text-decoration: none;
 
-  .primary-nav a::after {
-    position: absolute;
-    right: 10px;
-    bottom: 4px;
-    left: 10px;
-    height: 2px;
-    content: '';
-    background: var(--accent);
-    transform: scaleX(0);
-    transform-origin: left center;
-    transition: transform var(--motion-2) var(--ease-out);
-  }
+      &::after {
+        position: absolute;
+        right: 10px;
+        bottom: 4px;
+        left: 10px;
+        height: 2px;
+        content: '';
+        background: var(--accent);
+        transform: scaleX(0);
+        transform-origin: left center;
+        transition: transform var(--motion-2) var(--ease-out);
+      }
 
-  .primary-nav a.active {
-    color: var(--ink);
-  }
+      &.active {
+        color: var(--ink);
 
-  .primary-nav a.active::after {
-    transform: scaleX(1);
+        &::after {
+          transform: scaleX(1);
+        }
+      }
+    }
   }
 
   /* The theme toggle: a bordered square whose pixel-art moon and sun
@@ -464,61 +405,60 @@
 
   .prose {
     max-width: 68ch;
-  }
 
-  .prose .lead {
-    color: var(--ink-soft);
-    font-size: 16px;
-  }
+    .lead {
+      color: var(--ink-soft);
+      font-size: 16px;
+    }
 
-  .prose h2 {
-    margin: 34px 0 10px;
-    font-size: 19px;
-    line-height: 1.25;
-  }
+    h2 {
+      margin: 34px 0 10px;
+      font-size: 19px;
+      line-height: 1.25;
+    }
 
-  .prose p {
-    margin: 0 0 14px;
-    color: var(--ink-soft);
-    font-size: 14px;
-    line-height: 1.75;
-  }
+    p {
+      margin: 0 0 14px;
+      color: var(--ink-soft);
+      font-size: 14px;
+      line-height: 1.75;
+    }
 
-  .prose ul {
-    margin: 0 0 14px;
-    padding: 0;
-    list-style: none;
-  }
+    ul {
+      margin: 0 0 14px;
+      padding: 0;
+      list-style: none;
 
-  .prose ul li {
-    position: relative;
-    padding-left: 20px;
-    color: var(--ink-soft);
-    font-size: 14px;
-  }
+      li {
+        position: relative;
+        padding-left: 20px;
+        color: var(--ink-soft);
+        font-size: 14px;
 
-  .prose ul li::before {
-    position: absolute;
-    top: 0.5em;
-    left: 0;
-    width: 6px;
-    height: 6px;
-    content: '';
-    background: var(--accent);
-  }
+        &::before {
+          position: absolute;
+          top: 0.5em;
+          left: 0;
+          width: 6px;
+          height: 6px;
+          content: '';
+          background: var(--accent);
+        }
 
-  /* Prose lists are the one place the site links out in running text, so give
-     those links a real hit area instead of a bare text line. */
-  .prose ul li a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 28px;
+        /* Prose lists are the one place the site links out in running text,
+           so give those links a real hit area instead of a bare text line. */
+        a {
+          display: inline-flex;
+          align-items: center;
+          min-height: 28px;
+        }
+      }
+    }
   }
 
   /* Inline code outside a terminal window is an accent run: #c2410c on the
      light paper and #fb923c on the dark paper, both AA-checked. */
   .prose code,
-  .crate-copy code,
   .machine-copy code,
   .session-copy code,
   .install-card code,
@@ -1703,25 +1643,8 @@
   }
 }
 
-@keyframes story-idle {
-  from {
-    opacity: 0;
-  }
-
-  20% {
-    opacity: 1;
-  }
-
-  80% {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes story-sleep {
+/* One reveal for both the idle and sleep frames: they differ only in delay. */
+@keyframes story-show {
   from {
     opacity: 0;
   }
@@ -1817,12 +1740,6 @@
 }
 
 @keyframes ht-draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes ht-trace {
   to {
     stroke-dashoffset: 0;
   }
@@ -2034,7 +1951,7 @@
     stroke-dasharray: 100;
     stroke-dashoffset: 100;
     fill-opacity: 0;
-    animation: ht-trace 520ms var(--ease-out) 40ms both, ht-fill 320ms var(--ease-out) 460ms both;
+    animation: ht-draw 520ms var(--ease-out) 40ms both, ht-fill 320ms var(--ease-out) 460ms both;
   }
 
   .ht-caret {
@@ -2178,13 +2095,13 @@
     }
 
     .mascot-story .mascot-frame-idle {
-      animation: story-idle linear both;
+      animation: story-show linear both;
       animation-timeline: --story;
       animation-range: contain 22% contain 58%;
     }
 
     .mascot-story .mascot-frame-sleep {
-      animation: story-sleep linear both;
+      animation: story-show linear both;
       animation-timeline: --story;
       animation-range: contain 50% contain 90%;
     }

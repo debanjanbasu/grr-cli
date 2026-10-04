@@ -4,7 +4,6 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   site: 'https://grr-cli.pages.dev',
   base: '/',
-  output: 'static',
   trailingSlash: 'always',
   build: {
     format: 'directory',
@@ -22,6 +21,10 @@ export default defineConfig({
     prefetchAll: true,
     defaultStrategy: 'hover',
   },
+  // Astro 7 defaults compressHTML to 'jsx', whose React-style whitespace
+  // rules strip line breaks around elements. That would join the words either
+  // side of the <span>/<code> segments InlineCode renders from a single copy
+  // string, so the lossless boolean mode is deliberate here.
   compressHTML: true,
   vite: {
     plugins: [tailwindcss()],
