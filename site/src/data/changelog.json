@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T02:45:15.531Z",
+  "generatedAt": "2026-10-04T03:18:08.680Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -8,11 +8,60 @@
       "unreleased": true,
       "sections": [
         {
+          "key": "documentation",
+          "heading": "Documentation",
+          "items": [
+            {
+              "description": "the getting-started page tells the winget story straight",
+              "scope": "site",
+              "type": "docs",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "the v0.8.1 submission, generated from the release",
+              "scope": "winget",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.8.1",
+      "date": "2026-10-04",
+      "unreleased": false,
+      "sections": [
+        {
           "key": "fixed",
           "heading": "Fixed",
           "items": [
             {
               "description": "archives ship the binary as grr, not the target name",
+              "scope": "release",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "inject the cfg gates through cargo-args; render the demo GIF per release",
+              "scope": "docs-rs",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "tag-release finally accepts the dispatch it has always been sent",
               "scope": "release",
               "type": "fix",
               "note": null
@@ -38,6 +87,12 @@
             {
               "description": "refresh download counts and archive sizes",
               "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v0.8.1",
+              "scope": "release",
               "type": "chore",
               "note": null
             }
