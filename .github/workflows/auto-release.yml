@@ -148,13 +148,18 @@ jobs:
           # clean create instead of a non-fast-forward rejection, which would
           # otherwise make the weekly release unretryable.
           git push origin --delete "$BRANCH" 2>/dev/null || true
-          git add Cargo.toml CHANGELOG.md site/src/data/changelog.json
+          # Cargo.toml only: the changelog files belong to the changelog
+          # workflow (see the compute step), and the lock is untracked.
+          git add Cargo.toml
           git commit -m "chore(release): grr $NEXT"
           git push origin "$BRANCH"
+          # No `|| true` here: the open-PR guard above already exits when this
+          # exact branch has a PR, so an `already exists` failure cannot be the
+          # benign case — any failure now is real and must be visible.
           gh pr create \
             --title "chore(release): grr $NEXT" \
             --body "Automated version bump — computed by the changelog generator from the conventional-commit history; opened by auto-release.yml. Merging publishes $NEXT: tag-release.yml tags, release-binaries.yml builds the 5 platforms, publish.yml ships to crates.io." \
-            --base main --head "$BRANCH" --label dependencies || true
+            --base main --head "$BRANCH" --label dependencies
           # Auto-merge: the GITHUB_TOKEN cannot push to protected main, but
           # it can enable GitHub's native auto-merge, which completes when
           # required checks pass.

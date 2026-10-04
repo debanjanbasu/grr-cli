@@ -84,6 +84,14 @@ jobs:
           # native `tags: ["v*"]` triggers on release-binaries.yml and
           # publish.yml stay silent for this automated path. workflow_dispatch
           # is the exception — fire the two consumers here instead.
-          gh workflow run release-binaries.yml --ref "$TAG" || echo "::warning::release dispatch failed"
-          gh workflow run publish.yml --ref "$TAG" || echo "::warning::publish dispatch failed"
+          #
+          # These dispatches are the ONLY trigger on the automated path, and
+          # nothing retries them (the merge poller re-dispatches tag-release
+          # only while the TAG is missing — by here it exists). A swallowed
+          # failure would leave a tagged version with no binaries and no
+          # crates.io publish, green. Fail loud instead.
+          failed=0
+          gh workflow run release-binaries.yml --ref "$TAG" || failed=1
+          gh workflow run publish.yml --ref "$TAG" || failed=1
+          [ "$failed" = 0 ] || { echo "::error::dispatch failed for $TAG; re-run this workflow once the API recovers (it no-ops when the tag exists)."; exit 1; }
           echo "Pushed $TAG and dispatched release-binaries.yml + publish.yml at it."

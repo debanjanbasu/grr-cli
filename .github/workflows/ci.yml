@@ -74,6 +74,16 @@ jobs:
         timeout-minutes: 5
       - name: Lint
         run: cargo clippy --all-targets -- -D warnings
+      - name: Package the crate (publish / docs.rs gate)
+        timeout-minutes: 10
+        # The documented no-env gate (AGENTS.md): `cargo package --allow-dirty`
+        # must succeed with no GRR_* env and no .env present. It parses and
+        # packages the manifest exactly as the published crate sees it, which is
+        # where the docs.rs break lived — ordinary build/clippy never validate
+        # that package-level view. Runs here (the single-OS ubuntu Rust job, not
+        # the ubuntu+windows test matrix) because the check is platform-
+        # independent and duplicating it per matrix leg is pure waste.
+        run: cargo package --allow-dirty
 
   fmt:
     if: github.event_name != 'schedule'
@@ -86,7 +96,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         timeout-minutes: 5
         with:
-          components: rustfmt, rust-src
+          # This job only runs `cargo fmt`; rust-src was carried over from the
+          # other jobs but nothing here needs it.
+          components: rustfmt
       - name: Check formatting
         run: cargo fmt --all -- --check
 
@@ -176,6 +188,9 @@ jobs:
     name: security audit
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 15
+    # An advisory must not block unrelated PRs: the audit still reports in the
+    # job log and summary, but a new RUSTSEC advisory against a transitive
+    # dependency is not a reason to red a docs or feature PR.
     continue-on-error: true
     permissions:
       contents: read

@@ -105,13 +105,17 @@ jobs:
       - name: Install agg (cast → gif)
         # asciinema's agg is NOT on crates.io (a `cargo install agg` resolves a
         # wrong/old crate and exits 101), so install the static binary from its
-        # GitHub release instead.
+        # GitHub release instead. `gh release download` selects the asset by
+        # glob, so there is no API JSON to parse and no interpreter in the loop.
         timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          url="$(curl -fsSL https://api.github.com/repos/asciinema/agg/releases/latest \
-            | python3 -c 'import json,sys; a=json.load(sys.stdin)["assets"]; print(next(x["browser_download_url"] for x in a if x["name"].endswith("x86_64-unknown-linux-gnu")))')"
-          sudo curl -fsSL -o /usr/local/bin/agg "$url"
-          sudo chmod +x /usr/local/bin/agg
+          dir="$RUNNER_TEMP/agg"
+          mkdir -p "$dir"
+          gh release download -R asciinema/agg -p '*x86_64-unknown-linux-gnu' -D "$dir"
+          chmod +x "$dir"/agg-*
+          sudo mv "$dir"/agg-* /usr/local/bin/agg
           agg --version
 
       - name: Render and attach the demo GIF

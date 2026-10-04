@@ -12,7 +12,7 @@ Use this file as the execution ruleset. Deep detail lives in the files linked fr
 | OAuth client, config resolution, `.env`, `auth setup` | `build.rs`, `src/core/config.rs`, `src/core/config_loader.rs`, `.env.example` |
 | `grr api` / discovery (methods, scopes, URLs) | `src/discovery.rs`, `src/discovery/*.json`, `scripts/fetch-discovery.ts` |
 | Release binaries, UPX, archives, targets | `.github/workflows/release-binaries.yml`, `.cargo/config.toml`, `Cargo.toml [profile.*]` |
-| MCP / ask / safety | `src/mcp.rs`, `src/commands/{mcp,safety,ask}.rs` — the MCP server, the safety gate (global args), the System One ask flow |
+| MCP / ask / safety | `src/commands/{mcp,safety,ask}.rs` — the MCP server, the safety gate (global args), the System One ask flow |
 | The website | `site/README.md` if present, else `site/astro.config.mjs` + `site/src/pages/` |
 | The pixel-art assets (`site/src/assets/*.svg`, `site/public/*.svg`, favicons, og card) | `site/scripts/generate-mascot.mjs` — GENERATED, never hand-edit; run `node site/scripts/generate-mascot.mjs` |
 | The `grr --version` banner | `src/logo.rs` — the pixel map, palette, half-block renderer, and terminal-capability gate |
@@ -62,7 +62,7 @@ grr skills list                              # what is installed, per target dir
 ### Invariants worth knowing before you change something
 
 1. **A `[target.*]` rustflags table REPLACES `[build]` rustflags** — cargo does not merge them. The three `--cfg` flags (`reqwest_unstable`, `hyper_unstable_ffi`, `tokio_unstable`) must be repeated in every target table, or crates gating on them fail to compile on that target.
-2. **The discovery index is committed on purpose** (`src/discovery/*.json`, ~420 KiB across the 14 services). Do not move it to runtime-only fetch: that breaks offline use, adds first-run latency, and sacrifices determinism. Refresh via the script; the daily workflow opens a PR.
+2. **The discovery index is committed on purpose** (`src/discovery/*.json`, ~430 KiB across the 14 services). Do not move it to runtime-only fetch: that breaks offline use, adds first-run latency, and sacrifices determinism. Refresh via the script; the daily workflow opens a PR.
 3. **The command tree is generated** — never hand-edit `src/commands/generated.rs`. Change the generator (`scripts/generate-commands.ts`) or the index (`scripts/fetch-discovery.ts`), then regenerate; CI gates both with `--check`. The daily discovery PR regenerates the tree, the skills, and the site coverage table in the same commit as the index, so nothing derived from it can drift.
 4. **Method ids include resource names**: `users.messages.list`, not `messages.list`. The distiller walks `Object.entries(doc.resources)` and passes the name as the path prefix — and the CLI command mirrors the id verbatim (`grr gmail users messages list`), resource segments included.
 5. **`basePath` is inconsistent across Google's docs** (`gmail/v1/` vs `/drive/v3/`). `Service::base()` strips the leading slash — `rootUrl` always ends in `/`, so a naive concat yields `//` and a 404.
@@ -78,6 +78,7 @@ grr skills list                              # what is installed, per target dir
 ## Rust coding standards
 
 - **No locking, ever.** Never pass `--locked` and never `npm ci`/`--frozen-lockfile`; `Cargo.lock` is not tracked. Every build resolves the latest semver-compatible versions — newest dependency over frozen one, majors applied in the manifest, and the gates are the only correctness arbiter. This is a deliberate trade of reproducibility for currency: a regression from a fresh dependency is fixed by a revert or a bump, not by pinning.
+- **Lazy by default.** No incidental work on the hot path: credentials (core/auth reads the keychain at first credential use, never at construction), caches, probes, and upgrade checks (the skills migration short-circuits on a version-compare before hashing anything) run only when the requested operation actually needs them. A command that does not touch a resource must not read, hash, probe, or migrate it.
 - Conventional commits (`feat:`, `fix:`, `perf:`, `feat!:` for breaking). The changelog generator parses them — a malformed subject lands under "Other" instead of its proper section.
 - Comments explain **why**, not what. Every non-obvious invariant gets one.
 - `thiserror` for typed domain errors, `anyhow` at command boundaries.
@@ -104,17 +105,19 @@ For site changes: `npm run build`, `npm run lint`, `npm run typecheck` in `site/
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | push/PR to main, weekly Mon 04:00 UTC | nextest/clippy/fmt on ubuntu+windows, scripts typecheck, **site `astro check` + `astro build`**, generated-artifact gates, cli-only feature-subset clippy, weekly rustsec audit |
-| `release-binaries.yml` | tag `v*` | 5 targets (linux x86_64, linux aarch64, macOS arm64, Windows x86_64, Windows on ARM — the ARM legs on native ARM runners), UPX `--best --lzma`, zstd-22 `.tar.zst` + max-deflate `.zip` (archive members are `grr`/`grr.exe`, never the target name), SHA256SUMS, GitHub Release, plus the generated winget submission (`grr-<tag>-winget-manifests.tar.gz`) |
+| `ci.yml` | push/PR to main, weekly Mon 04:00 UTC | nextest/clippy/fmt on ubuntu+windows, `cargo package --allow-dirty` (no-env publish/docs.rs gate), scripts typecheck, **site `astro check` + `astro build`**, generated-artifact gates, cli-only feature-subset clippy, weekly rustsec audit (advisory-only: `continue-on-error`) |
+| `release-binaries.yml` | tag `v*` | 5 targets (linux x86_64, linux aarch64, macOS arm64, Windows x86_64, Windows on ARM — the ARM legs on native ARM runners), UPX `--best --lzma`, zstd-22 `.tar.zst` + max-deflate `.zip` (archive members are `grr`/`grr.exe`, never the target name), SHA256SUMS, GitHub Release, the generated winget submission (`grr-<tag>-winget-manifests.tar.gz`), then dispatches the watchers (demo/benchmark/stats/verify-delivery, plus changelog with `verify=true`) because a token-authored release starts no workflows |
 | `publish.yml` | release/manual | `cargo publish --no-verify` (crate is source-only — read its comment) |
 | `tag-release.yml` | push to main touching `Cargo.toml` | pushes the tag for a version on main that has none — fires the binary release and the crates.io publish |
 | `auto-release.yml` | push to main (every push), Friday 04:31 UTC backstop, manual dispatch | computes the next version from the commit history and opens the bump PR with auto-merge — releases ship immediately after any meaningful push |
 | `discovery.yml` | daily 04:17 UTC, manual | refetches discovery docs, regenerates the index AND everything derived from it (command tree, agent skills, site coverage table), opens a PR when any differs, runs `cargo test --lib` against the new data first |
-| `changelog.yml` | push to main + release | regenerates `CHANGELOG.md` + `site/src/data/changelog.json`, opens a PR |
+| `changelog.yml` | push to main + release, manual (`dry_run`, `verify`) | regenerates `CHANGELOG.md` + `site/src/data/changelog.json`, opens a PR; a release-only sync check (`verify=true`, fired by release-binaries.yml since a token-authored release starts no workflows) fails when the committed file is stale |
 | `benchmark.yml` | daily 03:23 UTC, release published | rebuilds grr in release mode, re-measures the credential-free metrics into `site/src/data/benchmarks.json`, opens a PR when they move (a version-gate step skips the daily run unless a new version shipped) |
 | `demo.yml` | push to main (CLI/demo/generator/Cargo paths), release, weekly Sun 03:41 UTC | re-records `demo/demo.cast` in CI (`--ci-record`, carry-forward of the transport and agent segments), opens a PR |
 | `automation-merge.yml` | `pull_request_target` (opened/synchronize/reopened) on an automation branch (`chore/changelog-regenerate`, `chore/demo-recording`, `chore/benchmark-refresh`, `chore/stats-refresh`, `chore/discovery-refresh`, `chore/release-v*`) | the unblocker for the bot PRs above: GITHUB_TOKEN-authored events land in `action_required`, so it approves the pending runs (letting the real `ci.yml` gate the merge), then merges artifact-only PRs (changelog/demo/benchmark/stats) immediately with `--admin` and enables auto-merge for code-affecting PRs (discovery refresh, release bump) — never `--admin` on those. Same-repo heads only; never checks out the PR head |
 | `stats.yml` | push to `Cargo.toml`, daily 05:07 UTC, release | refreshes `site/src/data/stats.json` (download counts, latest tag/date, measured archive sizes) and opens a PR; idempotent, so a quiet day opens nothing |
+| `verify-delivery.yml` | daily 06:17 UTC, manual dispatch (also fired by release-binaries.yml after a release) | runs `scripts/verify-delivery.ts`: checks the crates.io version, the docs.rs build verdict, the release asset set, the Homebrew tap, the live site, and generated-data freshness against `Cargo.toml`; a mismatch warns inside the release grace window and fails after it |
+| `repo-metadata.yml` | weekly Mon 06:47 UTC, manual | syncs the repo description (method/service counts from the Discovery index), homepage, and topics via `scripts/update-repo-metadata.ts`; no-ops green when the `REPO_ADMIN_TOKEN` secret (Administration: write) is unset |
 | `dependabot.yml` | weekly | cargo / github-actions / npm, all version types, grouped; every patch group is named `patches` so the auto-merge workflow can tell patches apart |
 | `dependabot-auto-merge.yml` | dependabot PR opened/synchronize/reopened/ready_for_review | **patches merge immediately with `--admin`, bypassing required checks** — the repo prefers the latest patch even if it regresses; minors and majors wait for green CI |
 
@@ -142,4 +145,4 @@ Treat a commit as incomplete if docs are stale. What triggers a doc update:
 
 Generated files (`CHANGELOG.md`, `src/discovery/*.json`, `src/commands/generated.rs`, `skills/**`, `site/src/data/changelog.json`, `site/src/data/discovery-coverage.ts`, every SVG under `site/src/assets/` and `site/public/` except hand-authored patterns) are never hand-edited; rerun the generator.
 
-Key generator, not previously listed: `node site/scripts/generate-mascot.mjs` (pixel art + favicons + og card). `site/scripts/subset-font.py` regenerates the subsetted IBM 3270 webfont from `site/fonts-src/`.
+Key generator, not previously listed: `node site/scripts/generate-mascot.mjs` (pixel art + favicons + og card). `node scripts/subset-font.mjs` regenerates the subsetted IBM 3270 webfont from `site/fonts-src/` (Node + harfbuzz — there is no Python in this repo).

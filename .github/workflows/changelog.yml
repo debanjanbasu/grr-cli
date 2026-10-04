@@ -31,6 +31,10 @@ on:
         description: "Generate and show the diff, but do not open a pull request"
         type: boolean
         default: false
+      verify:
+        description: "Also run the release-only sync check (used by the release watcher)"
+        type: boolean
+        default: false
   push:
     branches: [main]
   release:
@@ -201,6 +205,12 @@ jobs:
     # release is the moment where "the changelog must describe this version" is
     # a real invariant.
     #
+    # The `release` event cannot be relied on alone: releases are created with
+    # GITHUB_TOKEN, and a token-authored release starts no workflows, so this
+    # job would never run. release-binaries.yml's watcher therefore dispatches
+    # this workflow with `verify=true`, which is the second arm below. The
+    # `release` arm is kept for the day a release is published by a human.
+    #
     # Two things make this go red, and both are fixed by a merge rather than
     # by editing anything here:
     #   1. The section for the tag that was just published cannot be in the
@@ -212,7 +222,7 @@ jobs:
     # Deleting the tag locally before generating was tried and does NOT help:
     # the drift is real committed-file drift, not an artefact of the tag, so
     # the check stays red until the regeneration is actually merged.
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: (github.event_name == 'release' && github.event.action == 'published') || inputs.verify == true
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 10
     permissions:

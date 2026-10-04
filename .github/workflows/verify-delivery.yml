@@ -1,0 +1,54 @@
+name: Verify delivery
+
+# The repository can be green while the DELIVERY is broken. docs.rs failed
+# every build for weeks and nothing noticed; a release can exist with no crate
+# on crates.io; the Homebrew tap or the live site can lag a version and stay
+# stuck with no signal. scripts/verify-delivery.ts checks the delivered
+# artifacts (crates.io, docs.rs, the release asset set, the Homebrew tap, the
+# live site, and the freshness of the data the site renders) against Cargo.toml.
+# A mismatch is a warning while the newest release is inside the script's grace
+# window, a failure after it — a check that flaps after every release gets
+# ignored. Exit 1 = red run.
+#
+# Every check is a read: `gh api` plus plain HTTPS. contents:read is enough
+# (the workflow token can read the public release/asset API).
+
+on:
+  schedule:
+    # 06:17 UTC daily — off the hour, and clear of the release/deploy cadence
+    # so the grace-window checks run against settled state.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-delivery
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: verify the delivered release
+    runs-on: ubuntu-26.04-arm
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        timeout-minutes: 2
+
+      - uses: actions/setup-node@v7
+        timeout-minutes: 5
+        with:
+          node-version: "26"
+
+      - name: Install script toolchain
+        timeout-minutes: 5
+        run: npm install
+
+      - name: Verify delivery
+        timeout-minutes: 5
+        env:
+          # gh api reads the release/assets through this; a read-scoped token
+          # is all the checks need.
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/verify-delivery.ts
