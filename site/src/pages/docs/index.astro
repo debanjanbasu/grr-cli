@@ -22,7 +22,7 @@ const pages = [
     href: `${base}docs/commands/`,
     eyebrow: 'the generated tree',
     title: 'Commands',
-    copy: 'The naming rule that predicts any command from its method id, the typed-flag rules, per-service examples, and the output formats they share.',
+    copy: 'The naming rule that predicts any command from its method id, the typed-flag rules, per-service examples, the output formats, and how to configure System One for grr ask.',
   },
   {
     href: `${base}docs/discovery/`,
@@ -84,7 +84,7 @@ $ grr auth status`;
       <div class="container prose reveal">
         <h2 id="surface-title">One index, two ways in</h2>
         <p class="lead">grr exposes the same Google account two ways, and both are generated from the same committed Discovery index — they cannot drift apart.</p>
-        <p>The <strong>generated tree</strong> is namespaced by service and mirrors Discovery method ids exactly: <code>gmail.users.messages.list</code> is <code>grr gmail users messages list</code>, with typed kebab-case flags per method. All {discoveryServiceCount} services in the index &mdash; gmail, calendar, drive, people, chat, forms, tasks, docs, sheets, slides, Apps Script, Analytics, and Search Console &mdash; have a full command path, and a daily workflow regenerates the tree when Google adds a method, with no grr release in between.</p>
+        <p>The <strong>generated tree</strong> is namespaced by service and mirrors Discovery method ids exactly: <code>gmail.users.messages.list</code> is <code>grr gmail users messages list</code>, with typed kebab-case flags per method. All {discoveryServiceCount} services in the index &mdash; gmail, calendar, drive, people, chat, forms, tasks, docs, sheets, slides, Apps Script, Analytics Admin, Analytics Data, and Search Console &mdash; have a full command path, and a daily workflow regenerates the tree when Google adds a method, with no grr release in between.</p>
         <p>The <strong>flat view</strong> is <code>grr api</code>. It reads the same index by method id — <code>list</code>, <code>describe</code>, <code>call</code>, <code>refresh</code> — which is the convenient shape when you are composing ids dynamically or building tool definitions.</p>
         <p>Both routes share one OAuth login, one transport, one call path, and one output contract. See <a href={`${base}docs/commands/`}>Commands</a> for the tree and <a href={`${base}docs/discovery/`}>Discovery API</a> for the index.</p>
         <CodeBlock code={shape} label="terminal · grr" />

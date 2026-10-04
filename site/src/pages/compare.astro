@@ -138,8 +138,9 @@ const sizeDetail = (binary: Binary | undefined) =>
     ? `measured artifact is a ${binary?.bytes}-byte launcher shim, not a binary (${binary?.source ?? 'unknown source'})`
     : binary?.reason ?? 'not measured';
 
-// The size a user actually installs. grr ships UPX-packed from its release
-// archive while the benchmark's own timings run a locally built (unpacked)
+// The size a user actually installs. grr's release archive holds the
+// UPX-packed binary when the packer succeeded (and an unpacked one when it
+// did not), while the benchmark's own timings run a locally built (unpacked)
 // binary, so the snapshot carries both; competitors are only ever measured as
 // shipped. This is the one rule behind both the numeric table and the feature
 // matrix, so the two can never disagree about which number leads.
@@ -446,10 +447,10 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           re-measured for memory, and that basis is stated rather than assumed.
         </p>
         <p>
-          Binary size is the number users actually install. grr publishes UPX-packed release
-          binaries, so the size shown is the packed release artifact, with the unpacked build in the
-          tooltip; the timings and peak memory above come from the unpacked build, which is what the
-          benchmark runs. Competitor sizes are their official release builds, as shipped — so the
+          Binary size is the number users actually install. grr's release artifact is UPX-packed when
+          the packer succeeds, so the size shown is the shipped artifact, with the unpacked build in
+          the tooltip; the timings and peak memory above come from the unpacked build, which is what
+          the benchmark runs. Competitor sizes are their official release builds, as shipped — so the
           "smallest" claim compares like with like. When a snapshot has no release artifact (no tag
           yet, or offline), the row falls back to the unpacked build and says so.
         </p>
@@ -514,7 +515,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
               <caption class="stat-label">
                 startup (<code>--version</code>), schema-dump, api-index, peak RSS and {grrSizeIsShipped ? 'binary size as shipped' : 'binary size'} — identical protocol per tool, where an equivalent exists.{' '}
                 {grrSizeIsShipped
-                  ? "grr's size is its UPX-packed release artifact; its timings and peak RSS come from the locally built unpacked binary, so UPX's one-time exec decompression is not part of them."
+                  ? "grr's size is its shipped release artifact (UPX-packed when the packer succeeded); its timings and peak RSS come from the locally built unpacked binary, so UPX's one-time exec decompression is not part of them."
                   : "grr's timings, peak RSS and size all come from the same locally built binary."}
               </caption>
               <thead>
@@ -587,7 +588,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
             : ''}
           . Competitor binaries are their official GitHub release builds, as shipped
           {grrSizeIsShipped
-            ? '; grr’s size is its own UPX-packed release artifact, its timings and memory the unpacked build'
+            ? '; grr’s size is its own shipped release artifact, its timings and memory the unpacked build'
             : ''}.
         </span>
         <a href="https://github.com/debanjanbasu/grr-cli/blob/main/scripts/benchmark.ts" target="_blank" rel="noreferrer">
@@ -637,7 +638,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
       </div>
       <div class="compare-read mt-6 max-w-[72ch]">
         <p>
-          Where the others still win: <a href="https://github.com/steipete/gogcli" target="_blank" rel="noreferrer">gog</a> covers 27
+          Where the others still win: <a href="https://github.com/openclaw/gogcli" target="_blank" rel="noreferrer">gog</a> covers 27
           services — including domain-locked enterprise APIs like Classroom and Meet that a consumer
           account cannot authorise and that grr deliberately leaves out.
           <a href="https://github.com/googleworkspace/cli" target="_blank" rel="noreferrer">gws</a> covers every Workspace API, not

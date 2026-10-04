@@ -4,6 +4,7 @@ import DocsShell from '../../components/DocsShell.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
 import PageHero from '../../components/PageHero.astro';
 import SectionIntro from '../../components/SectionIntro.astro';
+import { demoDurationSeconds } from '../../lib/demo-duration';
 import { discoveryMethodTotal, discoveryServiceCount } from '../../data/discovery-coverage';
 
 const base = import.meta.env.BASE_URL;
@@ -29,11 +30,12 @@ grr calendar events insert --calendar-id primary \\
   --params '{"summary":"Standup","start":{"dateTime":"2026-10-05T09:30:00Z"},"end":{"dateTime":"2026-10-05T09:45:00Z"}}' \\
   --dry-run | jq -e '.url' >/dev/null
 
-# 4. Parse stdout only. stderr carries logs and human text.
+# 4. Parse stdout only. stderr carries logs and human text. Gmail list
+#    returns the API's wrapper object, so index into .messages first.
 grr gmail users messages list --user-id me --q "from:github.com" --max-results 10 2>/dev/null \\
-  | jq -r '.[] | "\\(.id)\\t\\(.snippet)"'`;
+  | jq -r '.messages[] | "\\(.id)\\t\\(.threadId)"'`;
 const contract = `$ grr gmail users messages list --user-id me --max-results 1
-# stdout: [{"id":"19f8ab2c","threadId":"19f8ab2c","snippet":"Build notes ..."}]
+# stdout: {"messages":[{"id":"19f8ab2c","threadId":"19f8ab2c"}],"resultSizeEstimate":1}
 # stderr: INFO grr_cli::core::auth: Loaded token from OS keyring
 
 $ grr api list 2>&1 >/dev/null
@@ -71,7 +73,7 @@ $ grr auth status >/dev/null || grr auth login --device
 
 # history_id is the cursor for incremental reads.
 $ grr gmail users history list --user-id me \\
-    --start-history-id 1280000 --max-results 100 | jq -r '.[].id'`;
+    --start-history-id 1280000 --max-results 100 | jq -r '.history[].id'`;
 const safe = `# Every method — leaf or api call — has --dry-run. JSON out, nothing sent.
 $ grr gmail users messages delete --user-id me --id 191f8ab2 --dry-run
 {"method":"DELETE","url":"https://gmail.googleapis.com/gmail/v1/users/me/messages/191f8ab2",...}
@@ -82,7 +84,7 @@ $ grr gmail users messages trash --user-id me --id 191f8ab2
 # Bulk effect? Resolve the ids with a read first, show them, then act
 # on the explicit list — never on a query you have not reviewed.
 $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
-    --max-results 100 | jq -r '.[].id'`;
+    --max-results 100 | jq -r '.messages[].id'`;
 ---
 
 <BaseLayout
@@ -186,16 +188,16 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
         <SectionIntro
           id="scope-title"
           eyebrow="rule four"
-          title="Ask for the least privilege the method needs."
-          copy="grr consents to sixteen scopes. The narrowest scope each method accepts is reported, and a mismatch is named rather than swallowed."
+          title="Know which scopes you actually hold."
+          copy="grr consents to one fixed set of sixteen scopes. The narrowest scope each method accepts is reported per method; consent itself is not per-method."
         />
         <div class="container prose reveal max-w-[68ch]">
-          <p class="lead">OAuth consent is granted once, for a fixed set of scopes, at <code>grr auth login</code>. You cannot widen it later from inside an agent run &mdash; that needs a new consent, which needs a human. So scope is a design constraint, not a runtime knob.</p>
+          <p class="lead">OAuth consent is granted once, for a fixed set of scopes, at <code>grr auth login</code>. You cannot widen it later from inside an agent run &mdash; that needs a new consent, which needs a human. So scope is a design constraint, not a runtime knob, and the per-method scope grr reports is a heads-up, not a request it can grant.</p>
           <p>Because every command resolves its method against the index, the scope check is the same on both routes: read <code>leastPrivilegeScope</code> from <code>grr api describe</code> before relying on a method, and treat the result as part of your plan, not an afterthought.</p>
           <p>Two behaviours to expect, both benign, both worth not misdiagnosing:</p>
           <ul>
             <li>A <strong>note on stderr</strong> saying a method wants a scope outside the consented set is a warning, not a verdict. grr attempts the call anyway, because the narrow scope is often a sibling of a broader one the build does hold. Check the exit status, not the note.</li>
-            <li>A <strong>403</strong> is the real answer. grr&rsquo;s error names the specific scope and the file to edit. The common cause is a method genuinely outside the consented set &mdash; Gmail CSE keypairs, S/MIME settings, directory people, most of the Chat admin surface, and all of Tasks, which needs <code>&hellip;/auth/tasks</code>.</li>
+            <li>A <strong>403</strong> is the real answer. grr&rsquo;s error names the specific scope and the file to edit. The common cause is a method genuinely outside the consented set &mdash; Gmail CSE keypairs, S/MIME settings, directory people, most of the Chat admin surface, and the five services whose methods never accept a consented scope: Tasks, Analytics Admin, Analytics Data, Search Console, and Apps Script except <code>scripts.run</code> (which accepts the Drive scope).</li>
           </ul>
           <p>The full breakdown, including which services work and which do not, is on <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
         </div>
@@ -284,10 +286,11 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
         <div class="container prose reveal max-w-[68ch]">
           <p class="lead"><code>grr ask "show my unread gmail"</code> classifies service ({discoveryServiceCount} options), then method, then one typed question per required parameter &mdash; every candidate is code-supplied from the discovery index, so the model can only <em>select</em>, never invent.</p>
           <ul>
-            <li><strong>It prints the plan by default</strong> (method, params, url, scopes, confidence as JSON) and sends nothing. <code>--run</code> executes through the same engine as <code>grr api call</code>.</li>
+            <li><strong>It prints the plan by default</strong> (method, params, url, scopes, confidence as JSON) and sends nothing to Google; the routing judgments themselves are calls to the System One provider. <code>--run</code> executes through the same engine as <code>grr api call</code>.</li>
             <li><strong>Confidence is visible</strong>: below the threshold (default 0.6) the plan is flagged, not hidden &mdash; a harness can decide whether to proceed or ask the user.</li>
             <li><strong>The safety gate applies here too</strong>: <code>--readonly</code>/<code>--deny-service</code> fire as soon as the method is resolved, before any judgment on parameters.</li>
           </ul>
+          <p>Endpoint, model, API key and confidence threshold are the one tunable surface in grr; the <a href={`${base}docs/commands/#system-one`}>System One setup</a> on the Commands page covers the config file and the preferred <code>TYPESAFE_API_KEY</code> env route.</p>
         </div>
       </div>
     </section>
@@ -300,7 +303,7 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
           <li><a href="https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md" target="_blank" rel="noreferrer">skills/grr/SKILL.md ↗</a> &mdash; the packaged agent skill: the discovery-first discipline, the naming rule, and the output contract in one file. Install it with <code>npx skills add https://github.com/debanjanbasu/grr-cli</code>.</li>
           <li><a href={`${base}llms.txt`}>llms.txt</a> &mdash; the site&rsquo;s machine-readable index, for orientation. Fetch it once at session start.</li>
           <li><code>grr schema</code> &mdash; the generated command tree, for building tool definitions. Regenerate it rather than hand-writing flags.</li>
-          <li><a href={`${base}#demo-title`}>The terminal demo</a> &mdash; 41 seconds of real grr output, including an opencode session driving grr the way a harness would.</li>
+          <li><a href={`${base}#demo-title`}>The terminal demo</a> &mdash; {demoDurationSeconds} seconds of real grr output, including an opencode session driving grr the way a harness would.</li>
           <li><code>grr api list</code> and <code>grr api describe</code> &mdash; the method-level view of the same index, at runtime, with no network and no credential.</li>
         </ul>
         <p>

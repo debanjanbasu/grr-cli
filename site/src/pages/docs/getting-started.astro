@@ -14,8 +14,7 @@ brew trust debanjanbasu/tap
 brew install grr`;
 const winget = `winget install debanjanbasu.grr`;
 const cargo = `RUSTFLAGS="--cfg reqwest_unstable" cargo install grr-cli`;
-const cargoPs = `$env:RUSTFLAGS='--cfg reqwest_unstable'
-cargo install grr-cli`;
+const cargoPs = `$env:RUSTFLAGS='--cfg reqwest_unstable'; cargo install grr-cli`;
 const source = `git clone https://github.com/debanjanbasu/grr-cli.git
 cd grr-cli
 cargo build --release
@@ -28,9 +27,9 @@ $ grr auth login
 $ grr auth status
 {"authenticated":true,"email":"you@example.com","messages_total":48213,...}
 
-# 3. Do something real.
+# 3. Do something real. gmail list returns the API's own wrapper object.
 $ grr gmail users messages list --user-id me --max-results 5
-[{"id":"19f8ab2c","threadId":"19f8ab2c","snippet":"Build notes ..."}, ...]`;
+{"messages":[{"id":"19f8ab2c","threadId":"19f8ab2c"}],"resultSizeEstimate":5}`;
 const transport = `$ grr transport
 negotiated_protocol: HTTP_3
 http3_requested: true
@@ -88,7 +87,7 @@ const scopes = `$ grr api call gmail.users.messages.list --param userId=me --dry
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base">Windows (x64 and ARM64)</h2>
-              <p class="m-0 text-[13px] text-base-content/70">Windows x64 is prepared for winget — the first submission stalled because the release archives named the binary after its target while the manifest promised <code>grr.exe</code>, so validation could never find the nested installer. The archives and the manifest generation are fixed (v0.8.1+); the corrected submission is in flight. Both Windows x64 and ARM64 are published as release archives today.</p>
+              <p class="m-0 text-[13px] text-base-content/70">Windows x64 is ready for winget &mdash; the first submission stalled because the release archives named the binary after its target while the manifest promised <code>grr.exe</code>, so validation could never find the nested installer. The archives and the manifest generation are fixed (v0.8.1+), and a corrected submission is prepared; it is not published yet. Both Windows x64 and ARM64 are published as release archives today.</p>
               <CodeBlock code={winget} label="winget" />
             </div>
           </article>
@@ -197,10 +196,10 @@ const scopes = `$ grr api call gmail.users.messages.list --param userId=me --dry
     <section class="section" aria-labelledby="scope-title">
       <div class="container prose reveal">
         <h2 id="scope-title">Know which scopes you actually hold</h2>
-        <p class="lead">A release build consents to sixteen scopes. That set does not cover everything in the Discovery index — and every method reports the narrowest scope it accepts, so you can check before you rely on one.</p>
+        <p class="lead">A release build consents to one fixed set of sixteen scopes, granted once at <code>grr auth login</code>. That set does not cover everything in the Discovery index; every method instead reports the narrowest scope it accepts, so you can check a method&rsquo;s requirement before relying on it &mdash; but grr cannot widen consent per call.</p>
         <p>Before a write, <code>grr api call … --dry-run</code> prints the exact URL, body, and scopes the method declares without sending anything. It is the cheapest way to find out whether a method is inside your consent boundary before you rely on it.</p>
         <CodeBlock code={scopes} label="grr api call · --dry-run" />
-        <p>Tasks is the one service that needs a scope this build does not hold (<code>…/auth/tasks</code>), so its methods are visible in <code>grr api list</code> and describable, but will not authorize until the scope set is extended and you re-run <code>grr auth login</code>. <a href={`${base}docs/discovery/`}>Discovery API</a> has the full breakdown.</p>
+        <p>The consent set covers Gmail, Calendar, Drive, People, Chat and Forms. Five services fall outside it &mdash; Tasks, Analytics Admin, Analytics Data, Search Console, and Apps Script except <code>scripts.run</code>, which accepts the Drive scope. Their methods stay visible in <code>grr api list</code> and accurate under <code>--dry-run</code>, but a live call returns 403 until the scope set in <code>src/core/auth/mod.rs</code> is extended and you re-run <code>grr auth login</code>. <a href={`${base}docs/discovery/`}>Discovery API</a> has the full breakdown.</p>
       </div>
     </section>
 
