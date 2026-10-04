@@ -1,3 +1,12 @@
+# The unstable profile keys below (trim-paths, panic-immediate-abort) need a
+# feature gate. This repo's `.cargo/config.toml` supplies one locally, but the
+# PUBLISHED manifest must parse in environments that never see that file -
+# docs.rs runs plain `cargo metadata` and failed every build with "invalid
+# Cargo.toml syntax" because of it. The manifest-level opt-in below is the one
+# gate that travels with the crate. It changes nothing for consumers: the crate
+# has always required nightly.
+cargo-features = ["trim-paths", "panic-immediate-abort"]
+
 [workspace]
 resolver = "2"
 
@@ -62,7 +71,7 @@ predicates = "3.1"
 default = ["cli"]
 # The typed service clients and their per-service features are gone: the
 # command tree is generated from the embedded Discovery index, and the CLI
-# needs only the engine â€” core (auth/HTTP), discovery, output formatting.
+# needs only the engine - core (auth/HTTP), discovery, output formatting.
 cli = ["dep:tracing-subscriber"]
 
 [profile.dev]
