@@ -154,7 +154,7 @@ function buildManifests(installers: Installer[], releaseDate: string | null): Re
       `License: MIT\n` +
       `LicenseUrl: https://github.com/${REPO}/blob/main/LICENSE\n` +
       `ShortDescription: Google tools from the terminal, at maximum performance\n` +
-      `Description: The Google tools used every day — Gmail, Calendar, Drive, Docs, Sheets and ten more Google APIs — behind one OAuth login, in a single zero-config Rust binary.\n` +
+      `Description: The Google tools used every day — Gmail, Calendar, Drive, Docs, Sheets and nine more Google APIs — behind one OAuth login, in a single zero-config Rust binary.\n` +
       `Tags:\n` +
       `  - cli\n` +
       `  - google\n` +
