@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-03T23:42:32.493Z",
+  "generatedAt": "2026-10-04T00:47:35.594Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -22,6 +22,18 @@
               "scope": null,
               "type": "refactor",
               "note": null
+            },
+            {
+              "description": "native CSS for what the shell hand-rolled",
+              "scope": "site",
+              "type": "refactor",
+              "note": null
+            },
+            {
+              "description": "Node 26's import.meta.dirname/filename, stat over read",
+              "scope": "scripts",
+              "type": "refactor",
+              "note": null
             }
           ]
         },
@@ -32,6 +44,12 @@
             {
               "description": "PR creators wake the merge poller — kill the 5-7 min approval wait",
               "scope": "ci",
+              "type": "perf",
+              "note": null
+            },
+            {
+              "description": "async the last blocking paths, trim hot-path allocations, drop dead deps",
+              "scope": null,
               "type": "perf",
               "note": null
             }
@@ -92,6 +110,12 @@
             {
               "description": "refresh download counts and archive sizes",
               "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
               "type": "chore",
               "note": null
             },
