@@ -24,6 +24,14 @@ readme = "README.md"
 keywords = ["google", "gmail", "http3", "cli", "oauth"]
 categories = ["command-line-utilities", "api-bindings", "email", "network-programming", "web-programming"]
 
+[package.metadata.docs.rs]
+# docs.rs supplies neither this repo's .cargo/config.toml nor its rustflags,
+# so reqwest's http3 feature fails to compile there ("requires the
+# RUSTFLAGS='--cfg reqwest_unstable' environment variable") — the second
+# docs.rs failure layer after the unstable manifest keys. cargo-args reaches
+# every compilation unit, dependencies included.
+cargo-args = ["--config", 'build.rustflags=["--cfg","reqwest_unstable","--cfg","hyper_unstable_ffi","--cfg","tokio_unstable"]']
+
 [lib]
 name = "grr_cli"
 path = "src/lib.rs"
