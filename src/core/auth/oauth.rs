@@ -54,32 +54,15 @@ impl super::GoogleAuth {
             ));
         }
 
-        let mut form = vec![
-            ("code", code),
-            ("client_id", self.config.client_id.clone()),
-            ("redirect_uri", REDIRECT_URI.to_string()),
-            ("grant_type", "authorization_code".to_string()),
-        ];
-        if let Some(secret) = self.config.client_secret.clone().filter(|s| !s.is_empty()) {
-            form.push(("client_secret", secret));
-        }
-        form.push(("code_verifier", verifier));
-
-        let response = self
-            .http_client
-            .post(self.token_endpoint.as_str())
-            .form(&form)
-            .send()
-            .await
-            .map_err(GrrError::Http)?;
-
-        let status = response.status();
-        let body_text = response.text().await.map_err(GrrError::Http)?;
-        let token_data: serde_json::Value = serde_json::from_str(&body_text).map_err(|e| {
-            GrrError::Auth(
-                anyhow::anyhow!("token endpoint returned {status}: unparseable body ({e})").into(),
-            )
-        })?;
+        let (status, token_data) = self
+            .token_request(vec![
+                ("code", code),
+                ("client_id", self.config.client_id.clone()),
+                ("redirect_uri", REDIRECT_URI.to_string()),
+                ("grant_type", "authorization_code".to_string()),
+                ("code_verifier", verifier),
+            ])
+            .await?;
 
         if !status.is_success() {
             return Err(GrrError::Auth(
