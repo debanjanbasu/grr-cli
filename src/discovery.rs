@@ -594,98 +594,148 @@ pub async fn refresh(filter: Option<&str>) -> Result<Vec<RefreshReport>, String>
     let Some(dir) = cache_dir() else {
         return Err("could not find your home directory".to_owned());
     };
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    tokio::fs::create_dir_all(&dir)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    let mut reports = Vec::new();
+    // The services are independent: every fetch runs as its own task instead
+    // of serialising 14 round-trips. Reports are re-sorted into SERVICES
+    // order below, so the CLI output stays deterministic regardless of
+    // completion order.
+    let mut tasks = tokio::task::JoinSet::new();
+    let mut wanted = 0usize;
     for (file, name, version, url) in SERVICES {
-        if let Some(wanted) = filter
-            && !name.eq_ignore_ascii_case(wanted)
+        if let Some(wanted_name) = filter
+            && !name.eq_ignore_ascii_case(wanted_name)
         {
             continue;
         }
+        wanted += 1;
+        let client = client.clone();
+        let dir = dir.clone();
+        tasks.spawn(async move { fetch_one(&client, file, name, version, url, &dir).await });
+    }
+    if wanted == 0 {
+        return Ok(Vec::new());
+    }
 
-        let body = client
-            .get(url::Url::parse(url).map_err(|e| format!("{name}: bad discovery url: {e}"))?)
-            .send()
-            .await
-            .map_err(|e| format!("{name}: {e}"))?
-            .text()
-            .await
-            .map_err(|e| format!("{name}: {e}"))?;
-
-        let doc: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| format!("{name}: discovery response is not JSON: {e}"))?;
-        let revision = doc
-            .get("revision")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_owned();
-
-        // The embedded revision for this service, for the comparison report.
-        let embedded_revision = services()
-            .get(name)
-            .and_then(|s| s.revision.clone())
-            .unwrap_or_default();
-
-        // A stale or failed refresh must not take the index down: only write
-        // the cache when the fetched document distils cleanly AND is not
-        // older than what is already in use.
-        let methods = distill(&doc)?;
-        if revision_rank(&revision) < revision_rank(&embedded_revision) {
-            reports.push(RefreshReport {
-                service: (*name).to_owned(),
-                from: embedded_revision,
-                to: revision,
-                methods: methods.len(),
-                wrote_cache: false,
-                skipped_older: true,
-            });
-            continue;
+    let mut reports = Vec::with_capacity(wanted);
+    while let Some(joined) = tasks.join_next().await {
+        match joined {
+            Ok(Ok(report)) => reports.push(report),
+            Ok(Err(e)) => {
+                // Preserve the historical all-or-nothing contract: a failed
+                // service aborts the refresh (the serial loop's `?` used to
+                // propagate it) and the remaining tasks are told to stop.
+                tasks.abort_all();
+                return Err(e);
+            }
+            Err(join_error) => {
+                tasks.abort_all();
+                return Err(format!("refresh task failed: {join_error}"));
+            }
         }
+    }
+    reports.sort_by_key(|report| {
+        SERVICES
+            .iter()
+            .position(|(_, name, _, _)| *name == report.service)
+            .unwrap_or(usize::MAX)
+    });
+    Ok(reports)
+}
 
-        let index = Service {
-            name: (*name).to_owned(),
-            version: (*version).to_owned(),
-            revision: Some(revision.clone()),
-            title: doc
-                .get("title")
-                .and_then(|v| v.as_str())
-                .unwrap_or(name)
-                .to_owned(),
-            root_url: doc
-                .get("rootUrl")
-                .and_then(|v| v.as_str())
-                .map(str::to_owned),
-            service_path: doc
-                .get("servicePath")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_owned(),
-            base_path: doc
-                .get("basePath")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_owned(),
-            batch_path: doc
-                .get("batchPath")
-                .and_then(|v| v.as_str())
-                .map(str::to_owned),
-            methods,
-        };
-        let json = serde_json::to_string(&index).map_err(|e| e.to_string())?;
-        let path = dir.join(file);
-        std::fs::write(&path, json).map_err(|e| format!("{}: {e}", path.display()))?;
+/// Fetch, distil and cache one service. Split out of [`refresh`] so all the
+/// services can be in flight at once.
+async fn fetch_one(
+    client: &reqwest::Client,
+    file: &str,
+    name: &str,
+    version: &str,
+    url: &str,
+    dir: &std::path::Path,
+) -> Result<RefreshReport, String> {
+    let body = client
+        .get(url::Url::parse(url).map_err(|e| format!("{name}: bad discovery url: {e}"))?)
+        .send()
+        .await
+        .map_err(|e| format!("{name}: {e}"))?
+        .text()
+        .await
+        .map_err(|e| format!("{name}: {e}"))?;
 
-        reports.push(RefreshReport {
-            service: (*name).to_owned(),
+    let doc: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| format!("{name}: discovery response is not JSON: {e}"))?;
+    let revision = doc
+        .get("revision")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_owned();
+
+    // The embedded revision for this service, for the comparison report.
+    let embedded_revision = services()
+        .get(name)
+        .and_then(|s| s.revision.clone())
+        .unwrap_or_default();
+
+    // A stale or failed refresh must not take the index down: only write
+    // the cache when the fetched document distils cleanly AND is not
+    // older than what is already in use.
+    let methods = distill(&doc)?;
+    if revision_rank(&revision) < revision_rank(&embedded_revision) {
+        return Ok(RefreshReport {
+            service: name.to_owned(),
             from: embedded_revision,
             to: revision,
-            methods: index.methods.len(),
-            wrote_cache: true,
-            skipped_older: false,
+            methods: methods.len(),
+            wrote_cache: false,
+            skipped_older: true,
         });
     }
-    Ok(reports)
+
+    let index = Service {
+        name: name.to_owned(),
+        version: version.to_owned(),
+        revision: Some(revision.clone()),
+        title: doc
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or(name)
+            .to_owned(),
+        root_url: doc
+            .get("rootUrl")
+            .and_then(|v| v.as_str())
+            .map(str::to_owned),
+        service_path: doc
+            .get("servicePath")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        base_path: doc
+            .get("basePath")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_owned(),
+        batch_path: doc
+            .get("batchPath")
+            .and_then(|v| v.as_str())
+            .map(str::to_owned),
+        methods,
+    };
+    let json = serde_json::to_string(&index).map_err(|e| e.to_string())?;
+    let path = dir.join(file);
+    tokio::fs::write(&path, json)
+        .await
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+
+    Ok(RefreshReport {
+        service: name.to_owned(),
+        from: embedded_revision,
+        to: revision,
+        methods: index.methods.len(),
+        wrote_cache: true,
+        skipped_older: false,
+    })
 }
 
 /// One service's refresh outcome, for the `grr api refresh` report.
@@ -817,7 +867,14 @@ fn encode_path_reserved(value: &str) -> String {
             | b'=' => {
                 out.push(byte as char);
             }
-            _ => out.push_str(&format!("%{byte:02X}")),
+            _ => {
+                // Hand-rolled hex instead of format!(): this runs for every
+                // non-pchar byte of every encoded path value.
+                const HEX: &[u8; 16] = b"0123456789ABCDEF";
+                out.push('%');
+                out.push(HEX[(byte >> 4) as usize] as char);
+                out.push(HEX[(byte & 0x0F) as usize] as char);
+            }
         }
     }
     out
@@ -860,11 +917,17 @@ pub fn build_query(method: &Method, params: &serde_json::Map<String, serde_json:
         return String::new();
     }
     pairs.sort();
-    let query = pairs
-        .iter()
-        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
-        .collect::<Vec<_>>()
-        .join("&");
+    // One pre-sized buffer instead of N format! strings plus a Vec plus
+    // join's result — this runs per request URL.
+    let mut query = String::with_capacity(pairs.len() * 16);
+    for (k, v) in &pairs {
+        if !query.is_empty() {
+            query.push('&');
+        }
+        query.push_str(&urlencoding::encode(k));
+        query.push('=');
+        query.push_str(&urlencoding::encode(v));
+    }
     format!("?{query}")
 }
 

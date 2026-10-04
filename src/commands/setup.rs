@@ -165,7 +165,7 @@ pub async fn handle_setup(args: SetupArgs) -> Result<()> {
                     "--client-id is required when stdin is not a terminal (CI, agents, pipes).\n\n{recipe}"
                 );
             }
-            prompt("Client ID (…apps.googleusercontent.com): ")?
+            prompt("Client ID (…apps.googleusercontent.com): ").await?
         }
     };
     validate_client_id(&client_id)?;
@@ -178,7 +178,7 @@ pub async fn handle_setup(args: SetupArgs) -> Result<()> {
                     "--client-secret is required when stdin is not a terminal (CI, agents, pipes).\n\n{recipe}"
                 );
             }
-            prompt("Client secret: ")?
+            prompt("Client secret: ").await?
         }
     };
     validate_client_secret(&client_secret)?;
@@ -215,7 +215,7 @@ pub async fn handle_setup(args: SetupArgs) -> Result<()> {
 
     let mut apis_enabled = false;
     if args.enable_apis {
-        match enable_apis_via_gcloud() {
+        match enable_apis_via_gcloud().await {
             Ok(()) => apis_enabled = true,
             Err(e) => eprintln!("warning: could not enable APIs automatically: {e}"),
         }
@@ -235,27 +235,37 @@ pub async fn handle_setup(args: SetupArgs) -> Result<()> {
     Ok(())
 }
 
-fn prompt(label: &str) -> Result<String> {
+/// Read one line from the terminal without pinning a runtime worker.
+///
+/// `handle_setup` is awaited from the async CLI path, and the read can block
+/// until the user hits enter. The caller has already refused non-TTY stdin
+/// (setup.rs's interactive guard), so this await cannot hang a pipe.
+async fn prompt(label: &str) -> Result<String> {
     use std::io::Write;
     eprint!("{label}");
     std::io::stderr().flush().ok();
     let mut line = String::new();
-    std::io::stdin().read_line(&mut line)?;
+    let mut stdin = tokio::io::BufReader::new(tokio::io::stdin());
+    tokio::io::AsyncBufReadExt::read_line(&mut stdin, &mut line).await?;
     Ok(line.trim().to_owned())
 }
 
 /// Best-effort API enablement. The gcloud CLI is optional; everything else
 /// in setup works without it.
-fn enable_apis_via_gcloud() -> Result<()> {
+///
+/// `gcloud services enable` is a network-backed call that can take minutes;
+/// spawning it through tokio keeps the runtime free while it runs.
+async fn enable_apis_via_gcloud() -> Result<()> {
     let services = SERVICES
         .iter()
         .map(|(s, _)| *s)
         .collect::<Vec<_>>()
         .join(" ");
 
-    let status = std::process::Command::new("gcloud")
+    let status = tokio::process::Command::new("gcloud")
         .args(["services", "enable", &services])
         .status()
+        .await
         .context("gcloud is not on PATH (see https://cloud.google.com/sdk/docs/install)")?;
 
     if !status.success() {

@@ -22,24 +22,24 @@ pub fn print_output<T: Serialize>(value: &T, format: OutputFormat) -> io::Result
 
     match format {
         OutputFormat::Json => {
-            let json = serde_json::to_string(value)?;
-            writeln!(handle, "{}", json)?;
+            serde_json::to_writer(&mut handle, value)?;
+            writeln!(handle)?;
         }
         OutputFormat::JsonLines => {
             let json_value = serde_json::to_value(value)?;
             if let Some(arr) = json_value.as_array() {
                 for item in arr {
-                    let json = serde_json::to_string(item)?;
-                    writeln!(handle, "{}", json)?;
+                    serde_json::to_writer(&mut handle, item)?;
+                    writeln!(handle)?;
                 }
             } else {
-                let json = serde_json::to_string(value)?;
-                writeln!(handle, "{}", json)?;
+                serde_json::to_writer(&mut handle, value)?;
+                writeln!(handle)?;
             }
         }
         OutputFormat::Pretty => {
-            let json = serde_json::to_string_pretty(value)?;
-            writeln!(handle, "{}", json)?;
+            serde_json::to_writer_pretty(&mut handle, value)?;
+            writeln!(handle)?;
         }
         OutputFormat::Table => {
             print_table(value, &mut handle)?;
@@ -54,8 +54,8 @@ fn print_table<T: Serialize>(value: &T, handle: &mut dyn Write) -> io::Result<()
         Value::Array(arr) => print_array_as_table(&arr, handle),
         Value::Object(obj) => print_object_as_table(&obj, handle),
         scalar => {
-            let json = serde_json::to_string_pretty(&scalar)?;
-            writeln!(handle, "{}", json)
+            serde_json::to_writer_pretty(&mut *handle, &scalar)?;
+            writeln!(handle)
         }
     }
 }
