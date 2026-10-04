@@ -36,38 +36,11 @@ rustflags = []
 # http3, hyper ffi, tokio unstable) fail to compile on that target.
 # ──────────────────────────────────────────────────────────────────
 
-# WASM target (for future web support)
-[target.wasm32-unknown-unknown]
-rustflags = [
-    "-C", "target-feature=+bulk-memory,+crt-static,+multivalue,+mutable-globals,+nontrapping-fptoint,+reference-types,+sign-ext,+simd128",
-    "-C", "panic=abort",
-    "-C", "link-arg=--export=__heap_base",
-    "--cfg", "reqwest_unstable",
-    "--cfg", "hyper_unstable_ffi",
-    "--cfg", "tokio_unstable",
-]
-
 # Apple Silicon: M1 is the oldest supported Mac, so apple-m1 is a
 # deterministic distribution baseline. (target-cpu=native would bake in
 # whatever CPU the release runner happens to have.)
 [target.aarch64-apple-darwin]
 rustflags = ["-C", "target-cpu=apple-m1", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
-
-# iOS Simulator
-[target.aarch64-apple-ios-sim]
-rustflags = ["-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
-
-# iOS Device
-[target.aarch64-apple-ios]
-rustflags = ["-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
-
-# Android arm64
-[target.aarch64-linux-android]
-rustflags = ["-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
-
-# Android x86_64 (emulator)
-[target.x86_64-linux-android]
-rustflags = ["-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
 
 # Linux x86_64: baseline x86-64-v3 (Haswell+, AVX2/BMI2/FMA).
 [target.x86_64-unknown-linux-gnu]
@@ -90,11 +63,3 @@ rustflags = ["-C", "target-cpu=x86-64-v3", "-C", "panic=abort", "--cfg", "reqwes
 [target.aarch64-pc-windows-msvc]
 rustflags = ["-C", "target-cpu=oryon-1", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
 
-# musl targets for static linking
-[target.x86_64-unknown-linux-musl]
-rustflags = ["-C", "target-cpu=x86-64-v3", "-C", "panic=abort", "-C", "link-arg=-static", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
-linker = "clang"
-
-[target.aarch64-unknown-linux-musl]
-rustflags = ["-C", "target-cpu=native", "-C", "panic=abort", "-C", "link-arg=-static", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
-linker = "clang"
