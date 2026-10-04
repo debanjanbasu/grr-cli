@@ -1,5 +1,6 @@
 ---
 import DocsSidenav from './DocsSidenav.astro';
+import MenuIcon from './MenuIcon.astro';
 
 interface Props {
   /** Current docs route, forwarded to the sidenav's active state. */
@@ -22,13 +23,7 @@ const { currentPath = '' } = Astro.props;
   <div class="drawer-content min-w-0">
     <label for="docs-nav-toggle" tabindex="-1" class="drawer-button btn btn-ghost btn-square btn-sm mt-4 ml-5 lg:hidden">
       <span class="sr-only">Open the docs navigation</span>
-      <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" focusable="false" shape-rendering="crispEdges">
-        <g fill="currentColor">
-          <rect x="8" y="10" width="32" height="4"></rect>
-          <rect x="8" y="22" width="32" height="4"></rect>
-          <rect x="8" y="34" width="32" height="4"></rect>
-        </g>
-      </svg>
+      <MenuIcon />
     </label>
     <slot />
   </div>
