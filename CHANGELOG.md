@@ -22,9 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [0.8.0] - 2026-10-04
+
 ### Added
 
 - **cli:** grr skills install — the packaged agent skills, globally
+- **bench:** as-shipped sizes and the peak-memory metric
 
 ### Changed
 
@@ -44,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ci:** token-authored pushes and releases start nothing — dispatch the chain
 - **site:** the live audit's twelve content corrections
 - **ci:** poller retry, changelog in the release dispatch, dead input
+- **crate:** the published manifest parses without this repo's config gates
 
 ### Documentation
 
@@ -52,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- 9 internal commits (chore 7, ci 2)
+- 12 internal commits (chore 8, ci 4)
 
 ### Other
 
@@ -248,7 +254,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.7.0...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.4.0...v0.5.0
