@@ -26,10 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **scripts:** delete dead weight, share the flag contract
 - delete dead code across the CLI
+- **site:** native CSS for what the shell hand-rolled
+- **scripts:** Node 26's import.meta.dirname/filename, stat over read
 
 ### Performance
 
 - **ci:** PR creators wake the merge poller — kill the 5-7 min approval wait
+- async the last blocking paths, trim hot-path allocations, drop dead deps
 
 ### Fixed
 
@@ -44,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- 5 internal commits (chore 4, ci 1)
+- 6 internal commits (chore 5, ci 1)
 
 ### Other
 
