@@ -215,7 +215,10 @@ const skillsBlock = `# The 15 packaged skills -- the core skill plus one per ser
 $ grr skills install            # all of them into ~/.agents/skills/ (the cross-client location)
 $ grr skills install --claude   # also mirror into ~/.claude/skills/ (all Claude Code reads)
 $ grr skills install --force    # replace files that differ from the packaged copy
-$ grr skills list               # the packaged set, and what each target directory holds`;
+$ grr skills list               # the packaged set, and what each target directory holds
+# on upgrade, installed skills migrate themselves: untouched files are
+# replaced, locally edited files are 3-way merged, conflicts land beside
+# yours as .grr-incoming (lazy — nothing is hashed unless a merge is due)`;
 const systemone = `# ~/.grr/config.toml -- every key is optional; the defaults are shown.
 [systemone]
 endpoint = "https://api.typesafe.ai/v1/systemone"
