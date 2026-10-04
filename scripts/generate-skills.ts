@@ -26,11 +26,10 @@
 
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { DistilledIndex, DistilledMethod, DistilledParameter, Manifest } from './discovery-index.ts';
 import { flagId, kebab } from './script-utils.ts';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = resolve(import.meta.dirname, '..');
 const INDEX_DIR = resolve(ROOT, 'src', 'discovery');
 const SKILLS_DIR = resolve(ROOT, 'skills');
 const MANIFEST = resolve(INDEX_DIR, 'manifest.json');

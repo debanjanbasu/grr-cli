@@ -18,12 +18,11 @@
 //   node scripts/fetch-discovery.ts            # write src/discovery/*.json
 //   node scripts/fetch-discovery.ts --check    # exit 1 if stale (CI)
 
-import { mkdir, readdir, writeFile, readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { mkdir, readdir, writeFile, readFile, stat } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import type { DistilledIndex, DistilledMethod, Manifest, ManifestServiceEntry } from './discovery-index.ts';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = resolve(import.meta.dirname, '..');
 const OUT_DIR = resolve(ROOT, 'src', 'discovery');
 
 // The Workspace family grr covers: every CONSUMER-available Workspace API
@@ -249,7 +248,9 @@ async function main(): Promise<void> {
 
   const files = (await readdir(OUT_DIR)).filter((f) => f.endsWith('.json'));
   let bytes = 0;
-  for (const f of files) bytes += (await readFile(resolve(OUT_DIR, f))).length;
+  // stat().size, not readFile().length: the count only needs the byte
+  // length, and reading megabytes of JSON to measure them was pure waste.
+  for (const f of files) bytes += (await stat(resolve(OUT_DIR, f))).size;
 
   console.log('---');
   console.log(`${services.length} services, ${totalMethods} methods total`);

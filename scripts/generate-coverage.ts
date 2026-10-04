@@ -24,10 +24,9 @@
 //   node scripts/generate-coverage.ts --check # exit 1 if stale (CI gate)
 
 import { readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = resolve(import.meta.dirname, '..');
 const INDEX_DIR = resolve(ROOT, 'src', 'discovery');
 const MANIFEST = resolve(INDEX_DIR, 'manifest.json');
 const OUT_FILE = resolve(ROOT, 'site', 'src', 'data', 'discovery-coverage.ts');
