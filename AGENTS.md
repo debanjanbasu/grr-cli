@@ -23,8 +23,8 @@ Use this file as the execution ruleset. Deep detail lives in the files linked fr
 ## Key commands
 
 ```sh
-cargo build --release --locked          # release build (nightly required)
-cargo test --locked                     # full suite
+cargo build --release                   # release build (nightly required)
+cargo test                              # full suite
 cargo clippy --all-targets -- -D warnings   # enforced: zero warnings
 cargo fmt --all -- --check
 cargo package --allow-dirty             # must succeed with NO env set
@@ -54,7 +54,7 @@ grr skills list                              # what is installed, per target dir
 |---|---|---|
 | CLI | `src/cli.rs`, `src/commands/*.rs` | Static commands (auth, api, mcp, transport, schema, ask, skills) as derive types; the entire service tree is `src/commands/generated.rs` (compiled from the index by the generator, dispatched by `gen_dispatch.rs` through the shared call path in `api.rs`). `auth setup`, `schema` and `skills` run before config load (they must work with zero configuration; `skills` embeds its payload with `include_str!`). |
 | Discovery | `src/discovery.rs` | The embedded index + `grr api` resolution: method ids, path templates, scopes, params. Parsed once into a `OnceLock`. This index is the single source of truth for BOTH surfaces — the generated tree is compiled from it. |
-| Core | `src/core/` | Auth (OAuth+PKCE, keyring), HTTP (HTTP/3), config, errors, pagination. |
+| Core | `src/core/` | Auth (OAuth+PKCE, keyring), HTTP (HTTP/3), config, errors, runtime probes (io_uring availability). |
 | Build | `build.rs`, `.cargo/config.toml` | Nightly guard + compile-time OAuth client injection; build-std + per-target rustflags. |
 | Site | `site/` | Astro static site: docs, changelog, llms.txt. Every image is generated pixel art from `site/scripts/generate-mascot.mjs`. |
 | Skills | `skills/grr/SKILL.md`, `src/commands/skills.rs` | The packaged agent skills — discovery-first discipline, naming rule, output contract. `skills.rs` embeds all 16 files (`include_str!`) and serves `grr skills install` / `grr skills list`; installs are global-only (`~/.agents/skills`, plus `~/.claude/skills` under `--claude`). |
@@ -77,6 +77,7 @@ grr skills list                              # what is installed, per target dir
 
 ## Rust coding standards
 
+- **No locking, ever.** Never pass `--locked` and never `npm ci`/`--frozen-lockfile`; `Cargo.lock` is not tracked. Every build resolves the latest semver-compatible versions — newest dependency over frozen one, majors applied in the manifest, and the gates are the only correctness arbiter. This is a deliberate trade of reproducibility for currency: a regression from a fresh dependency is fixed by a revert or a bump, not by pinning.
 - Conventional commits (`feat:`, `fix:`, `perf:`, `feat!:` for breaking). The changelog generator parses them — a malformed subject lands under "Other" instead of its proper section.
 - Comments explain **why**, not what. Every non-obvious invariant gets one.
 - `thiserror` for typed domain errors, `anyhow` at command boundaries.
@@ -88,7 +89,7 @@ grr skills list                              # what is installed, per target dir
 
 ```sh
 cargo build
-cargo test --locked
+cargo test
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all -- --check
 cargo package --allow-dirty      # with NO GRR_* env and no .env present
@@ -104,8 +105,8 @@ For site changes: `npm run build`, `npm run lint`, `npm run typecheck` in `site/
 | Workflow | Trigger | What it does |
 |---|---|---|
 | `ci.yml` | push/PR to main, weekly Mon 04:00 UTC | nextest/clippy/fmt on ubuntu+windows, scripts typecheck, **site `astro check` + `astro build`**, generated-artifact gates, cli-only feature-subset clippy, weekly rustsec audit |
-| `release-binaries.yml` | tag `v*` | 5 targets (linux x86_64, linux aarch64, macOS arm64, Windows x86_64, Windows on ARM — the ARM legs on native ARM runners), UPX `--best`, zstd-22 `.tar.zst` + max-deflate `.zip` (archive members are `grr`/`grr.exe`, never the target name), SHA256SUMS, GitHub Release, plus the generated winget submission (`grr-<tag>-winget-manifests.tar.gz`) |
-| `publish.yml` | release/manual | `cargo publish --locked --no-verify` (crate is source-only — read its comment) |
+| `release-binaries.yml` | tag `v*` | 5 targets (linux x86_64, linux aarch64, macOS arm64, Windows x86_64, Windows on ARM — the ARM legs on native ARM runners), UPX `--best --lzma`, zstd-22 `.tar.zst` + max-deflate `.zip` (archive members are `grr`/`grr.exe`, never the target name), SHA256SUMS, GitHub Release, plus the generated winget submission (`grr-<tag>-winget-manifests.tar.gz`) |
+| `publish.yml` | release/manual | `cargo publish --no-verify` (crate is source-only — read its comment) |
 | `tag-release.yml` | push to main touching `Cargo.toml` | pushes the tag for a version on main that has none — fires the binary release and the crates.io publish |
 | `auto-release.yml` | push to main (every push), Friday 04:31 UTC backstop, manual dispatch | computes the next version from the commit history and opens the bump PR with auto-merge — releases ship immediately after any meaningful push |
 | `discovery.yml` | daily 04:17 UTC, manual | refetches discovery docs, regenerates the index AND everything derived from it (command tree, agent skills, site coverage table), opens a PR when any differs, runs `cargo test --lib` against the new data first |

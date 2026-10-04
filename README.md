@@ -23,15 +23,15 @@ grr schema
 
 ## Install
 
-**Prebuilt binaries** — macOS arm64, Linux x86_64, Windows x86_64, and Windows on ARM (aarch64, Snapdragon X / Oryon):
+**Prebuilt binaries** — macOS arm64, Linux x86_64, Linux aarch64, Windows x86_64, and Windows on ARM (aarch64, Snapdragon X / Oryon):
 [GitHub Releases](https://github.com/debanjanbasu/grr-cli/releases)
 
-Release binaries are zero-config — an OAuth client is compiled in, so `grr auth login` works immediately. Archives are `.tar.zst` (zstd level 22) on unix and `.zip` on Windows; every binary is UPX-packed.
+Release binaries are zero-config — an OAuth client is compiled in, so `grr auth login` works immediately. Archives are `.tar.zst` (zstd level 22) on unix and `.zip` on Windows; binaries are UPX-packed with `--best --lzma` where the compressor supports it — the workflow verifies the packed copy still executes and falls back to the unpacked binary with a warning if not.
 
 **From source** (the default CLI build requires Rust nightly — see [Development](#development)):
 
 ```sh
-cargo install --git https://github.com/debanjanbasu/grr-cli --locked
+cargo install --git https://github.com/debanjanbasu/grr-cli
 ```
 
 or from a local clone at the repository root:
@@ -39,7 +39,7 @@ or from a local clone at the repository root:
 ```sh
 git clone https://github.com/debanjanbasu/grr-cli
 cd grr-cli
-cargo install --path . --locked
+cargo install --path .
 ```
 
 A source build has no OAuth client compiled in — see [Authentication and configuration](#authentication-and-configuration).
@@ -80,7 +80,7 @@ Building from source instead of installing a release? Read [Authentication and c
 
 ## Authentication and configuration
 
-**Release binaries are zero-config.** `build.rs` reads `GRR_CLIENT_ID` / `GRR_CLIENT_SECRET` from the build environment — GitHub Actions repo secrets for the official builds — and compiles them in, so GitHub Releases, Homebrew, and winget installs need no config file and no console visit.
+**Release binaries are zero-config.** `build.rs` reads `GRR_CLIENT_ID` / `GRR_CLIENT_SECRET` from the build environment — GitHub Actions repo secrets for the official builds — and compiles them in, so GitHub Releases and Homebrew installs need no config file and no console visit.
 
 **Source builds bring their own client.** `cargo install grr-cli` compiles the published sources with nothing in the build environment, so that binary has no embedded client. Any one of these fixes it:
 
@@ -159,7 +159,7 @@ grr gmail users messages list --user-id me --q "in:inbox" --max-results 1 | jq -
 
 ### Command reference
 
-The command tree is **generated** from the committed Discovery index at build time, so this table is deliberately coarse: **`grr --help` and `grr schema` are the source of truth**, and every one of the 401 methods is a real, typed command.
+The command tree is **generated** from the committed Discovery index by `scripts/generate-commands.ts` (CI-gated with `--check`), so this table is deliberately coarse: **`grr --help` and `grr schema` are the source of truth**, and every one of the 401 methods is a real, typed command.
 
 | Group | What it covers | Methods |
 | --- | --- | --- |
@@ -169,7 +169,7 @@ The command tree is **generated** from the committed Discovery index at build ti
 | `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 401 |
 | `grr schema` | the whole command tree as JSON | — |
 | `grr transport` | negotiated HTTP version + runtime features | — |
-| `grr skills` | `install [--dir PATH] [--claude] [--force]`, `list` — the 16 packaged agent skills into the user-level skills directory (`~/.agents/skills`, offline; `--claude` mirrors to `~/.claude/skills`) | — |
+| `grr skills` | `install [--dir PATH] [--claude] [--force]`, `list` — the 16 packaged skill files (the core skill, one per service, and their index) into the user-level skills directory (`~/.agents/skills`, offline; `--claude` mirrors to `~/.claude/skills`) | — |
 | `grr gmail` | messages, threads, drafts, labels, history, attachments, filters, forwarding, POP/IMAP, send-as, CSE, delegates, watches | 79 |
 | `grr calendar` | calendars, events, instances, ACL, free/busy, colors, settings | 38 |
 | `grr drive` | files, permissions, comments, replies, revisions, changes, drives, apps, approvals | 64 |
@@ -194,13 +194,13 @@ grr --deny-service chat chat spaces list                            # refused: t
 
 ## The generated tree
 
-Every service command above is generated at build time — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~420 KiB across the 14 services) and emits the whole tree into `src/commands/generated.rs` — 401 leaves, 994 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates the index along with the command tree, the per-service agent skills, and the site's coverage table, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
+Every service command above is generated from the committed index by `scripts/generate-commands.ts` — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~420 KiB across the 14 services) and emits the whole tree into `src/commands/generated.rs` — 401 leaves, 994 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates the index along with the command tree, the per-service agent skills, and the site's coverage table, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
 
 The rules, so you can predict any command without memorizing it:
 
 - **The naming rule.** A leaf mirrors its Discovery method id: `gmail.users.messages.list` → `grr gmail users messages list`. Resources nest as subcommands; each leaf also carries its bare method name as a visible alias (`list`, `get` — camelCase methods keep their casing, e.g. `getProfile`).
 - **Typed flags per method.** Parameter names come from the same ids: `userId` → `--user-id`, `maxResults` → `--max-results`. Integers are parsed as `i64`, booleans are presence flags, repeated parameters repeat (`--label-ids a --label-ids b`), enum parameters validate their values, and required parameters are enforced by clap.
-- **The collision rule.** A parameter named `format`, `query`, `params`, `body-file`, `dry-run`, or `help` would collide with the shared escape hatches, so it is exposed as `--param-format` / `--param-query` / … (see `RESERVED_FLAG_IDS` in the generator).
+- **The collision rule.** A parameter named `format`, `query`, `params`, `body-file`, `dry-run`, or `help` would collide with the shared escape hatches, so it is exposed as `--param-format` / `--param-query` / … (see `RESERVED_FLAG_IDS` in `scripts/script-utils.ts`).
 - **Untyped bodies.** Discovery's request schemas are not part of the index, so `POST`/`PATCH`/`PUT` bodies pass through `--params <JSON>` (merged; typed flags win) or `--body-file <PATH|->` verbatim.
 - **Every leaf also carries the escape hatches:** `--params <JSON>`, `--body-file`, repeatable `--query KEY=VALUE`, `--dry-run`, and `-f json|jsonl|table|pretty`.
 
@@ -218,7 +218,7 @@ Authorisation is checked per method: `grr auth login` consents to a fixed set of
 
 ## Design philosophy
 
-- **Zero-config.** Release binaries carry an OAuth client compiled in by `build.rs`, so a fresh install runs `grr auth login` with nothing to configure. `~/.grr/config.toml` is the override, not the prerequisite, and holds exactly one thing: an OAuth client ID (and optionally a secret). Scopes, redirect URI, pool sizes, timeouts, and retry policy are compile-time constants tuned for Google's frontends ([src/core/http.rs](src/core/http.rs)). `GRR_CONFIG_PATH` overrides the file location, `RUST_LOG` the log level (`GRR_OAUTH__*` env vars exist for headless overrides) — nothing else is configurable, on purpose.
+- **Zero-config.** Release binaries carry an OAuth client compiled in by `build.rs`, so a fresh install runs `grr auth login` with nothing to configure. `~/.grr/config.toml` is the override, not the prerequisite, and holds only the OAuth client (ID, optionally a secret) plus — if you point `grr ask` at your own model — its `[systemone]` block. Scopes, redirect URI, pool sizes, timeouts, and retry policy are compile-time constants tuned for Google's frontends ([src/core/http.rs](src/core/http.rs)). `GRR_CONFIG_PATH` overrides the file location, `RUST_LOG` the log level (`GRR_OAUTH__*` env vars exist for headless overrides) — nothing else is configurable, on purpose.
 - **Generated, namespaced services.** The command tree is compiled from the Discovery index — the same machine-readable description Google publishes — so method additions land as a daily PR instead of a hand-written backlog. Mail is `grr gmail …`; Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, and Slides live alongside it, and account-level concerns stay top-level (`grr auth`, `grr api`, `grr transport`, `grr schema`). One login covers every service.
 - **stdout purity.** Logs go to stderr, results go to stdout, so `| jq` always works. `-f jsonl` streams arrays one object per line.
 - **Keyring-first token storage.** Tokens live in the OS keyring (Windows Credential Manager, macOS Keychain, Linux Secret Service via D-Bus), with automatic fallback to `<cache dir>/grr/token.json` on headless systems. A token found in the fallback file auto-imports into the keyring on first sight.
@@ -251,7 +251,7 @@ The site's [agents guide](https://grr-cli.pages.dev/docs/agents/) carries the sa
 - **Compression always on** — gzip, deflate, zstd, and brotli response decompression.
 - **io_uring file I/O** is a Linux-only target-specific dependency, auto-detected at runtime; it is not a Cargo feature.
 
-Measured startup, binary size, and request-latency numbers against the other Google Workspace CLIs live at [grr-cli.pages.dev/compare/](https://grr-cli.pages.dev/compare/), refreshed daily by an automated workflow.
+Measured startup, binary size, and request-latency numbers against the other Google Workspace CLIs live at [grr-cli.pages.dev/compare/](https://grr-cli.pages.dev/compare/), checked nightly by an automated workflow and re-measured whenever a new version ships.
 
 ## Architecture
 
@@ -262,9 +262,9 @@ Measured startup, binary size, and request-latency numbers against the other Goo
 ├── src/
 │   ├── core/                 # auth/device/oauth/server/store, http.rs,
 │   │                         # config.rs, config_loader.rs, error.rs,
-│   │                         # fs_io.rs, runtime.rs
+│   │                         # runtime.rs (the io_uring probe)
 │   ├── commands/             # auth.rs, api.rs, setup.rs, transport.rs,
-│   │                         # skills.rs, mcp.rs, ask.rs (the static commands)
+│   │                         # skills.rs, mcp.rs, ask.rs, safety.rs (the static
 │   │                         # + generated.rs (GENERATED — the
 │   │                         # whole service tree, ~470 KiB) and gen_dispatch.rs
 │   │                         # (resolves leaf ids, funnels into the shared path)
@@ -285,11 +285,11 @@ Every build requires Rust **nightly** and the `reqwest_unstable` cfg (`.cargo/co
 
 ## Development
 
-grr requires Rust **nightly** — the build script fails with a clear message on any other toolchain. [rust-toolchain.toml](rust-toolchain.toml) pins it and supplies the components needed by the build, while [.cargo/config.toml](.cargo/config.toml) sets the `reqwest_unstable` cfg for HTTP/3.
+grr requires Rust **nightly** — the build script fails with a clear message on any other toolchain. [rust-toolchain.toml](rust-toolchain.toml) floats on the latest nightly and supplies the components needed by the build, while [.cargo/config.toml](.cargo/config.toml) sets the `reqwest_unstable` cfg for HTTP/3.
 
 ```sh
 cargo build
-cargo test --locked
+cargo test
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all --check
 cargo run -- api list
