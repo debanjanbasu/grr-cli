@@ -22,6 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **verify:** anchor the release grace window to the tag while the release builds
+
+### Internal
+
+- 1 internal commit (chore 1)
+
+## [0.9.0] - 2026-10-04
+
 ### Added
 
 - **skills:** installs that migrate themselves
@@ -43,10 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - the audit's drift sweep
 - **site:** the live-site audit's fixes + the System One section
 - README, CONTRIBUTING and the GCP walkthrough, reviewed and trimmed
+- the self-migrating installs are a headline, so say so
 
 ### Internal
 
-- 9 internal commits (chore 8, ci 1)
+- 11 internal commits (chore 10, ci 1)
 
 ### Other
 
@@ -298,7 +309,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.8.1...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.8.1...v0.9.0
 [0.8.1]: https://github.com/debanjanbasu/grr-cli/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.6.0...v0.7.0
