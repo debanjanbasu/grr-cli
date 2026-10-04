@@ -2,6 +2,7 @@
 import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import SearchDialog from '../components/SearchDialog.astro';
 import stats from '../data/stats.json';
 import '../styles/global.css';
 
@@ -28,6 +29,9 @@ const canonical = new URL(`${normalizedBase}${canonicalPath ?? relativePath}`, s
 // Social crawlers do not render SVG, so the rasterised card is the share image.
 const socialImage = new URL(`${normalizedBase}og.png`, site).toString();
 const socialImageAlt = 'grr pixel-art crab mascot beside a terminal running grr commands';
+// The commit the deploy came from, when Cloudflare Pages built it (see the
+// build-sha meta below). Empty in local and preview builds.
+const commitSha = process.env.CF_PAGES_COMMIT_SHA ?? '';
 // The home page passes `title="grr"` so it renders the exact brand title; every
 // other route passes a real title and gets the `${title} · Rust Rewrite (grr)`
 // suffix form. Both strings are verification-critical, so neither is derived
@@ -97,6 +101,13 @@ const jsonLd = JSON.stringify({
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1b130e" />
     <meta name="color-scheme" content="light dark" />
     <meta name="google-site-verification" content="eOuATr6yw8ALdCuyHxA_fan3dXicCibqOyHg1ZORrYo" />
+    <!-- The commit this build came from: Cloudflare Pages sets
+         CF_PAGES_COMMIT_SHA at build time, and scripts/verify-delivery.ts
+         compares it against main to catch a stale or failed deploy (the
+         deploy is a Cloudflare git integration — invisible from CI
+         otherwise). Absent locally, which is fine: the check treats a
+         missing marker as a warning. -->
+    {commitSha && <meta name="build-sha" content={commitSha} />}
     <meta name="robots" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
     <link rel="preload" href={`${normalizedBase}fonts/3270-Regular.woff2`} as="font" type="font/woff2" crossorigin />
     <link rel="canonical" href={canonical} />
@@ -129,11 +140,15 @@ const jsonLd = JSON.stringify({
     <div class="scroll-progress" aria-hidden="true"></div>
     <div class="site-shell">
       <Header />
-      <main id="main-content">
+      {/* Pagefind indexes only the elements carrying data-pagefind-body, so
+          marking <main> keeps the header, nav and footer chrome out of the
+          search index while every page's real content stays in. */}
+      <main id="main-content" data-pagefind-body>
         <slot />
       </main>
       <Footer />
     </div>
+    <SearchDialog />
     <script is:inline type="module">
       (function () {
         var root = document.documentElement;

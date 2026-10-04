@@ -36,6 +36,29 @@ const isActive = (href: string) => {
       }
     </nav>
     <div class="flex flex-none items-center gap-2">
+      {/* The search entry point. The overlay itself is mounted once by
+          BaseLayout; the handler is document-delegated on [data-search-open],
+          so this trigger survives the ClientRouter's header swaps. Without JS
+          the button is hidden by CSS (html[data-search-ready]) and the
+          <noscript> link to the docs index is the fallback route in. */}
+      <div class="search" data-search-trigger>
+        <button
+          type="button"
+          class="search-trigger"
+          data-search-open
+          aria-label="Search the site"
+          aria-haspopup="dialog"
+          title="Search (press /)"
+        >
+          <span class="search-icon" aria-hidden="true"></span>
+          <span class="search-trigger-label" aria-hidden="true">Search</span>
+          <kbd class="search-trigger-kbd" aria-hidden="true">/</kbd>
+        </button>
+        <script is:inline>document.documentElement.dataset.searchReady = '';</script>
+        <noscript>
+          <a class="search-noscript" href={`${base}docs/`}>Docs index</a>
+        </noscript>
+      </div>
       <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle color theme" aria-pressed="false" title="Toggle color theme">
         <svg class="icon-moon" viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" focusable="false" shape-rendering="crispEdges">
           <g fill="currentColor">

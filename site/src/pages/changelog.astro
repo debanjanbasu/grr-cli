@@ -60,7 +60,7 @@ const formatDate = (iso: string | null) => (iso ? dateFormatter.format(new Date(
 
   <section class="section changelog-body">
     <div class="container">
-      <nav class="changelog-jump mb-8 flex flex-wrap gap-1.5" aria-label="Jump to a release">
+      <nav class="changelog-jump mb-8 flex flex-wrap gap-1.5" aria-label="Jump to a release" data-pagefind-ignore>
         {
           releases.map((release) => (
             <a class="badge badge-outline badge-sm" href={release.unreleased ? '#unreleased' : `#v${release.version.replace(/\./g, '-')}`}>
