@@ -1,11 +1,17 @@
 {
-  "generatedAt": "2026-10-04T01:36:20.938Z",
+  "generatedAt": "2026-10-04T02:14:48.566Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": []
+    },
+    {
+      "version": "0.8.0",
+      "date": "2026-10-04",
+      "unreleased": false,
       "sections": [
         {
           "key": "added",
@@ -14,6 +20,12 @@
             {
               "description": "grr skills install — the packaged agent skills, globally",
               "scope": "cli",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "as-shipped sizes and the peak-memory metric",
+              "scope": "bench",
               "type": "feat",
               "note": null
             }
@@ -94,6 +106,12 @@
               "scope": "ci",
               "type": "fix",
               "note": null
+            },
+            {
+              "description": "the published manifest parses without this repo's config gates",
+              "scope": "crate",
+              "type": "fix",
+              "note": null
             }
           ]
         },
@@ -144,6 +162,12 @@
               "note": null
             },
             {
+              "description": "grr v0.8.0",
+              "scope": "release",
+              "type": "chore",
+              "note": null
+            },
+            {
               "description": "a push to main sweeps for pending bot PRs too",
               "scope": "poller",
               "type": "ci",
@@ -169,6 +193,18 @@
             },
             {
               "description": "ship on every push — the Friday cron is a backstop",
+              "scope": "release",
+              "type": "ci",
+              "note": null
+            },
+            {
+              "description": "a push mid-bump must not restart the bump PR's clock",
+              "scope": "release",
+              "type": "ci",
+              "note": null
+            },
+            {
+              "description": "never open a bump PR for the version main is already at",
               "scope": "release",
               "type": "ci",
               "note": null
