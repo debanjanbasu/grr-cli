@@ -106,7 +106,7 @@ For site changes: `npm run build`, `npm run lint`, `npm run typecheck` in `site/
 | `release-binaries.yml` | tag `v*` | 5 targets (linux x86_64, linux aarch64, macOS arm64, Windows x86_64, Windows on ARM — the ARM legs on native ARM runners), UPX `--best`, zstd-22 `.tar.zst` + max-deflate `.zip`, SHA256SUMS, GitHub Release |
 | `publish.yml` | release/manual | `cargo publish --locked --no-verify` (crate is source-only — read its comment) |
 | `tag-release.yml` | push to main touching `Cargo.toml` | pushes the tag for a version on main that has none — fires the binary release and the crates.io publish |
-| `auto-release.yml` | Friday 04:31 UTC | computes the next version from the commit history and opens the bump PR with auto-merge |
+| `auto-release.yml` | push to main (every push), Friday 04:31 UTC backstop, manual dispatch | computes the next version from the commit history and opens the bump PR with auto-merge — releases ship immediately after any meaningful push |
 | `discovery.yml` | daily 04:17 UTC, manual | refetches discovery docs, regenerates the index AND everything derived from it (command tree, agent skills, site coverage table), opens a PR when any differs, runs `cargo test --lib` against the new data first |
 | `changelog.yml` | push to main + release | regenerates `CHANGELOG.md` + `site/src/data/changelog.json`, opens a PR |
 | `benchmark.yml` | daily 03:23 UTC, release published | rebuilds grr in release mode, re-measures the credential-free metrics into `site/src/data/benchmarks.json`, opens a PR when they move (a version-gate step skips the daily run unless a new version shipped) |
