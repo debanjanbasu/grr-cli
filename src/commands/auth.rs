@@ -113,8 +113,8 @@ pub async fn handle_auth_cmd(auth: &GoogleAuth, cmd: AuthCommands) -> Result<()>
 /// contract (snake_case, `authenticated` flag), so scripts reading the
 /// output did not change when the typed Gmail client left the CLI.
 async fn fetch_profile(auth: &GoogleAuth) -> Result<Value> {
-    let (service, method) = discovery::resolve("gmail.users.getProfile")
-        .map_err(|message| anyhow::anyhow!("{message}"))?;
+    let (service, method) =
+        discovery::resolve("gmail.users.getProfile").map_err(anyhow::Error::msg)?;
     let mut params = serde_json::Map::new();
     params.insert("userId".into(), json!("me"));
     api::call_method(

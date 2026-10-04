@@ -21,7 +21,10 @@ pub async fn detect_runtime_features() -> RuntimeFeatures {
             };
             RuntimeFeatures {
                 io_uring,
-                num_cpus: num_cpus::get(),
+                // std since 1.59; honors affinity and cgroup limits like
+                // num_cpus did, and drops a dependency.
+                num_cpus: std::thread::available_parallelism()
+                    .map_or(1, std::num::NonZeroUsize::get),
             }
         })
         .await

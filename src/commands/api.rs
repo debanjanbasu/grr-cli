@@ -157,7 +157,7 @@ pub async fn handle_api_cmd(
 async fn handle_refresh(args: ApiRefreshArgs) -> Result<()> {
     let reports = crate::discovery::refresh(args.service.as_deref())
         .await
-        .map_err(|message| anyhow::anyhow!("{message}"))?;
+        .map_err(anyhow::Error::msg)?;
 
     let refreshed = reports.iter().filter(|r| r.wrote_cache).count();
     let skipped = reports.iter().filter(|r| r.skipped_older).count();
@@ -265,8 +265,7 @@ fn first_sentence(text: &str) -> String {
 }
 
 fn handle_describe(args: ApiDescribeArgs) -> Result<()> {
-    let (service, method) =
-        discovery::resolve(&args.method).map_err(|message| anyhow::anyhow!(message))?;
+    let (service, method) = discovery::resolve(&args.method).map_err(anyhow::Error::msg)?;
     print_output(
         &json!({
             "id": format!("{}.{}", service.name, method.id),
@@ -381,7 +380,7 @@ pub(crate) fn plan_request(
     service: &Service,
     method: &Method,
     params: &serde_json::Map<String, Value>,
-    body_file: Option<&str>,
+    body_raw: Option<&str>,
     verb_override: Option<&str>,
     query_extras: &[String],
 ) -> Result<RequestPlan> {
@@ -410,7 +409,7 @@ pub(crate) fn plan_request(
     let verb = verb_override
         .unwrap_or(&method.http_method)
         .to_ascii_uppercase();
-    let path = discovery::build_path(service, method, params).map_err(|m| anyhow::anyhow!(m))?;
+    let path = discovery::build_path(service, method, params).map_err(anyhow::Error::msg)?;
     let mut query = discovery::build_query(method, params);
     for extra in query_extras {
         let Some((k, v)) = extra.split_once('=') else {
@@ -419,11 +418,9 @@ pub(crate) fn plan_request(
         if !query.is_empty() {
             query.push('&');
         }
-        query.push_str(&format!(
-            "{}={}",
-            urlencoding::encode(k),
-            urlencoding::encode(v)
-        ));
+        query.push_str(&urlencoding::encode(k));
+        query.push('=');
+        query.push_str(&urlencoding::encode(v));
     }
     let url = format!(
         "{}{}{}",
@@ -432,20 +429,13 @@ pub(crate) fn plan_request(
         query
     );
 
-    // With a body file, the caller's bytes win; otherwise synthesise a body
-    // from the non-path, non-query parameters for verbs that take one.
-    let body: Option<Value> = match body_file {
-        Some(source) => {
-            let raw = if source == "-" {
-                use std::io::Read;
-                let mut buf = String::new();
-                std::io::stdin().read_to_string(&mut buf)?;
-                buf
-            } else {
-                std::fs::read_to_string(source)
-                    .with_context(|| format!("reading body from {source}"))?
-            };
-            Some(serde_json::from_str(&raw).unwrap_or(Value::String(raw)))
+    // With an already-read body, the caller's bytes win; otherwise synthesise
+    // a body from the non-path, non-query parameters for verbs that take one.
+    // No I/O happens here: the caller reads the source asynchronously (see
+    // read_body_source), which keeps this planner pure and testable.
+    let body: Option<Value> = match body_raw {
+        Some(raw) => {
+            Some(serde_json::from_str(raw).unwrap_or_else(|_| Value::String(raw.to_owned())))
         }
         None => {
             let placeholders = method.path_placeholders();
@@ -486,6 +476,28 @@ pub(crate) fn dry_run_payload(method: &Method, plan: &RequestPlan) -> Value {
     })
 }
 
+/// Read a `--body-file` source into memory; `-` means stdin.
+///
+/// Async on purpose: this runs on the shared call path (`grr api call`, the
+/// generated tree, `grr ask --run`, every MCP tools/call). A blocking read
+/// would stall an executor worker, and the MCP server is a strictly
+/// sequential stdio loop — a slow pipe on `--body-file -` would stall the
+/// whole server. `plan_request` stays pure; this is the one I/O step before
+/// it.
+async fn read_body_source(source: &str) -> Result<String> {
+    if source == "-" {
+        let mut buf = String::new();
+        tokio::io::AsyncReadExt::read_to_string(&mut tokio::io::stdin(), &mut buf)
+            .await
+            .with_context(|| "reading body from stdin")?;
+        Ok(buf)
+    } else {
+        tokio::fs::read_to_string(source)
+            .await
+            .with_context(|| format!("reading body from {source}"))
+    }
+}
+
 /// THE shared call path: `grr api call`, the generated service tree and
 /// `grr auth status` all issue Discovery methods through this function.
 ///
@@ -498,11 +510,15 @@ pub(crate) async fn call_method(
     params: serde_json::Map<String, Value>,
     options: CallOptions,
 ) -> Result<Value> {
+    let body_raw = match options.body_file.as_deref() {
+        Some(source) => Some(read_body_source(source).await?),
+        None => None,
+    };
     let plan = plan_request(
         service,
         method,
         &params,
-        options.body_file.as_deref(),
+        body_raw.as_deref(),
         options.verb_override.as_deref(),
         &options.query_extras,
     )?;
@@ -552,7 +568,7 @@ pub(crate) async fn call_method(
 
     let status = response.status();
     let text = response.text().await.unwrap_or_default();
-    let parsed: Value = serde_json::from_str(&text).unwrap_or(Value::String(text.clone()));
+    let parsed: Value = serde_json::from_str(&text).unwrap_or_else(|_| Value::String(text.clone()));
 
     if !status.is_success() {
         // 403 with insufficient_scope is the common case when a method
@@ -776,35 +792,43 @@ mod tests {
     }
 
     #[test]
-    fn plan_reads_a_body_file_verbatim() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("body.json");
-        std::fs::write(&path, r#"{"name":"uploaded.pdf"}"#).unwrap();
+    fn plan_parses_json_bodies_and_wraps_the_rest() {
+        // The planner receives already-read bytes (read_body_source owns the
+        // I/O): JSON parses, anything else is wrapped as a string, never
+        // rejected.
         let (service, method) = crate::discovery::resolve("drive.files.create").unwrap();
         let plan = super::plan_request(
             service,
             method,
             &serde_json::Map::new(),
-            Some(path.to_str().unwrap()),
+            Some(r#"{"name":"uploaded.pdf"}"#),
             None,
             &[],
         )
         .unwrap();
         assert_eq!(plan.body, Some(json!({"name": "uploaded.pdf"})));
 
-        // Non-JSON bodies are wrapped as strings, never rejected.
-        let path = dir.path().join("body.txt");
-        std::fs::write(&path, "not json at all").unwrap();
         let plan = super::plan_request(
             service,
             method,
             &serde_json::Map::new(),
-            Some(path.to_str().unwrap()),
+            Some("not json at all"),
             None,
             &[],
         )
         .unwrap();
         assert_eq!(plan.body, Some(json!("not json at all")));
+    }
+
+    #[tokio::test]
+    async fn read_body_source_reads_a_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("body.json");
+        tokio::fs::write(&path, r#"{"a":1}"#).await.unwrap();
+        let raw = super::read_body_source(path.to_str().unwrap())
+            .await
+            .unwrap();
+        assert_eq!(raw, r#"{"a":1}"#);
     }
 
     #[test]
