@@ -44,15 +44,13 @@ pub(crate) fn flag_id(name: &str) -> String {
 /// `scripts/generate-commands.mjs` exactly; a drift between the two would
 /// make typed flags silently vanish, so tests pin the pairs down.
 pub(crate) fn kebab_case(name: &str) -> String {
-    let chars: Vec<char> = name.chars().collect();
     let mut out = String::with_capacity(name.len() + 4);
-    for (i, &c) in chars.iter().enumerate() {
+    let mut prev: Option<char> = None;
+    for c in name.chars() {
         if c.is_ascii_uppercase() {
             // `getProfile` -> `get-profile`, but `ACLx` stays one word:
             // only a lowercase/digit -> uppercase boundary is a split.
-            if let Some(&previous) = i.checked_sub(1).and_then(|j| chars.get(j))
-                && (previous.is_ascii_lowercase() || previous.is_ascii_digit())
-            {
+            if prev.is_some_and(|p| p.is_ascii_lowercase() || p.is_ascii_digit()) {
                 out.push('-');
             }
             out.push(c.to_ascii_lowercase());
@@ -62,8 +60,12 @@ pub(crate) fn kebab_case(name: &str) -> String {
             // collapse runs of specials (`.`, `$`, `_`, …) to one dash
             out.push('-');
         }
+        prev = Some(c);
     }
-    out.trim_matches('-').to_owned()
+    if out.ends_with('-') {
+        out.pop();
+    }
+    out
 }
 
 /// Entry point for every generated service subcommand under the permissive
@@ -106,8 +108,7 @@ pub async fn dispatch_with_profile(
         segments.join(".")
     };
 
-    let (service, method) =
-        discovery::resolve(&id).map_err(|message| anyhow::anyhow!("{message}"))?;
+    let (service, method) = discovery::resolve(&id).map_err(anyhow::Error::msg)?;
 
     // The safety gate runs before anything is built or sent.
     if let Err(message) = profile.check(&service.name, method) {

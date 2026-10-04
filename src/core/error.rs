@@ -47,14 +47,12 @@ pub enum GrrError {
 impl GrrError {
     /// Check if error is retryable
     pub fn is_retryable(&self) -> bool {
-        matches!(
-            self,
-            GrrError::Http(e) if e.is_timeout() || e.is_connect() || e.is_request()
-        ) || matches!(self, GrrError::RateLimited { .. } | GrrError::Timeout(_))
-            || matches!(
-                self,
-                GrrError::Api { status, .. } if *status >= 500 || *status == 429
-            )
+        match self {
+            GrrError::Http(e) => e.is_timeout() || e.is_connect() || e.is_request(),
+            GrrError::RateLimited { .. } | GrrError::Timeout(_) => true,
+            GrrError::Api { status, .. } => *status >= 500 || *status == 429,
+            _ => false,
+        }
     }
 
     /// Get HTTP status code if available

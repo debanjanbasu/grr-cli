@@ -148,6 +148,12 @@ impl SafetyProfile {
     /// then deny-verb — deterministic, so a method caught by two rules
     /// always reports the same one.
     pub(crate) fn check(&self, service_name: &str, method: &Method) -> Result<(), String> {
+        // Fast path: the ordinary CLI profile (readonly=false, nothing
+        // denied) passes every check below, so skip the formatting entirely —
+        // this runs per method on the shared dispatch path and per MCP call.
+        if !self.readonly && self.denied_services.is_empty() && self.denied_verbs.is_empty() {
+            return Ok(());
+        }
         // `check` takes the service name separately: a method id excludes
         // its service prefix (`users.messages.list` lives in `gmail`), and
         // deny-service is defined over services.
