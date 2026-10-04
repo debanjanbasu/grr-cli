@@ -99,10 +99,23 @@ const assets: string[] = (() => {
   return Array.isArray(list) ? list.flatMap((a) => (typeof member(a, 'name') === 'string' ? [member(a, 'name') as string] : [])) : [];
 })();
 const publishedAt = member(release, 'published_at');
-const grace = withinGrace(typeof publishedAt === 'string' ? publishedAt : null);
+// A tag can exist while its release is still being built (the release job
+// takes minutes) — and a grace window keyed on a release that does not
+// exist yet would read every fresh release as a failure. The tag's own
+// commit date is the anchor in that window.
+let anchor = typeof publishedAt === 'string' ? publishedAt : null;
+if (anchor === null) {
+  // No --jq here: gh prints a --jq result as raw text, not JSON, and the
+  // parse below would throw on a bare timestamp.
+  const tagInfo = ghJson(['api', `repos/${REPO}/commits/${tag}`]);
+  const committer = member(member(tagInfo, 'commit'), 'committer');
+  const tagDate = member(committer, 'date');
+  if (typeof tagDate === 'string') anchor = tagDate;
+}
+const grace = withinGrace(anchor);
 
 if (release === null) {
-  record(`release ${tag}`, 'fail', `no GitHub release for ${tag} (Cargo.toml is ahead of the release pipeline)`);
+  record(`release ${tag}`, grace ? 'warn' : 'fail', grace ? `not created yet (the release job runs for minutes after the tag)` : `no GitHub release for ${tag} (Cargo.toml is ahead of the release pipeline)`);
 } else {
   const missing = [...ARCHIVE_SUFFIXES.map((s) => `grr-${tag}-${s}`), ...EXPECTED_ASSETS].filter((name) => !assets.includes(name));
   record(`release ${tag} assets`, missing.length === 0 ? 'ok' : 'fail', missing.length === 0 ? `${assets.length} assets present` : `missing: ${missing.join(', ')}`);
