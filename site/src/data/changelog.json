@@ -1,12 +1,79 @@
 {
-  "generatedAt": "2026-10-04T10:48:14.930Z",
+  "generatedAt": "2026-10-04T20:32:40.153Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
-      "sections": []
+      "sections": [
+        {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "the mascot generator gates itself — assets and banner parity",
+              "scope": "brand",
+              "type": "feat",
+              "note": null
+            },
+            {
+              "description": "a container for MCP introspection hosts",
+              "scope": "packaging",
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "refresh Google Discovery index",
+              "scope": "discovery",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "the v0.9.1 submission, generated from the release",
+              "scope": "winget",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
+              "note": null
+            }
+          ]
+        }
+      ]
     },
     {
       "version": "0.9.1",

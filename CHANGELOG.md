@@ -22,7 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- **brand:** the mascot generator gates itself — assets and banner parity
+- **packaging:** a container for MCP introspection hosts
+
+### Internal
+
+- 5 internal commits (chore 5)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.9.1] - 2026-10-04
 
