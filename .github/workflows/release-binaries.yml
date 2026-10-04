@@ -191,12 +191,20 @@ jobs:
               echo "::error::no downloaded artifact for $name"
               exit 1
             fi
+            # Stage under the PRODUCT name, one directory per target so the
+            # four unix binaries cannot clobber each other. Archives shipping
+            # `<target>` members broke real consumers: winget's
+            # NestedInstallerFiles promised grr.exe, found nothing, and the
+            # first submission looped on "issue with installing the
+            # application correctly" (live example: winget-pkgs PR #441361);
+            # every human extracting a tarball had to rename the file by hand.
+            mkdir -p "stage/$name"
             case "$name" in
-              windows-*) cp "$bin" "stage/$name.exe" ;;
-              *)         cp "$bin" "stage/$name" ;;
+              windows-*) cp "$bin" "stage/$name/grr.exe" ;;
+              *)         cp "$bin" "stage/$name/grr" ;;
             esac
           done
-          ls -l stage
+          ls -l stage/*
 
       - name: Build archives
         timeout-minutes: 10
@@ -206,13 +214,13 @@ jobs:
           # zstd -22 is the maximum level; -T0 uses all cores. Decompression
           # stays fast, which matters more than the last few percent.
           for name in linux-x86_64 linux-aarch64 macos-aarch64; do
-            tar -cf - -C stage "$name" | zstd -22 -T0 -q -o "grr-$ref-$name.tar.zst"
+            tar -cf - -C "stage/$name" grr | zstd -22 -T0 -q -o "grr-$ref-$name.tar.zst"
           done
           # Windows keeps .zip: Explorer's built-in extractor only reads
           # deflate, so lzma2-in-zip would be unopenable without 7-Zip.
           # -mx=9 is max deflate.
           for name in windows-x86_64 windows-aarch64; do
-            7z a -m0=deflate -mx=9 -bso0 -bsp0 "grr-$ref-$name.zip" "./stage/$name.exe" >/dev/null
+            7z a -m0=deflate -mx=9 -bso0 -bsp0 "grr-$ref-$name.zip" "./stage/$name/grr.exe" >/dev/null
           done
           sha256sum grr-* > SHA256SUMS
           ls -l
@@ -271,3 +279,37 @@ jobs:
             echo "dispatching $wf"
             gh workflow run "$wf" --ref main || echo "::warning::$wf dispatch failed"
           done
+
+  winget:
+    name: generate the winget manifests
+    needs: [archive, release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write  # gh release upload
+    steps:
+      - uses: actions/checkout@v7
+        timeout-minutes: 2
+
+      - uses: actions/setup-node@v7
+        timeout-minutes: 5
+        with:
+          node-version: "26"
+
+      # The manifests must be generated, never retyped: the installer entry
+      # has to name the executable that is actually inside the zip. The first
+      # hand-written submission promised grr.exe while the archive contained
+      # windows-x86_64.exe — validation looped on "issue with installing the
+      # application correctly" (winget-pkgs PR #441361). The script reads the
+      # member list out of the released archive itself.
+      - name: Generate and attach the winget submission
+        timeout-minutes: 8
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          node scripts/generate-winget.ts "${{ github.ref_name }}" --out winget-manifests
+          tar -czf "grr-${{ github.ref_name }}-winget-manifests.tar.gz" -C winget-manifests .
+          gh release upload "${{ github.ref_name }}" \
+            "grr-${{ github.ref_name }}-winget-manifests.tar.gz" --clobber
+          echo "attached grr-${{ github.ref_name }}-winget-manifests.tar.gz"

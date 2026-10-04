@@ -49,7 +49,7 @@ cargo build --release --locked
         <article class="install-card card card-border border-base-300 bg-base-100">
           <div class="card-body gap-1 p-5">
             <h2 class="card-title m-0 text-base">Windows</h2>
-            <p class="m-0 text-[13px] text-base-content/70">winget has no published version yet — the first submission is held on Microsoft's validation, and the manifests in <code>packaging/winget/</code> are x64-only. Until it lands, use the Windows release archive (x64 or ARM64).</p>
+            <p class="m-0 text-[13px] text-base-content/70">winget has no published version yet: the first submission stalled because the archives named the binary after its target (<code>windows-x86_64.exe</code>) while the manifest promised <code>grr.exe</code>, so validation could never find the nested installer. The archives and manifest generation are fixed as of v0.8.1 — the fresh submission is in flight. Until it lands, use the Windows release archive (x64 or ARM64).</p>
             <CodeBlock code="winget install debanjanbasu.grr" label="winget" />
           </div>
         </article>

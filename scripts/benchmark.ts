@@ -669,10 +669,12 @@ async function grrReleaseAssetBytes(): Promise<BinarySize> {
 const GRR_ARCHIVE_RE = /\.(zip|tar\.gz|tar\.zst)$/;
 
 /**
- * Locate grr's binary in an extracted release archive. The release workflow
- * tars `stage/<target-name>` (see .github/workflows/release-binaries.yml), so
- * the member is `linux-aarch64`, `macos-aarch64`, `windows-x86_64.exe` —
- * not `grr`, which is why findExecutable() alone cannot locate it.
+ * Locate grr's binary in an extracted release archive. Releases up to
+ * v0.8.0 tars the binary under its target name (`linux-aarch64`,
+ * `macos-aarch64`, `windows-x86_64.exe`); v0.8.1+ ships it as `grr` /
+ * `grr.exe` — the target-named member broke winget's nested-installer
+ * lookup and every human had to rename on extraction. Both layouts are
+ * accepted here, so the collector reads old and new releases alike.
  */
 function findGrrStagedBinary(dir: string): string | null {
   const [os] = grrAssetTokens;
