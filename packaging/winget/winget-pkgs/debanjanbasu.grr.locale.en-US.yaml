@@ -10,7 +10,7 @@ PackageUrl: https://github.com/debanjanbasu/grr-cli
 License: MIT
 LicenseUrl: https://github.com/debanjanbasu/grr-cli/blob/main/LICENSE
 ShortDescription: Google tools from the terminal, at maximum performance
-Description: The Google tools used every day — Gmail, Calendar, Drive, Docs, Sheets and ten more Google APIs — behind one OAuth login, in a single zero-config Rust binary.
+Description: The Google tools used every day — Gmail, Calendar, Drive, Docs, Sheets and nine more Google APIs — behind one OAuth login, in a single zero-config Rust binary.
 Tags:
   - cli
   - google
