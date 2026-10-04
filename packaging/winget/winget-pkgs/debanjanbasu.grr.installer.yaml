@@ -1,0 +1,24 @@
+PackageIdentifier: debanjanbasu.grr
+PackageVersion: 0.8.1
+InstallerType: zip
+Installers:
+  - Architecture: arm64
+    InstallerType: zip
+    InstallerUrl: https://github.com/debanjanbasu/grr-cli/releases/download/v0.8.1/grr-v0.8.1-windows-aarch64.zip
+    InstallerSha256: EF377D82E3456E1B3B5F7F25BCE8147FED15EAEDC4C6A2BC991F45FE0B7A79D6
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: grr.exe
+        PortableCommandAlias: grr
+    ReleaseDate: 2026-10-04
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: https://github.com/debanjanbasu/grr-cli/releases/download/v0.8.1/grr-v0.8.1-windows-x86_64.zip
+    InstallerSha256: 7707EAA0D9171409C45EE5913EA9A8ACF65A759DD51560011ACE1BE4EC9CFFBC
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: grr.exe
+        PortableCommandAlias: grr
+    ReleaseDate: 2026-10-04
+ManifestType: installer
+ManifestVersion: 1.6.0
