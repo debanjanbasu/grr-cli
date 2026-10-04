@@ -11,7 +11,7 @@ const base = import.meta.env.BASE_URL;
 const releaseUrl = 'https://github.com/debanjanbasu/grr-cli/releases';
 const sourceExample = `git clone https://github.com/debanjanbasu/grr-cli.git
 cd grr-cli
-cargo build --release --locked
+cargo build --release
 ./target/release/grr`;
 ---
 
@@ -57,7 +57,7 @@ cargo build --release --locked
           <div class="card-body gap-1 p-5">
             <h2 class="card-title m-0 text-base">crates.io</h2>
             <p class="m-0 text-[13px] text-base-content/70">The crate publishes as <code>grr-cli</code>; the installed executable is <code>grr</code>. The default CLI enables HTTP/3, so a crates.io source install needs nightly Rust and the <code>reqwest_unstable</code> cfg.</p>
-            <CodeBlock code={'RUSTFLAGS="--cfg reqwest_unstable" cargo install grr-cli --locked'} label="cargo · unix" />
+            <CodeBlock code={'RUSTFLAGS="--cfg reqwest_unstable" cargo install grr-cli'} label="cargo · unix" />
             <p class="install-note m-0 mt-2 text-xs text-(--quiet)">PowerShell: set <code>$env:RUSTFLAGS='--cfg reqwest_unstable'</code> before running cargo. Library users can choose stable Rust with <code>default-features = false</code> and select only the service features they need.</p>
           </div>
         </article>

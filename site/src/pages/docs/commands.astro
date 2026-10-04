@@ -200,7 +200,7 @@ const schemaBlock = `$ grr schema > tree.json        # ~290 KB, valid JSON, well
 $ grr schema | jq '.subcommands[] | select(.name == "gmail") | .subcommands[].name'
 ["users"]
 $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list") | .args[].name]'`;
-const skillsBlock = `# The 16 packaged skills are compiled into the binary -- install is offline.
+const skillsBlock = `# The 16 packaged skill files (the core skill, one per service, and their index) are compiled into the binary -- install is offline.
 $ grr skills install            # all of them into ~/.agents/skills/ (the cross-client location)
 $ grr skills install --claude   # also mirror into ~/.claude/skills/ (all Claude Code reads)
 $ grr skills install --force    # replace files that differ from the packaged copy
@@ -318,7 +318,7 @@ $ grr skills list               # the packaged set, and what each target directo
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base"><code>grr skills</code></h2>
-              <p class="m-0 text-[13px] text-base-content/70"><code>install</code> writes the 16 packaged agent skills (core + one per service) into <code>~/.agents/skills/</code> &mdash; the cross-client user-level location &mdash; with no network; <code>--claude</code> mirrors into <code>~/.claude/skills/</code>, which is all Claude Code reads. Identical files are a no-op, a locally edited file is refused without <code>--force</code>. <code>list</code> reports what each target holds.</p>
+              <p class="m-0 text-[13px] text-base-content/70"><code>install</code> writes the 16 packaged skill files (the core skill, one per service, and their index) into <code>~/.agents/skills/</code> &mdash; the cross-client user-level location &mdash; with no network; <code>--claude</code> mirrors into <code>~/.claude/skills/</code>, which is all Claude Code reads. Identical files are a no-op, a locally edited file is refused without <code>--force</code>. <code>list</code> reports what each target holds.</p>
             </div>
           </article>
           <article class="install-card card card-border border-base-300 bg-base-100">

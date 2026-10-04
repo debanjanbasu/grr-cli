@@ -13,12 +13,12 @@ const homebrew = `brew tap debanjanbasu/tap
 brew trust debanjanbasu/tap
 brew install grr`;
 const winget = `winget install debanjanbasu.grr`;
-const cargo = `RUSTFLAGS="--cfg reqwest_unstable" cargo install grr-cli --locked`;
+const cargo = `RUSTFLAGS="--cfg reqwest_unstable" cargo install grr-cli`;
 const cargoPs = `$env:RUSTFLAGS='--cfg reqwest_unstable'
-cargo install grr-cli --locked`;
+cargo install grr-cli`;
 const source = `git clone https://github.com/debanjanbasu/grr-cli.git
 cd grr-cli
-cargo build --release --locked
+cargo build --release
 ./target/release/grr`;
 const firstRun = `# 1. Log in once. Release binaries ship with an OAuth client compiled in.
 $ grr auth login

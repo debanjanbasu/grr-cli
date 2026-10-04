@@ -23,6 +23,10 @@
 - [Discovery API](https://grr-cli.pages.dev/docs/discovery/): `grr api list` / `describe` / `call` / `refresh`, the 401-method coverage table across 14 APIs, `--dry-run`, per-method least-privilege scopes, and the Tasks scope caveat.
 - [Agents and harnesses](https://grr-cli.pages.dev/docs/agents/): The contract for AI agents and coding harnesses — parse stdout not stderr, discover with `grr schema` and `grr api list` rather than assuming, `--dry-run` before writes, and keyring token storage. Includes the packaged skill and a copy-pasteable agent quickstart.
 
+## Notes
+
+- [Why grr exists](https://grr-cli.pages.dev/blog/): The origin story and engineering bets behind grr — the 9,193-unread inbox, the command tree generated from the committed Discovery index, zero-config OAuth, honest HTTP/3, the self-maintaining repository, and two release war stories (docs.rs and winget).
+
 ## Optional
 
 - [Overview](https://grr-cli.pages.dev/): What grr is, the 14 services, the architecture, and answers to common questions.
