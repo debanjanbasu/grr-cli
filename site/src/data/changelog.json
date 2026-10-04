@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T03:18:08.680Z",
+  "generatedAt": "2026-10-04T05:37:30.465Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -8,12 +8,48 @@
       "unreleased": true,
       "sections": [
         {
+          "key": "changed",
+          "heading": "Changed",
+          "items": [
+            {
+              "description": "out with the deprecated, in with the dead weight cut",
+              "scope": "site",
+              "type": "refactor",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "prompt identities are scrubbed, and the validator fails closed",
+              "scope": "demo",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "the keychain is read at first credential use, never at startup",
+              "scope": "auth",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
           "key": "documentation",
           "heading": "Documentation",
           "items": [
             {
               "description": "the getting-started page tells the winget story straight",
               "scope": "site",
+              "type": "docs",
+              "note": null
+            },
+            {
+              "description": "the audit's drift sweep",
+              "scope": null,
               "type": "docs",
               "note": null
             }
@@ -30,9 +66,45 @@
               "note": null
             },
             {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
               "description": "the v0.8.1 submission, generated from the release",
               "scope": "winget",
               "type": "chore",
+              "note": null
+            },
+            {
+              "description": "never lock — every build resolves the latest",
+              "scope": "build",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "trim the toolchain and cargo config to what ships",
+              "scope": "rust",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "the locale description counts nine more services, not ten",
+              "scope": "winget",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
               "note": null
             }
           ]
