@@ -1,17 +1,17 @@
 {
-  "generatedAt": "2026-10-03T22:58:49.843Z",
+  "generatedAt": "2026-10-04T02:29:07.721Z",
   "environment": {
     "platform": "linux",
     "arch": "arm64",
-    "nodeVersion": "v24.21.0",
+    "nodeVersion": "v26.10.0",
     "binaryKind": "release",
     "binaryPath": "target/release/grr",
-    "grrVersion": "grr 0.7.0"
+    "grrVersion": "grr 0.8.0"
   },
   "versions": {
     "grr": {
-      "local": "grr 0.7.0",
-      "latestTag": "v0.7.0"
+      "local": "grr 0.8.0",
+      "latestTag": "v0.8.0"
     },
     "gog": {
       "local": "v0.43.0 (3b5122f4 2026-10-01T03:26:42Z)",
@@ -26,31 +26,47 @@
     "runs": 15,
     "warmupRunsDiscarded": 1,
     "timer": "process.hrtime.bigint() around spawnSync",
-    "stability": "re-runs whose medians land within max(15 ms, 6%) of the committed snapshot change nothing"
+    "stability": "re-runs whose medians land within max(15 ms, 6%) of the committed snapshot change nothing",
+    "memoryTimer": "peak RSS: max of 15 runs under /usr/bin/time -v (kbytes)",
+    "memoryWorkload": "each tool's schema-dump command (grr schema / gog schema / gws schema drive.files.list --resolve-refs) — not --version, which is too trivial a workload to separate the tools"
   },
   "grr": {
     "startup": {
       "available": true,
-      "medianMs": 5.1,
-      "p95Ms": 6.1,
-      "minMs": 4.4
+      "medianMs": 4.3,
+      "p95Ms": 7.4,
+      "minMs": 4.1
     },
     "schemaDump": {
       "available": true,
-      "medianMs": 18,
-      "p95Ms": 18.7,
-      "minMs": 17.7
+      "medianMs": 17.6,
+      "p95Ms": 18,
+      "minMs": 17.3
     },
     "apiList": {
       "available": true,
-      "medianMs": 6,
-      "p95Ms": 6.3,
-      "minMs": 5.6
+      "medianMs": 5.3,
+      "p95Ms": 6.5,
+      "minMs": 5.1
+    },
+    "memory": {
+      "available": true,
+      "maxRssKb": 26636,
+      "runs": 15,
+      "command": "grr schema"
     },
     "binary": {
-      "bytes": 10442360,
+      "bytes": 10573512,
       "source": "target/release/grr",
-      "form": "binary"
+      "form": "binary",
+      "shipped": {
+        "bytes": 3099552,
+        "source": "release archive (UPX-packed)",
+        "form": "binary",
+        "packed": true,
+        "releaseTag": "v0.8.0",
+        "asset": "grr-v0.8.0-linux-aarch64.tar.zst"
+      }
     }
   },
   "competitors": [
@@ -63,19 +79,25 @@
       "version": "v0.43.0 (3b5122f4 2026-10-01T03:26:42Z)",
       "startup": {
         "available": true,
-        "medianMs": 74.3,
-        "p95Ms": 75.6,
-        "minMs": 73.5
+        "medianMs": 69.6,
+        "p95Ms": 76.9,
+        "minMs": 68.2
       },
       "schemaDump": {
         "available": true,
-        "medianMs": 162.4,
-        "p95Ms": 167.4,
-        "minMs": 160.5
+        "medianMs": 153,
+        "p95Ms": 155.8,
+        "minMs": 150.4
       },
       "apiList": {
         "available": false,
         "reason": "has an `api list` command, but it fetches Google's live Discovery directory over the network — not comparable to grr's offline index"
+      },
+      "memory": {
+        "available": true,
+        "maxRssKb": 96628,
+        "runs": 15,
+        "command": "gog schema"
       },
       "binary": {
         "bytes": 40960160,
@@ -92,19 +114,25 @@
       "version": "gws 0.22.5",
       "startup": {
         "available": true,
-        "medianMs": 33.5,
-        "p95Ms": 36.4,
-        "minMs": 32.5
+        "medianMs": 28.2,
+        "p95Ms": 30.3,
+        "minMs": 27.2
       },
       "schemaDump": {
         "available": true,
-        "medianMs": 37.1,
-        "p95Ms": 38.2,
-        "minMs": 35.4
+        "medianMs": 30.4,
+        "p95Ms": 31.5,
+        "minMs": 28.7
       },
       "apiList": {
         "available": false,
         "reason": "no api-index equivalent command (`gws api` is unknown-service only)"
+      },
+      "memory": {
+        "available": true,
+        "maxRssKb": 59944,
+        "runs": 15,
+        "command": "gws schema drive.files.list --resolve-refs"
       },
       "binary": {
         "bytes": 852,
