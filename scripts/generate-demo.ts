@@ -188,6 +188,11 @@ function sanitize(text: string): string {
   // them, a plain path does not.
   out = out.replace(/C:[\\/]{1,2}(?:Users|home)[\\/]{1,2}[^\s"'`]+/g, '~');
   out = out.replace(/\/home\/[^\s"'`]+/g, '~');
+  // Shell prompts carry `user@host` — neither an email (no TLD) nor a home
+  // path, so it slipped past every other rule and a real local username
+  // reached the committed cast. The demo's convention is `runner@grr`; any
+  // other local part is the recorder's identity and is normalized to it.
+  out = out.replace(/[A-Za-z0-9._-]+@grr(?=[:~])/g, 'runner@grr');
   // The OAuth client id must never enter the repo (AGENTS.md invariant 7) —
   // grr's config_loader logs print it, and the agent's shell captures those
   // logs mixed with stdout.
@@ -831,6 +836,20 @@ function validateCast(path: string): boolean {
   if (/bearer/i.test(all)) problems.push('cast contains "Bearer"');
   if (/\.apps\.googleusercontent\.com/.test(all)) problems.push('cast contains an OAuth client id');
   if (/C:[\\]+Users[\\/]/.test(all)) problems.push('cast contains an absolute Windows home path');
+  // Prompts are the user's identity, not an email — the username of whoever
+  // recorded it leaked through exactly this gap once. Frames are JSON lines,
+  // so the prompt is preceded by an escaped quote, never a real newline: the
+  // rule keys on `user@grr` followed by the prompt separator instead.
+  const promptIds =
+    all
+      // Frames are JSON lines: a real ESC reaches this string as the six
+      // characters `\u001b`, which the ANSI stripper cannot see until the
+      // escape is collapsed back into the control character.
+      .replace(/\\u001[bB]/g, '\u001b')
+      .replace(ANSI_RE, '')
+      .match(/[A-Za-z0-9._-]+@grr(?=[:~])/g) ?? [];
+  const foreign = [...new Set(promptIds)].filter((p) => !p.startsWith('runner@'));
+  if (foreign.length > 0) problems.push(`cast contains a foreign prompt identity: ${foreign.join(', ')}`);
   const emails = all.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) ?? [];
   const unexpected = [...new Set(emails)].filter((e) => !ALLOWED_EMAILS.has(e));
   if (unexpected.length > 0) problems.push(`cast contains email address(es): ${unexpected.join(', ')}`);
