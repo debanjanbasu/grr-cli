@@ -11,7 +11,14 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 
 fn grr() -> Command {
-    Command::cargo_bin("grr").unwrap()
+    let mut cmd = Command::cargo_bin("grr").unwrap();
+    // The command path lazily auto-migrates skills when
+    // ~/.agents/skills/.grr-skills.json records a different version. Point
+    // HOME (and Windows' USERPROFILE) at a path that holds no manifest, so a
+    // test can never read or write the developer's real skills.
+    let home = std::env::temp_dir().join("grr-cli-test-home");
+    cmd.env("HOME", &home).env("USERPROFILE", &home);
+    cmd
 }
 
 /// A command with a dummy OAuth client injected so config loading and

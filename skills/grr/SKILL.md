@@ -57,6 +57,22 @@ grr gmail users messages list --user-id me --q "is:unread" --max-results 5 \
 - Plain-text exceptions (do not JSON-parse): `grr transport`, `grr skills install` (a human install summary), `grr auth login --device` (prints URL + code before the JSON), and `grr --version` (a banner, not data &mdash; its **first line is the semver**, `grr <x.y.z>`; the rest is the mascot).
 - `grr --version` may carry ANSI colour when stdout is a 24-bit-colour terminal. Read the version with `head -1`, or `NO_COLOR=1 grr --version | head -1`, never with a whole-output parse.
 
+## Agent skills: install and self-migration
+
+`grr skills install` copies the 16 packaged skills (this file, the 14 service skills, and the index) into `~/.agents/skills/` — offline, no auth, zero config; `--claude` also mirrors them into `~/.claude/skills/` (the one directory Claude Code reads).
+
+Installs are provenance-tracked and self-migrating:
+
+- `grr skills install` records a manifest beside the files (`~/.agents/skills/.grr-skills.json`): the grr version, the packaged content it installed, and the exact bytes it wrote. A per-file backup under `.grr-backup/` is the 3-way merge base.
+- After a version change, the next grr command runs the migration **lazily** — one manifest read; nothing is hashed when the recorded version matches the running binary. Then, per file:
+  - never touched since install → replaced with the new packaged content;
+  - locally edited where the packaged side changed elsewhere → **3-way merged**, the local edit kept;
+  - a genuine conflict → your file is left untouched and the new packaged copy is written beside it as `<name>.grr-incoming`, with one note on stderr.
+- `--force` still overwrites regardless. A file grr never installed is never touched (no manifest entry = not ours).
+- `grr skills list` reports per target and file: `current`, `outdated` (packaged moved, local untouched), `locally-modified`, `missing`, or `unmanaged`.
+
+stdout stays JSON for `grr skills list`; `grr skills install` prints a human summary (a documented plain-text exception).
+
 ## Auth state
 
 - `grr auth status` — check first. One live `gmail.users.getProfile` call; JSON `{authenticated, email, …}`; non-zero exit when there is no valid credential. Do not retry auth failures in a loop.

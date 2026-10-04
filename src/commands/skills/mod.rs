@@ -15,17 +15,22 @@
 //!   `name`, so the install path is the frontmatter name (asserted for
 //!   every embedded file, skipped if a future edit breaks it) — never the
 //!   source directory's name;
-//! * an existing file is only replaced when it is byte-identical to ours
-//!   (a no-op reported as `unchanged`) or when `--force` says so — a
-//!   local edit is not something an install command gets to overwrite.
+//! * installs are self-migrating and provenance-aware (see [`migrate`]): a
+//!   manifest beside the files records the packaged version and the bytes
+//!   grr wrote, so a newer package can update untouched files, 3-way merge
+//!   local edits, and never clobber a genuine conflict. `--force` still
+//!   overwrites regardless.
 
 use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use serde_json::{Value, json};
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::output::{OutputFormat, print_output};
+
+mod migrate;
+
+use migrate::{INCOMING_SUFFIX, InstallReport, Manifest, SyncMode, classify};
 
 /// Every packaged skill, as (install-relative path, contents). The first
 /// field is what is written under the target directory; the `include_str!`
@@ -33,64 +38,64 @@ use crate::output::{OutputFormat, print_output};
 /// (the repo keeps services at `skills/<service>/`, the installed tree uses
 /// the spec-mandated `grr-<service>/`).
 const SKILLS: &[(&str, &str)] = &[
-    ("grr/SKILL.md", include_str!("../../skills/grr/SKILL.md")),
+    ("grr/SKILL.md", include_str!("../../../skills/grr/SKILL.md")),
     (
         "grr-analyticsadmin/SKILL.md",
-        include_str!("../../skills/analyticsadmin/SKILL.md"),
+        include_str!("../../../skills/analyticsadmin/SKILL.md"),
     ),
     (
         "grr-analyticsdata/SKILL.md",
-        include_str!("../../skills/analyticsdata/SKILL.md"),
+        include_str!("../../../skills/analyticsdata/SKILL.md"),
     ),
     (
         "grr-calendar/SKILL.md",
-        include_str!("../../skills/calendar/SKILL.md"),
+        include_str!("../../../skills/calendar/SKILL.md"),
     ),
     (
         "grr-chat/SKILL.md",
-        include_str!("../../skills/chat/SKILL.md"),
+        include_str!("../../../skills/chat/SKILL.md"),
     ),
     (
         "grr-docs/SKILL.md",
-        include_str!("../../skills/docs/SKILL.md"),
+        include_str!("../../../skills/docs/SKILL.md"),
     ),
     (
         "grr-drive/SKILL.md",
-        include_str!("../../skills/drive/SKILL.md"),
+        include_str!("../../../skills/drive/SKILL.md"),
     ),
     (
         "grr-forms/SKILL.md",
-        include_str!("../../skills/forms/SKILL.md"),
+        include_str!("../../../skills/forms/SKILL.md"),
     ),
     (
         "grr-gmail/SKILL.md",
-        include_str!("../../skills/gmail/SKILL.md"),
+        include_str!("../../../skills/gmail/SKILL.md"),
     ),
     (
         "grr-people/SKILL.md",
-        include_str!("../../skills/people/SKILL.md"),
+        include_str!("../../../skills/people/SKILL.md"),
     ),
     (
         "grr-script/SKILL.md",
-        include_str!("../../skills/script/SKILL.md"),
+        include_str!("../../../skills/script/SKILL.md"),
     ),
     (
         "grr-searchconsole/SKILL.md",
-        include_str!("../../skills/searchconsole/SKILL.md"),
+        include_str!("../../../skills/searchconsole/SKILL.md"),
     ),
     (
         "grr-sheets/SKILL.md",
-        include_str!("../../skills/sheets/SKILL.md"),
+        include_str!("../../../skills/sheets/SKILL.md"),
     ),
     (
         "grr-slides/SKILL.md",
-        include_str!("../../skills/slides/SKILL.md"),
+        include_str!("../../../skills/slides/SKILL.md"),
     ),
     (
         "grr-tasks/SKILL.md",
-        include_str!("../../skills/tasks/SKILL.md"),
+        include_str!("../../../skills/tasks/SKILL.md"),
     ),
-    ("README.md", include_str!("../../skills/README.md")),
+    ("README.md", include_str!("../../../skills/README.md")),
 ];
 
 #[derive(Subcommand, Debug)]
@@ -141,7 +146,7 @@ fn handle_install(args: SkillsInstallArgs) -> Result<()> {
     for target in &targets {
         let report = install_into(target, args.force)?;
         print_install_report(&report);
-        if !report.skipped.is_empty() {
+        if !report.skipped.is_empty() || !report.conflicts.is_empty() {
             refused.push(report.target.clone());
         }
     }
@@ -160,6 +165,29 @@ fn handle_install(args: SkillsInstallArgs) -> Result<()> {
     Ok(())
 }
 
+/// The opportunistic self-migration pass, called before the requested
+/// command (see `cli::run`).
+///
+/// Laziness is the contract: [`migrate::migrate_dir`] reads the manifest,
+/// compares the recorded version, and returns without hashing a single
+/// file when they match. Only the two default target directories are
+/// inspected — a custom `--dir` install is left alone, since grr cannot
+/// know about directories it was never told about. Errors are swallowed:
+/// a broken manifest must never break the command the user actually ran.
+///
+/// Returns one stderr-bound summary line when anything changed, else `None`.
+pub(crate) fn maybe_auto_migrate() -> Option<String> {
+    let home = dirs::home_dir()?;
+    let version = env!("CARGO_PKG_VERSION");
+    let mut lines: Vec<String> = Vec::new();
+    for dir in [agents_skills_dir(&home), claude_skills_dir(&home)] {
+        if let Some(line) = migrate::migrate_dir(&dir, SKILLS, version) {
+            lines.push(line);
+        }
+    }
+    (!lines.is_empty()).then(|| lines.join("; "))
+}
+
 fn handle_list(args: SkillsListArgs) -> Result<()> {
     let targets = resolve_targets(args.dir.as_deref(), args.claude)?;
 
@@ -176,20 +204,18 @@ fn handle_list(args: SkillsListArgs) -> Result<()> {
     let installations: Vec<Value> = targets
         .iter()
         .map(|target| {
+            let manifest = Manifest::load(target);
             let files: Vec<Value> = SKILLS
                 .iter()
                 .map(|&(rel, contents)| {
-                    let state = match fs::read_to_string(target.join(rel)) {
-                        Ok(existing) if existing == contents => "installed",
-                        Ok(_) => "modified",
-                        Err(_) => "missing",
-                    };
+                    let state = classify(target, rel, contents, manifest.as_ref());
                     json!({ "file": rel, "state": state })
                 })
                 .collect();
             json!({
                 "target": target.display().to_string(),
                 "exists": target.is_dir(),
+                "installed_version": manifest.as_ref().map(|m| m.version.clone()),
                 "files": files,
             })
         })
@@ -247,77 +273,17 @@ fn resolve_targets(dir: Option<&Path>, claude: bool) -> Result<Vec<PathBuf>> {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct InstallReport {
-    pub target: PathBuf,
-    /// Newly written (the path did not exist).
-    pub installed: Vec<String>,
-    /// Rewritten under `--force` (the path existed with different contents).
-    pub updated: Vec<String>,
-    /// Byte-identical to the embedded copy, left untouched.
-    pub unchanged: Vec<String>,
-    /// Left alone, with the reason.
-    pub skipped: Vec<Skipped>,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Skipped {
-    pub path: String,
-    pub reason: String,
-}
-
-/// Write the embedded skills under `target`. This is the testable core: it
-/// takes the directory as an argument and never reads the home directory
-/// itself, so tests can point it at a tempdir.
+/// Run the embedded-skill install/upgrade pass over `target`. The
+/// provenance-aware engine lives in [`migrate`]; this is the thin binding
+/// that names the current package version and `SKILLS`.
 fn install_into(target: &Path, force: bool) -> Result<InstallReport> {
-    let mut report = InstallReport {
-        target: target.to_path_buf(),
-        ..InstallReport::default()
-    };
-
-    for &(rel, contents) in SKILLS {
-        // Enforce the spec's directory == frontmatter `name` rule here, so a
-        // malformed embed is skipped rather than installed into the wrong (or
-        // a colliding) directory. Every shipped file passes; see the tests.
-        if let Err(reason) = check_skill_entry(rel, contents) {
-            report.skipped.push(Skipped {
-                path: rel.to_string(),
-                reason,
-            });
-            continue;
-        }
-
-        let path = target.join(rel);
-        match fs::read_to_string(&path) {
-            Ok(existing) if existing == contents => report.unchanged.push(rel.to_string()),
-            Ok(_) if !force => report.skipped.push(Skipped {
-                path: rel.to_string(),
-                reason: "exists with different contents; pass --force to replace".to_string(),
-            }),
-            Ok(_) => {
-                fs::write(&path, contents)
-                    .with_context(|| format!("writing {}", path.display()))?;
-                report.updated.push(rel.to_string());
-            }
-            // Only a genuinely absent path is "new"; any other read error
-            // (permissions, a directory in the way) is a skip, not a clobber.
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-                if let Some(parent) = path.parent() {
-                    fs::create_dir_all(parent)
-                        .with_context(|| format!("creating {}", parent.display()))?;
-                }
-                fs::write(&path, contents)
-                    .with_context(|| format!("writing {}", path.display()))?;
-                report.installed.push(rel.to_string());
-            }
-            Err(err) => report.skipped.push(Skipped {
-                path: rel.to_string(),
-                reason: format!("cannot read existing file: {err}"),
-            }),
-        }
-    }
-
-    Ok(report)
+    migrate::sync_into(
+        target,
+        SKILLS,
+        env!("CARGO_PKG_VERSION"),
+        force,
+        SyncMode::Explicit,
+    )
 }
 
 fn print_install_report(report: &InstallReport) {
@@ -328,21 +294,31 @@ fn print_install_report(report: &InstallReport) {
     for path in &report.updated {
         println!("  updated    {path}");
     }
+    for path in &report.merged {
+        println!("  merged     {path}");
+    }
     for path in &report.unchanged {
         println!("  unchanged  {path}");
+    }
+    for path in &report.conflicts {
+        println!("  conflict   {path} (packaged-new kept as {path}{INCOMING_SUFFIX})");
     }
     for skip in &report.skipped {
         println!("  skipped    {} ({})", skip.path, skip.reason);
     }
     println!(
-        "{} files: {} installed, {} updated, {} unchanged, {} skipped",
+        "{} files: {} installed, {} updated, {} merged, {} unchanged, {} conflicts, {} skipped",
         report.installed.len()
             + report.updated.len()
+            + report.merged.len()
             + report.unchanged.len()
+            + report.conflicts.len()
             + report.skipped.len(),
         report.installed.len(),
         report.updated.len(),
+        report.merged.len(),
         report.unchanged.len(),
+        report.conflicts.len(),
         report.skipped.len(),
     );
 }
@@ -400,6 +376,7 @@ fn check_skill_entry(rel: &str, contents: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use tempfile::tempdir;
 
     fn embedded(rel: &str) -> &'static str {
@@ -446,26 +423,23 @@ mod tests {
     }
 
     #[test]
-    fn modified_file_is_refused_then_replaced_with_force() {
+    fn a_local_edit_survives_a_same_version_install_and_force_replaces_it() {
         let dir = tempdir().unwrap();
         install_into(dir.path(), false).unwrap();
 
         let victim = dir.path().join("grr-gmail/SKILL.md");
-        fs::write(&victim, "---\nname: grr-gmail\n---\nlocal edit\n").unwrap();
+        let edited = "---\nname: grr-gmail\n---\nlocal edit\n";
+        fs::write(&victim, edited).unwrap();
 
-        // Without --force the edit survives and the report says skipped.
-        let refused = install_into(dir.path(), false).unwrap();
-        assert_eq!(
-            refused.skipped,
-            vec![Skipped {
-                path: "grr-gmail/SKILL.md".to_string(),
-                reason: "exists with different contents; pass --force to replace".to_string(),
-            }]
-        );
-        assert_eq!(
-            fs::read_to_string(&victim).unwrap(),
-            "---\nname: grr-gmail\n---\nlocal edit\n"
-        );
+        // The file is provenance-tracked, so a same-version pass 3-way merges
+        // (base == packaged == theirs): the local edit is preserved, nothing
+        // is written, and the report does not refuse.
+        let merged = install_into(dir.path(), false).unwrap();
+        assert!(merged.unchanged.contains(&"grr-gmail/SKILL.md".to_string()));
+        assert!(merged.skipped.is_empty());
+        assert!(merged.conflicts.is_empty());
+        assert!(merged.updated.is_empty());
+        assert_eq!(fs::read_to_string(&victim).unwrap(), edited);
 
         // With --force the embedded copy comes back, reported as updated.
         let forced = install_into(dir.path(), true).unwrap();
@@ -475,6 +449,57 @@ mod tests {
             fs::read_to_string(&victim).unwrap(),
             embedded("grr-gmail/SKILL.md")
         );
+    }
+
+    #[test]
+    fn a_file_without_provenance_is_refused_then_replaced_with_force() {
+        // A pre-manifest install (or a hand-placed file) is not grr's to
+        // touch: no manifest entry means no merge, and no silent overwrite.
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("grr-gmail")).unwrap();
+        let victim = dir.path().join("grr-gmail/SKILL.md");
+        fs::write(&victim, "---\nname: grr-gmail\n---\nhand written\n").unwrap();
+
+        let refused = install_into(dir.path(), false).unwrap();
+        assert!(
+            refused
+                .skipped
+                .iter()
+                .any(|skip| skip.path == "grr-gmail/SKILL.md")
+        );
+        assert_eq!(
+            fs::read_to_string(&victim).unwrap(),
+            "---\nname: grr-gmail\n---\nhand written\n"
+        );
+
+        let forced = install_into(dir.path(), true).unwrap();
+        assert!(forced.updated.contains(&"grr-gmail/SKILL.md".to_string()));
+        assert_eq!(
+            fs::read_to_string(&victim).unwrap(),
+            embedded("grr-gmail/SKILL.md")
+        );
+    }
+
+    #[test]
+    fn install_records_provenance_for_every_packaged_file() {
+        let dir = tempdir().unwrap();
+        install_into(dir.path(), false).unwrap();
+
+        let manifest = Manifest::load(dir.path()).expect("manifest written on install");
+        assert_eq!(manifest.version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(manifest.files.len(), SKILLS.len());
+        for &(rel, contents) in SKILLS {
+            let entry = &manifest.files[rel];
+            let sha = migrate::sha256_hex(contents.as_bytes());
+            assert_eq!(entry.base_sha256, sha, "base sha for {rel}");
+            assert_eq!(entry.written_sha256, sha, "written sha for {rel}");
+            // The reconstructable merge base is on disk beside the files.
+            assert_eq!(
+                fs::read_to_string(dir.path().join(".grr-backup").join(rel)).unwrap(),
+                contents,
+                "backup for {rel}"
+            );
+        }
     }
 
     #[test]

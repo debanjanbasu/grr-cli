@@ -57,6 +57,11 @@ thiserror = "2.0.21"
 base64 = { version = "0.23.1", features = ["alloc", "std"] }
 rand = { version = "0.10.3", features = ["std"] }
 sha2 = "0.11.0"
+# 3-way text merge for self-migrating skill installs (`grr skills`): pure
+# Rust, diff3-class merge, no CRDT/editor machinery and no wire-format schema.
+# Deliberately NOT automerge (built for concurrent editors) or capnproto
+# (schema evolution for wire formats) — 16 markdown files need a file merge.
+diffy = "0.5.2"
 urlencoding = "2.1.3"
 open = "5.4"
 keyring = { version = "4.2.0", features = ["windows-native-keyring-store", "apple-native-keyring-store", "zbus-secret-service-keyring-store"] }
