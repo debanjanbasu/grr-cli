@@ -22,13 +22,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **site:** out with the deprecated, in with the dead weight cut
+
+### Fixed
+
+- **demo:** prompt identities are scrubbed, and the validator fails closed
+- **auth:** the keychain is read at first credential use, never at startup
+
 ### Documentation
 
 - **site:** the getting-started page tells the winget story straight
+- the audit's drift sweep
 
 ### Internal
 
-- 2 internal commits (chore 2)
+- 6 internal commits (chore 6)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.8.1] - 2026-10-04
 
