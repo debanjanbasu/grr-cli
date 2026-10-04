@@ -97,12 +97,16 @@ impl GoogleAuth {
             .timeout(Duration::from_secs(30))
             .build()
             .map_err(|e| GrrError::Config(format!("Failed to create HTTP client: {}", e)))?;
-        let token_storage = store.load().await?;
-
+        // The store is NOT read here. Reading the OS keyring raises an
+        // approval prompt on unsigned binaries (macOS re-prompts per build),
+        // and the constructor runs for every command — including `--dry-run`,
+        // `schema`, and `api list`, which never need a credential. The first
+        // read happens in `get_access_token`, the first moment a credential
+        // is actually required.
         Ok(Self {
             config,
             http_client,
-            token_storage: Arc::new(RwLock::new(token_storage)),
+            token_storage: Arc::new(RwLock::new(None)),
             store,
             token_endpoint: GOOGLE_TOKEN_URL.to_string(),
         })
@@ -174,6 +178,15 @@ impl GoogleAuth {
     /// Get valid access token, refreshing if necessary
     pub async fn get_access_token(&self) -> Result<String> {
         let mut storage_guard = self.token_storage.write().await;
+
+        // First credential use in this process (the constructor never reads
+        // the store — see `with_store`). A logged-in user must never fall
+        // into the implicit OAuth flow just because the token was not loaded
+        // yet, so the store read happens before the None-means-fresh-install
+        // branch below.
+        if storage_guard.is_none() {
+            *storage_guard = self.store.load().await?;
+        }
 
         if let Some(storage) = storage_guard.as_ref() {
             if !storage.is_expired() {
