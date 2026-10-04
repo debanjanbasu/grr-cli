@@ -1,11 +1,30 @@
 {
-  "generatedAt": "2026-10-04T20:32:40.153Z",
+  "generatedAt": "2026-10-04T22:00:39.922Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": [
+        {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "the essay gets BlogPosting structured data",
+              "scope": "site",
+              "type": "feat",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.10.0",
+      "date": "2026-10-05",
+      "unreleased": false,
       "sections": [
         {
           "key": "added",
@@ -21,6 +40,18 @@
               "description": "a container for MCP introspection hosts",
               "scope": "packaging",
               "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "the distribution binaries carry their runtime",
+              "scope": "windows",
+              "type": "fix",
               "note": null
             }
           ]
@@ -50,6 +81,12 @@
             {
               "description": "refresh download counts and archive sizes",
               "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v0.10.0",
+              "scope": "release",
               "type": "chore",
               "note": null
             },
