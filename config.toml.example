@@ -41,4 +41,5 @@ client_id = ""
 # endpoint = ""
 # model = ""
 # api-key = ""            # sent as `Authorization: Bearer`
-# confidence-threshold = 0.7  # ask defers to the model only below this
+# confidence-threshold = 0.6  # below this method-choice confidence, ask
+#                             # flags the answer (the model still chooses)
