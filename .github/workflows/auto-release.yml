@@ -7,6 +7,12 @@ name: Auto release
 # the new version on main and pushes the tag — which fires the binary
 # release (release-binaries.yml, 5 platforms) and crates.io publish.
 #
+# Every push to main triggers a run: shipping immediately beats batching,
+# and the concurrent group below serialises races. After a release lands,
+# the next push's recommendation is "none" (docs/chore only), so the loop
+# converges on its own. The Friday cron is a backstop for weeks with no
+# pushes; workflow_dispatch(force) exists for a deliberate re-check.
+#
 # Why a PR and not a direct push: the repository GITHUB_TOKEN cannot push
 # to a protected branch (GH006), but it CAN open and auto-merge a PR —
 # the same pattern every other automation here (changelog, discovery,
@@ -16,8 +22,11 @@ name: Auto release
 # (feat -> minor, fix/perf -> patch, breaking -> major). "none" exits clean.
 
 on:
+  push:
+    branches: [main]
   schedule:
-    # 04:31 UTC Fridays — lets the week's merged work ship before the weekend.
+    # 04:31 UTC Fridays — a backstop, not the cadence: releases ship on
+    # every meaningful push above.
     - cron: "31 4 * * 5"
   workflow_dispatch:
     inputs:
