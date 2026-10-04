@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **cli:** grr skills install — the packaged agent skills, globally
+
 ### Changed
 
 - **scripts:** delete dead weight, share the flag contract
@@ -44,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - packaging status told the truth (0.7.0; winget unpublished)
+- grr skills install across every surface
 
 ### Internal
 
