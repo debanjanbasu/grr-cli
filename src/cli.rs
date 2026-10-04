@@ -4,7 +4,8 @@
 //! layers:
 //!
 //! * a thin, hand-written set of account-level commands — `auth`, `api`,
-//!   `mcp`, `transport`, `schema`, `ask` — kept as clap derive types;
+//!   `mcp`, `transport`, `schema`, `ask`, `skills` — kept as clap derive
+//!   types;
 //! * the ENTIRE generated service command tree, built from the committed
 //!   Discovery index into `commands/generated.rs`, because the index is
 //!   the single source of truth for the CLI surface and it changes daily.
@@ -24,7 +25,7 @@ use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::commands::{
-    api, ask, auth, build_auth, gen_dispatch, generated, mcp, safety, transport,
+    api, ask, auth, build_auth, gen_dispatch, generated, mcp, safety, skills, transport,
 };
 use crate::logo;
 use crate::schema;
@@ -75,9 +76,14 @@ enum StaticCommands {
     /// picks the method from the discovery catalog and fills its
     /// parameters. Prints the plan; --run executes it.
     Ask(ask::AskArgs),
+
+    /// Install the packaged agent skills into the user-level skills
+    /// directory (~/.agents/skills); list shows what is installed there
+    #[command(subcommand, subcommand_required = true)]
+    Skills(skills::SkillsCommands),
 }
 
-/// The complete parse tree: the six static commands plus every generated
+/// The complete parse tree: the seven static commands plus every generated
 /// service command. `grr --help` and `grr schema` both read this, so it
 /// is the single definition of the CLI surface.
 ///
@@ -121,6 +127,13 @@ pub async fn run() -> Result<()> {
         "schema" => {
             let args = schema::SchemaArgs::from_arg_matches(sub)?;
             schema::handle_schema_cmd(root_command(), args)?;
+        }
+
+        // The skills are compiled into the binary (`include_str!`), so
+        // install/list need zero configuration, no OAuth client, and no
+        // network — like `schema`, they answer before the config is loaded.
+        "skills" => {
+            skills::handle_skills_cmd(skills::SkillsCommands::from_arg_matches(sub)?)?;
         }
 
         // `auth setup` writes the OAuth client, so it too must run before
