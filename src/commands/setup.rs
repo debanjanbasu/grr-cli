@@ -114,6 +114,39 @@ fn toml_escape(value: &str) -> String {
     value.replace('\\', r"\\").replace('"', "\\\"")
 }
 
+/// The config template, taken verbatim from the shipped example so the two
+/// can never drift: `config.toml.example` is the single source of the full
+/// shape (the `[oauth]` block, the commented `[systemone]` block, the
+/// resolution-order note), and setup only fills in the client values. The
+/// example is tracked and committed, so it is inside the crate package and
+/// this `include_str!` always resolves.
+const CONFIG_TEMPLATE: &str = include_str!("../../config.toml.example");
+
+/// Fill the client id/secret into the example template.
+///
+/// This is deliberately not a hand-built TOML document: mirroring the
+/// example keeps every explanatory comment and the `[systemone]` block in
+/// the file the user actually reads, and a future example edit propagates.
+///
+/// An existing config is never rewritten in place — `handle_setup` refuses
+/// without `--force`, and nothing else touches the file. That is on purpose:
+/// silent rewrites are the surprise-write class of bug this codebase avoids,
+/// and a config missing `[systemone]` changes nothing because that section's
+/// defaults apply (see `SystemOneConfig`).
+fn render_config(client_id: &str, client_secret: &str) -> String {
+    CONFIG_TEMPLATE
+        .replacen(
+            "client_id = \"\"",
+            &format!("client_id = \"{}\"", toml_escape(client_id)),
+            1,
+        )
+        .replacen(
+            "# client_secret = \"\"",
+            &format!("client_secret = \"{}\"", toml_escape(client_secret)),
+            1,
+        )
+}
+
 fn instructions() -> String {
     let mut out = String::new();
     out.push_str("grr needs one Google OAuth client. Three steps, about five minutes:\n\n");
@@ -195,16 +228,7 @@ pub async fn handle_setup(args: SetupArgs) -> Result<()> {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("creating {}", parent.display()))?;
     }
-    let contents = format!(
-        "# Written by `grr auth setup`.\n\
-         # Only needed to override the OAuth client built into release builds.\n\
-         # Docs: {SETUP_DOCS}\n\n\
-         [oauth]\n\
-         client-id = \"{}\"\n\
-         client-secret = \"{}\"\n",
-        toml_escape(client_id.trim()),
-        toml_escape(client_secret.trim())
-    );
+    let contents = render_config(client_id.trim(), client_secret.trim());
     std::fs::write(&path, contents).with_context(|| format!("writing {}", path.display()))?;
 
     #[cfg(unix)]
@@ -303,6 +327,23 @@ mod tests {
     #[test]
     fn escapes_quotes_when_writing_toml() {
         assert_eq!(toml_escape(r#"a"b\c"#), r#"a\"b\\c"#);
+    }
+
+    #[test]
+    fn rendered_config_mirrors_the_example_with_the_client_filled_in() {
+        let rendered = render_config("123-abc.apps.googleusercontent.com", "GOCSPX-secret");
+        // The full current shape, comments and all.
+        assert!(rendered.contains("[oauth]"));
+        assert!(rendered.contains("client_id = \"123-abc.apps.googleusercontent.com\""));
+        assert!(rendered.contains("client_secret = \"GOCSPX-secret\""));
+        assert!(
+            rendered.contains("[systemone]"),
+            "the commented systemone block must ride along"
+        );
+        assert!(rendered.contains("GRR_CONFIG_PATH"));
+        // The empty placeholder was replaced, not duplicated.
+        assert!(!rendered.contains("client_id = \"\""));
+        assert!(!rendered.contains("# client_secret = \"\""));
     }
 
     #[test]

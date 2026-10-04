@@ -121,6 +121,20 @@ pub async fn run() -> Result<()> {
         anyhow::bail!("a subcommand is required; run `grr --help`");
     };
 
+    // Self-migrating installs: if the skills manifest records a different grr
+    // version, run the smart pass before the requested command. This is
+    // LAZY — `skills::maybe_auto_migrate` reads the manifest and compares the
+    // version before hashing a single file, and does nothing at all when no
+    // manifest exists. Skipped for `skills` itself (it manages its own
+    // install/list) and unreachable for `--help`/`--version`, which clap
+    // handles and exits from inside `get_matches`. stdout stays pure: the
+    // one-line summary goes to stderr.
+    if name != "skills"
+        && let Some(summary) = skills::maybe_auto_migrate()
+    {
+        eprintln!("{summary}");
+    }
+
     match name {
         // The schema dump is pure clap introspection: it must answer with
         // zero configuration, before any client (or OAuth) exists.
