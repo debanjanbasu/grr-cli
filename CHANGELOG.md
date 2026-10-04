@@ -26,8 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **scripts:** delete dead weight, share the flag contract
 - delete dead code across the CLI
-- **site:** native CSS for what the shell hand-rolled
 - **scripts:** Node 26's import.meta.dirname/filename, stat over read
+- **site:** native CSS for what the shell hand-rolled
 
 ### Performance
 
@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- 6 internal commits (chore 5, ci 1)
+- 7 internal commits (chore 6, ci 1)
 
 ### Other
 
@@ -83,8 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **site:** the gutter rule was losing to Tailwind's core .container
 - **site:** stale metadata and doc counts, now derived
 - **site:** the homepage stops advertising commands that do not exist
-- **site:** the live demo plays the cast on main, not a rotted copy
 - **site:** honest data displays on compare and the stats strip
+- **site:** the live demo plays the cast on main, not a rotted copy
 - **release:** the bump PR title said vv0.7.0
 
 ### Documentation

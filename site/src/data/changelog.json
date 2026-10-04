@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-04T00:47:35.594Z",
+  "generatedAt": "2026-10-04T01:07:59.220Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -24,14 +24,14 @@
               "note": null
             },
             {
-              "description": "native CSS for what the shell hand-rolled",
-              "scope": "site",
+              "description": "Node 26's import.meta.dirname/filename, stat over read",
+              "scope": "scripts",
               "type": "refactor",
               "note": null
             },
             {
-              "description": "Node 26's import.meta.dirname/filename, stat over read",
-              "scope": "scripts",
+              "description": "native CSS for what the shell hand-rolled",
+              "scope": "site",
               "type": "refactor",
               "note": null
             }
@@ -134,6 +134,12 @@
             {
               "description": "TypeScript 7 + types 26, tokio 1.53.2, tsconfig types",
               "scope": "deps",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
               "type": "chore",
               "note": null
             }
@@ -295,13 +301,13 @@
               "note": null
             },
             {
-              "description": "the live demo plays the cast on main, not a rotted copy",
+              "description": "honest data displays on compare and the stats strip",
               "scope": "site",
               "type": "fix",
               "note": null
             },
             {
-              "description": "honest data displays on compare and the stats strip",
+              "description": "the live demo plays the cast on main, not a rotted copy",
               "scope": "site",
               "type": "fix",
               "note": null
