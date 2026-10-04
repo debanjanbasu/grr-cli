@@ -32,4 +32,5 @@ pub mod generated;
 pub mod mcp;
 pub mod safety;
 pub mod setup;
+pub mod skills;
 pub mod transport;

@@ -114,6 +114,7 @@ fn top_level_help_lists_static_commands_and_every_service() {
         .stdout(predicate::str::contains("api"))
         .stdout(predicate::str::contains("schema"))
         .stdout(predicate::str::contains("transport"))
+        .stdout(predicate::str::contains("skills"))
         .stdout(predicate::str::contains("gmail"))
         .stdout(predicate::str::contains("calendar"))
         .stdout(predicate::str::contains("drive"))
