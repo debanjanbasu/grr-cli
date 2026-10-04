@@ -1,12 +1,25 @@
 {
-  "generatedAt": "2026-10-04T02:14:48.566Z",
+  "generatedAt": "2026-10-04T02:25:16.777Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
-      "sections": []
+      "sections": [
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        }
+      ]
     },
     {
       "version": "0.8.0",
