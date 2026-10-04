@@ -46,6 +46,27 @@ const surfaces = [
   title="Why grr exists: 9,193 unread emails and a generated command tree"
   description="The origin of grr and the engineering bets behind it: a 401-method command tree generated from Google's Discovery index, zero-config OAuth, honest HTTP/3, a repository that releases itself, and two real release-war stories."
 >
+  {/* Article structured data. The essay is a dated, authored post, and
+      search engines only treat it as one with this; BaseLayout's schema
+      describes the application, not the note. Absolute URLs, matching the
+      canonical/og:url BaseLayout computes for this route. */}
+  <script
+    type="application/ld+json"
+    set:html={JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'BlogPosting',
+      headline: 'Why grr exists: 9,193 unread emails and a generated command tree',
+      description:
+        "The origin of grr and the engineering bets behind it: a 401-method command tree generated from Google's Discovery index, zero-config OAuth, honest HTTP/3, a repository that releases itself, and two real release-war stories.",
+      datePublished: '2026-10-04',
+      dateModified: '2026-10-04',
+      inLanguage: 'en',
+      mainEntityOfPage: 'https://grr-cli.pages.dev/blog/',
+      image: 'https://grr-cli.pages.dev/og.png',
+      author: { '@type': 'Person', name: 'Debanjan Basu', url: 'https://github.com/debanjanbasu' },
+      publisher: { '@type': 'Organization', name: 'grr project', url: repoUrl },
+    })}
+  />
   <PageHero eyebrow="notes" title="Why grr exists">
     The short version: my inbox hit 9,193 unread, so I made it queryable. The long version is a set of
     engineering bets about generated surfaces, honest transports, and a repository that ships itself —
