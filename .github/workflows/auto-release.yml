@@ -125,6 +125,14 @@ jobs:
           # NEXT already carries the leading "v" (v0.7.0); prefixing another
           # one produced the malformed chore/release-vv0.7.0.
           BRANCH="chore/release-$NEXT"
+          # A push that lands while the bump PR is still open must not
+          # force-push the branch out from under its own CI run: every
+          # recreate restarts the merge clock. If a PR for this exact
+          # version is already open, there is nothing to do.
+          if gh pr list --state open --head "$BRANCH" --json number --jq 'length' | grep -q '^[1-9]'; then
+            echo "::notice::$BRANCH already has an open PR; leaving it to merge."
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
