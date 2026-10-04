@@ -1,11 +1,17 @@
 {
-  "generatedAt": "2026-10-04T10:16:49.109Z",
+  "generatedAt": "2026-10-04T10:48:14.930Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": []
+    },
+    {
+      "version": "0.9.1",
+      "date": "2026-10-04",
+      "unreleased": false,
       "sections": [
         {
           "key": "fixed",
@@ -27,6 +33,36 @@
               "description": "re-record the terminal demo from source",
               "scope": "demo",
               "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v0.9.1",
+              "scope": "release",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
               "note": null
             }
           ]
