@@ -37,9 +37,8 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = resolve(import.meta.dirname, '..');
 const DEFAULT_OUT = resolve(ROOT, 'demo', 'demo.cast');
 
 // Matches the site's terminal aesthetic. Demo lines are hard-wrapped a little

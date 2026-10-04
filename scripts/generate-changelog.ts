@@ -38,9 +38,8 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = resolve(import.meta.dirname, '..');
 const OUT_FILE = resolve(ROOT, 'CHANGELOG.md');
 // Baked into the website so /changelog/ renders from the same model that
 // produces CHANGELOG.md, instead of parsing Markdown at build time.
@@ -936,6 +935,6 @@ function writeSiteJson(tags: Tag[], slug: string | null): void {
 
 // Only generate when executed directly. `import`ing this module (to test the
 // parsing rules) must not rewrite CHANGELOG.md as a side effect.
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv[1] && resolve(process.argv[1]) === import.meta.filename) {
   main();
 }
