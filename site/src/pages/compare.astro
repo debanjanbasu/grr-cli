@@ -23,6 +23,27 @@ interface Binary {
   form?: string;
   available?: boolean;
   reason?: string;
+  // The release artifact users install, when the snapshot could measure it.
+  // Competitors are only ever measured as shipped, so they carry no
+  // `shipped` block of their own.
+  shipped?: Shipped;
+}
+
+interface Shipped {
+  bytes?: number;
+  source?: string;
+  form?: string;
+  packed?: boolean;
+  releaseTag?: string;
+  asset?: string;
+}
+
+interface Memory {
+  available?: boolean;
+  maxRssKb?: number;
+  runs?: number;
+  command?: string;
+  reason?: string;
 }
 
 interface CompetitorRow {
@@ -36,6 +57,7 @@ interface CompetitorRow {
   startup?: Timing;
   schemaDump?: Timing;
   apiList?: Timing;
+  memory?: Memory;
   binary?: Binary;
 }
 
@@ -50,11 +72,12 @@ interface Benchmarks {
     grrVersion?: string;
   };
   versions?: Record<string, { local?: string | null; latestTag?: string | null; latestTagReason?: string }>;
-  protocol?: { runs?: number; warmupRunsDiscarded?: number; stability?: string };
+  protocol?: { runs?: number; warmupRunsDiscarded?: number; stability?: string; memoryTimer?: string; memoryWorkload?: string };
   grr?: {
     startup?: Timing;
     schemaDump?: Timing;
     apiList?: Timing;
+    memory?: Memory;
     binary?: Binary;
   };
   competitors?: CompetitorRow[];
@@ -115,11 +138,51 @@ const sizeDetail = (binary: Binary | undefined) =>
     ? `measured artifact is a ${binary?.bytes}-byte launcher shim, not a binary (${binary?.source ?? 'unknown source'})`
     : binary?.reason ?? 'not measured';
 
+// The size a user actually installs. grr ships UPX-packed from its release
+// archive while the benchmark's own timings run a locally built (unpacked)
+// binary, so the snapshot carries both; competitors are only ever measured as
+// shipped. This is the one rule behind both the numeric table and the feature
+// matrix, so the two can never disagree about which number leads.
+const shippedBytes = (binary: Binary | undefined): number | null => {
+  const bytes = binary?.shipped?.bytes;
+  return typeof bytes === 'number' && Number.isFinite(bytes) && bytes > 0 ? bytes : null;
+};
+
+const comparableSize = (binary: Binary | undefined): number | null => shippedBytes(binary) ?? trustworthyBytes(binary);
+
+// The tooltip that keeps the other figure visible: "as shipped" as the
+// headline, the unpacked build (and the release tag it came from) in the
+// detail. Returns undefined when no shipped artifact was measured, so the
+// cell falls back to the pre-existing shim/reason discipline.
+const asShippedDetail = (binary: Binary | undefined): string | undefined => {
+  const shipped = shippedBytes(binary);
+  if (shipped === null) return undefined;
+  const label = binary?.shipped?.source ?? 'as shipped';
+  const tag = binary?.shipped?.releaseTag ? ` ${binary.shipped.releaseTag}` : '';
+  const unpacked = trustworthyBytes(binary);
+  return binary?.form === 'binary' && unpacked !== null && unpacked !== shipped
+    ? `${label}${tag}; ${megabytes(unpacked)} unpacked as built`
+    : `${label}${tag}`;
+};
+
 // Table cell: the number, or an em dash whose tooltip carries the reason. The
 // cell is never blank.
 const measuredSize = (binary: Binary | undefined) => {
-  const bytes = trustworthyBytes(binary);
-  return { bytes, text: megabytes(bytes ?? undefined), title: bytes === null ? sizeDetail(binary) : undefined };
+  const bytes = comparableSize(binary);
+  if (bytes === null) return { bytes: null as number | null, text: '—', title: sizeDetail(binary) };
+  return { bytes, text: megabytes(bytes), title: asShippedDetail(binary) };
+};
+
+// Peak memory: one high-water mark per tool, never a per-cell median.
+const memoryMb = (metric: Memory | undefined) =>
+  metric?.available && typeof metric.maxRssKb === 'number' && Number.isFinite(metric.maxRssKb) && metric.maxRssKb > 0
+    ? `${(metric.maxRssKb / 1024).toFixed(1)} MB`
+    : '—';
+
+const memoryDetail = (metric: Memory | undefined) => {
+  if (!metric?.available) return `not in this snapshot — ${metric?.reason ?? 'not measured'}`;
+  const runs = typeof metric.runs === 'number' ? ` — max of ${metric.runs} runs` : '';
+  return `peak RSS${runs} for ${metric.command ?? 'the schema-dump command'}`;
 };
 
 const timingDetail = (metric: Timing | undefined) => {
@@ -128,40 +191,59 @@ const timingDetail = (metric: Timing | undefined) => {
 };
 
 // grr-facing cards: whatever the snapshot actually contains.
+const grrSizeIsShipped = shippedBytes(grr.binary) !== null;
 const cards = [
   { label: 'startup · grr --version', value: grr.startup?.available ? ms(grr.startup?.medianMs) : '—', detail: timingDetail(grr.startup) },
   { label: 'schema dump · grr schema', value: grr.schemaDump?.available ? ms(grr.schemaDump?.medianMs) : '—', detail: timingDetail(grr.schemaDump) },
   { label: 'api index · grr api list', value: grr.apiList?.available ? ms(grr.apiList?.medianMs) : '—', detail: timingDetail(grr.apiList) },
   {
-    label: 'binary size',
-    value: megabytes(grr.binary?.bytes),
-    detail: grr.binary?.form === 'binary' ? 'unpacked executable' : grr.binary?.form === 'release-archive' ? 'release archive' : grr.binary?.source ?? '',
+    // The label names the basis, so an old snapshot that has no shipped
+    // artifact can never present the unpacked build as the shipped size.
+    label: grrSizeIsShipped ? 'binary size · as shipped' : 'binary size · unpacked build',
+    value: megabytes(comparableSize(grr.binary) ?? undefined),
+    detail: asShippedDetail(grr.binary)
+      ?? (grr.binary?.form === 'binary' ? 'unpacked executable' : grr.binary?.form === 'release-archive' ? 'release archive' : grr.binary?.source ?? ''),
   },
 ];
 
 // Columns of the numeric comparison: grr plus every competitor that actually
 // produced startup numbers on this snapshot.
 const columns = [
-  { name: 'grr', version: environment?.grrVersion ?? '', startup: grr.startup, schemaDump: grr.schemaDump, apiList: grr.apiList, binary: grr.binary },
-  ...availableCompetitors.map((row) => ({ name: row.tool, version: row.version ?? '', startup: row.startup, schemaDump: row.schemaDump, apiList: row.apiList, binary: row.binary })),
+  { name: 'grr', version: environment?.grrVersion ?? '', startup: grr.startup, schemaDump: grr.schemaDump, apiList: grr.apiList, memory: grr.memory, binary: grr.binary },
+  ...availableCompetitors.map((row) => ({ name: row.tool, version: row.version ?? '', startup: row.startup, schemaDump: row.schemaDump, apiList: row.apiList, memory: row.memory, binary: row.binary })),
 ];
 
 // The binary-size row of the feature matrix reads the same measured snapshot
 // as the numeric table above, so the two can never disagree.
 const gogRow = competitors.find((row) => row.tool === 'gog');
 const gwsRow = competitors.find((row) => row.tool === 'gws');
-const unpackedSize = (binary: Binary | undefined) => {
-  const bytes = trustworthyBytes(binary);
+const asShippedSize = (binary: Binary | undefined) => {
+  const bytes = comparableSize(binary);
   if (bytes !== null) return megabytes(bytes);
   return isLauncherShim(binary) ? `— launcher shim, not a binary (${binary?.bytes} B)` : '—';
 };
-const measuredBytes = [grr.binary, gogRow?.binary, gwsRow?.binary]
-  .map((binary) => trustworthyBytes(binary))
+const comparableBytes = [grr.binary, gogRow?.binary, gwsRow?.binary]
+  .map((binary) => comparableSize(binary))
   .filter((bytes): bytes is number => bytes !== null);
-const grrBytes = trustworthyBytes(grr.binary);
-// "Smallest of the three" is only claimed when all three tools produced a
-// trustworthy measurement; a shim or a missing size can never win the title.
-const grrSmallest = grrBytes !== null && measuredBytes.length === 3 && Math.min(...measuredBytes) >= grrBytes;
+const grrComparable = comparableSize(grr.binary);
+// "Smallest of the three" compares like with like: each tool's shipped
+// artifact where the snapshot has one, else its own measured build (a
+// competitor's bytes are always its official release build, i.e. as shipped).
+// It is only claimed when all three produced a trustworthy measurement; a
+// shim or a missing size can never win the title.
+const grrSmallest = grrComparable !== null && comparableBytes.length === 3 && Math.min(...comparableBytes) >= grrComparable;
+// Disclosed in the row whenever grr's headline size is not a shipped artifact
+// or the "smallest" claim rests on the unpacked build.
+const grrSizeBasis = grrSizeIsShipped
+  ? (grrSmallest ? ' — smallest of the three, as shipped' : '')
+  : grrComparable !== null
+    ? ' — unpacked build (no release artifact in this snapshot)'
+    : '';
+const grrSizeTitle = grrSizeIsShipped
+  ? asShippedDetail(grr.binary)
+  : grrComparable !== null
+    ? `unpacked build — no release artifact measured in this snapshot (${megabytes(grrComparable)})`
+    : sizeDetail(grr.binary);
 
 // ---------------------------------------------------------------------------
 // Feature matrix. Every cell cites the project's own documentation or a
@@ -173,6 +255,9 @@ const grrSmallest = grrBytes !== null && measuredBytes.length === 3 && Math.min(
 interface Cell {
   text: string;
   kind?: 'yes' | 'no' | 'gap' | 'na';
+  // Optional tooltip carrying the detail a headline cannot (e.g. the unpacked
+  // figure behind an as-shipped size). Rendered on the <td>.
+  title?: string;
 }
 
 const cellClass = (kind: Cell['kind']) => {
@@ -284,11 +369,11 @@ const matrix: { label: string; cells: [Cell, Cell, Cell, Cell] }[] = [
     ],
   },
   {
-    label: 'Binary size (unpacked)',
+    label: 'Binary size (as shipped)',
     cells: [
-      { text: `${unpackedSize(grr.binary)}${grrSmallest ? ' — smallest of the three' : ''}`, kind: 'yes' },
-      { text: unpackedSize(gogRow?.binary) },
-      { text: unpackedSize(gwsRow?.binary) },
+      { text: `${asShippedSize(grr.binary)}${grrSizeBasis}`, kind: 'yes', title: grrSizeTitle },
+      { text: asShippedSize(gogRow?.binary), title: asShippedDetail(gogRow?.binary) },
+      { text: asShippedSize(gwsRow?.binary), title: asShippedDetail(gwsRow?.binary) },
       { text: 'n/a — hosted service', kind: 'na' },
     ],
   },
@@ -317,7 +402,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
 
 <BaseLayout
   title="Compare"
-  description="Startup, schema-dump and api-index timings plus binary sizes for grr, gog and gws, measured daily in CI without credentials, and a feature matrix verified against each project's own docs."
+  description="Startup, schema-dump and api-index timings plus shipped binary sizes and peak memory for grr, gog and gws, measured daily in CI without credentials, and a feature matrix verified against each project's own docs."
 >
   <PageHero eyebrow="honest comparison" title="Compare">
     grr measured against the other Google Workspace CLIs. Every number below was actually run &mdash; no vendor benchmarks, no estimates. Where grr is behind, the table says so; where a claim could not be verified, it says that instead.
@@ -335,9 +420,9 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
       <div class="compare-read max-w-[72ch]">
         <p>
           Measured metrics are credential-free by design: process startup (<code>--version</code>), the
-          <code>grr schema</code> JSON contract dump, the <code>grr api list</code> method index and
-          binary size on disk. Nothing here needs a Google account or a network round-trip, which is
-          what makes a daily CI benchmark possible without flakes.
+          <code>grr schema</code> JSON contract dump, the <code>grr api list</code> method index,
+          binary size on disk and peak memory. Nothing here needs a Google account or a network
+          round-trip, which is what makes a daily CI benchmark possible without flakes.
         </p>
         <p>
           Protocol per metric: the first run is a discarded warm-up, then
@@ -348,6 +433,25 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           nothing, so small differences are noise, not news. The benchmark re-runs whenever a new
           version of grr, gog or gws ships — the workflow watches each project's release tags and
           rebuilds on change — so the numbers follow the tools rather than a one-time snapshot.
+        </p>
+        <p>
+          Peak memory is <code>max RSS</code>: the maximum resident set size across the same runs,
+          read from the platform's <code>/usr/bin/time</code> (GNU <code>-v</code> on Linux, BSD
+          <code>-l</code> on macOS) while each tool runs its schema-dump command —{' '}
+          {protocol?.memoryWorkload ?? 'each tool’s closest equivalent workload'}. It is a single
+          high-water mark per run, so the highest is reported rather than a median. This is the
+          figure that competes with local models and agents sharing unified memory: every megabyte a
+          CLI holds is one they cannot. All memory figures come from the same locally built
+          (unpacked) grr binary as the timings; the packed release artifact is not separately
+          re-measured for memory, and that basis is stated rather than assumed.
+        </p>
+        <p>
+          Binary size is the number users actually install. grr publishes UPX-packed release
+          binaries, so the size shown is the packed release artifact, with the unpacked build in the
+          tooltip; the timings and peak memory above come from the unpacked build, which is what the
+          benchmark runs. Competitor sizes are their official release builds, as shipped — so the
+          "smallest" claim compares like with like. When a snapshot has no release artifact (no tag
+          yet, or offline), the row falls back to the unpacked build and says so.
         </p>
         <p>
           Feature matrix cells are verified against each project's own documentation and, where
@@ -408,7 +512,10 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           <div class="compare-table-wrap mt-7 overflow-x-auto border border-base-300 bg-base-100">
             <table class="compare-table table table-zebra">
               <caption class="stat-label">
-                startup (<code>--version</code>), schema-dump, api-index and unpacked binary size — identical protocol per tool, where an equivalent exists
+                startup (<code>--version</code>), schema-dump, api-index, peak RSS and {grrSizeIsShipped ? 'binary size as shipped' : 'binary size'} — identical protocol per tool, where an equivalent exists.{' '}
+                {grrSizeIsShipped
+                  ? "grr's size is its UPX-packed release artifact; its timings and peak RSS come from the locally built unpacked binary, so UPX's one-time exec decompression is not part of them."
+                  : "grr's timings, peak RSS and size all come from the same locally built binary."}
               </caption>
               <thead>
                 <tr>
@@ -418,6 +525,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
                   <th scope="col">startup min</th>
                   <th scope="col">schema dump</th>
                   <th scope="col">api index</th>
+                  <th scope="col">peak memory</th>
                   <th scope="col">binary size</th>
                 </tr>
               </thead>
@@ -438,6 +546,9 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
                     </td>
                     <td title={column.apiList?.available ? undefined : `not comparable — ${column.apiList?.reason ?? 'not measured'}`}>
                       {ms(column.apiList?.available ? column.apiList?.medianMs : undefined)}
+                    </td>
+                    <td title={column.memory?.available ? memoryDetail(column.memory) : `not comparable — ${column.memory?.reason ?? 'not measured'}`}>
+                      {memoryMb(column.memory)}
                     </td>
                     <td title={size.title}>{size.text}</td>
                   </tr>
@@ -474,7 +585,10 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           {environment?.binaryKind === 'release' || environment?.binaryKind === 'debug'
             ? ` from a locally built ${environment.binaryKind} binary`
             : ''}
-          . Competitor binaries are their official GitHub release builds, as shipped.
+          . Competitor binaries are their official GitHub release builds, as shipped
+          {grrSizeIsShipped
+            ? '; grr’s size is its own UPX-packed release artifact, its timings and memory the unpacked build'
+            : ''}.
         </span>
         <a href="https://github.com/debanjanbasu/grr-cli/blob/main/scripts/benchmark.ts" target="_blank" rel="noreferrer">
           The benchmark script <span aria-hidden="true">→</span>
@@ -513,7 +627,7 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
                 <tr>
                   <th scope="row" class="font-normal">{row.label}</th>
                   {row.cells.map((cell) => (
-                    <td class={cell.kind ? cellClass(cell.kind) : 'text-base-content/70'}>{cell.text}</td>
+                    <td class={cell.kind ? cellClass(cell.kind) : 'text-base-content/70'} title={cell.title}>{cell.text}</td>
                   ))}
                 </tr>
               ))
@@ -545,9 +659,21 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           <code>--deny-service</code> and <code>--deny-verb</code> gates as the rest of the CLI.
           Named accounts keep separate tokens in the OS keyring. HTTP/3 is always on with HTTP/2
           fallback, release binaries ship the OAuth client compiled in so the first run is
-          zero-config{grrSmallest ? ', and the measured binary is the smallest of the three' : ''} — the size row above is
+          zero-config{grrSmallest ? ', and as shipped it is the smallest of the three' : ''} — the size row above is
           computed from the same snapshot, not typed by hand.
         </p>
+        {
+          columns.some((column) => column.memory?.available) && (
+            <p>
+              Peak memory is the figure that competes with the local models and agents sharing
+              unified memory on a modern machine: every megabyte a CLI holds is one they cannot. On
+              this snapshot the schema dump peaks at{' '}
+              {columns.map((column) => `${column.name} ${memoryMb(column.memory)}`).join(' · ')} of
+              resident memory — each tool's own closest-equivalent workload, measured rather than
+              assumed, and never a synthetic one.
+            </p>
+          )
+        }
         <p>
           The original bet is unchanged: the command tree is generated from a Discovery index
           committed to the repository — reviewable in a diff, working offline, refreshed by a
@@ -563,7 +689,8 @@ const columnHeads = ['grr', 'gog', 'gws', 'Google Workspace MCP servers'];
           <code>grr mcp --help</code>, a live initialize + tools/list handshake ({discoveryMethodTotal} tools, each
           with an inputSchema), <code>grr ask --help</code>, <code>grr auth login --help</code>,
           <code>grr auth status --help</code>, and <code>--readonly</code> / <code>--deny-verb</code>
-          refusal checks. The binary-size row reads the same measured snapshot as the table above.
+          refusal checks. The binary-size and peak-memory rows read the same measured snapshot as
+          the table above.
           Unverifiable claims are labelled "Not documented" rather than guessed.
         </p>
       </div>

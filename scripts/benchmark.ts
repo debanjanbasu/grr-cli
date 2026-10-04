@@ -9,7 +9,25 @@
 // CI run can collect them and open a PR with the fresh snapshot.
 //
 // Startup is the headline metric (median of 15 timed runs); the schema dump,
-// the api-index listing and binary size are measured alongside it.
+// the api-index listing, binary size and peak RSS are measured alongside it.
+//
+// Size is recorded twice for grr, because the two numbers are different
+// artifacts and the compare page must not confuse them:
+//   - `binary.bytes` is the locally built (unpacked) executable that the
+//     timings run, recorded with its build kind;
+//   - `binary.shipped` is the binary inside the latest release archive — what
+//     a user actually downloads. Since v0.7.0 the release workflow UPX-packs
+//     that binary (--best --lzma), so it is materially smaller than the local
+//     build. UPX is detected from the packer's own magic, never assumed, and
+//     a release asset that cannot be fetched records nothing (the page then
+//     falls back to the unpacked figure with its label).
+// Competitors are only ever measured as shipped (their official release
+// builds), so the page compares like with like.
+//
+// Peak RSS is measured with the platform's `time` binary around each tool's
+// schema-dump command — the closest equivalent workload every tool has, and a
+// real one; `--version` is too trivial to separate the tools. It is the
+// number that competes with local models and agents sharing unified memory.
 //
 // Honesty rules, enforced structurally:
 //   - A tool that cannot be obtained is recorded as `available: false` with
@@ -74,6 +92,22 @@ function errorMessage(error: unknown): string {
 const NOISE_ABS_MS = 15;
 const NOISE_REL = 0.06;
 
+// Peak RSS is noisier than a median: one run's high-water mark moves with the
+// allocator, page cache and scheduler. The band that separates "same
+// measurement" from "the footprint actually moved" is therefore wider and
+// absolute-first (2 MB floor, then 10%).
+const MEMORY_ABS_KB = 2048;
+const MEMORY_REL = 0.1;
+
+// The measurement surface for peak RSS. GNU time (Linux) reports `-v` in
+// kbytes; BSD time (macOS) reports `-l` in bytes; neither exists on Windows,
+// where the metric records unavailable rather than an estimate.
+const TIME_BIN = '/usr/bin/time';
+const TIME_FLAG = process.platform === 'darwin' ? '-l' : '-v';
+const TIME_UNITS = process.platform === 'darwin' ? 'bytes' : 'kbytes';
+const MEMORY_WORKLOAD =
+  "each tool's schema-dump command (grr schema / gog schema / gws schema drive.files.list --resolve-refs) — not --version, which is too trivial a workload to separate the tools";
+
 const withinBand = (a: number, b: number, abs: number, rel: number): boolean =>
   Math.abs(a - b) <= Math.max(abs, rel * Math.max(a, b));
 const withinNoise = (a: number, b: number): boolean => withinBand(a, b, NOISE_ABS_MS, NOISE_REL);
@@ -92,10 +126,41 @@ type Metric =
   | { available: false; reason: string };
 
 /**
+ * Peak resident set size for one tool's schema-dump command, read from the
+ * platform's `time` binary (GNU `-v` on Linux, BSD `-l` on macOS). Either
+ * measured (`available: true` with the high-water mark across the runs) or
+ * honestly unavailable with the reason — never estimated. `command` records
+ * exactly which equivalent workload was measured.
+ */
+interface MemoryMetric {
+  available: boolean;
+  maxRssKb?: number;
+  runs?: number;
+  command?: string;
+  reason?: string;
+}
+
+/**
+ * The artifact a user actually installs: the binary inside grr's latest
+ * release archive. `packed` is a measurement of the packer's magic, not an
+ * assumption about the tag — the release workflow ships unpacked when UPX
+ * fails or the packed binary does not run.
+ */
+interface ShippedBinary {
+  bytes: number;
+  source: string;
+  form: string;
+  packed: boolean;
+  releaseTag?: string;
+  asset?: string;
+}
+
+/**
  * Binary size entry. Success shape: `{ bytes, source, form }`. Failure
  * shape: `{ available: false, reason }` — recorded, never estimated. The
  * optional-flat form mirrors the JSON exactly, where only one of the two
- * shapes is ever present.
+ * shapes is ever present. `shipped` is the release artifact, present only
+ * when it could actually be downloaded and measured.
  */
 interface BinarySize {
   bytes?: number;
@@ -103,6 +168,7 @@ interface BinarySize {
   form?: string;
   available?: false;
   reason?: string;
+  shipped?: ShippedBinary;
 }
 
 /** A competitor row in the snapshot — available, or unavailable with why. */
@@ -119,6 +185,7 @@ interface CompetitorRow {
   startup?: Metric;
   schemaDump?: Metric;
   apiList?: Metric;
+  memory?: MemoryMetric; // peak RSS for the schema-dump command
   binary?: BinarySize;   // when available === true
 }
 
@@ -149,11 +216,14 @@ interface BenchmarkSnapshot {
     warmupRunsDiscarded: number;
     timer: string;
     stability: string;
+    memoryTimer: string;
+    memoryWorkload: string;
   };
   grr: {
     startup: Metric | null;
     schemaDump: Metric | null;
     apiList: Metric | null;
+    memory: MemoryMetric | null;
     binary: BinarySize | null;
   };
   competitors: CompetitorRow[];
@@ -212,6 +282,78 @@ function measure(exe: string, args: string[], label?: string): Metric {
     p95Ms: round1(percentile(samples, 0.95)),
     minMs: round1(samples[0]),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Peak memory
+// ---------------------------------------------------------------------------
+
+/**
+ * Pull the high-water mark out of one `time` report. GNU time -v prints
+ * `Maximum resident set size (kbytes): 12345`; BSD time -l prints
+ * `\t 12345678  maximum resident set size` with the value in bytes. The
+ * report goes to stderr in both cases.
+ */
+function parseMaxRss(platform: NodeJS.Platform, report: string): number | null {
+  const match = platform === 'darwin'
+    ? /^\s*(\d+)\s+maximum resident set size\s*$/im.exec(report)
+    : /Maximum resident set size \(kbytes\):\s*(\d+)/i.exec(report);
+  if (!match) return null;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return platform === 'darwin' ? Math.round(value / 1024) : value;
+}
+
+/**
+ * Peak RSS for one command: the same warm-up + timed-runs protocol as a
+ * timing, but reporting the **max of the per-run peaks** (RSS is a single
+ * high-water mark per run, so a median would describe an average run rather
+ * than the worst-case footprint a user should expect). Measured under the
+ * platform's `time` binary; if that binary is missing (Windows), the command
+ * fails, or the report cannot be parsed, the metric is recorded unavailable
+ * with the reason — never estimated.
+ *
+ * This is a second pass over the schema-dump workload rather than a byproduct
+ * of `measure()`: `measure()` discards all output for timing fidelity, and
+ * timing and memory want different statistics (median vs max), so folding
+ * them together would conflate two protocols to save a few seconds.
+ */
+function measurePeakRss(exe: string, args: string[], label: string): MemoryMetric {
+  if (process.platform === 'win32') {
+    return {
+      available: false,
+      command: label,
+      reason: `peak RSS is measured with ${TIME_BIN}, which does not exist on Windows — not estimated`,
+    };
+  }
+  let maxRssKb = 0;
+  for (let i = 0; i < WARMUP_RUNS + RUNS; i++) {
+    // Only stderr is piped: `time` writes its report there, while the tool's
+    // own stdout (a full schema dump) is discarded so it can never trip the
+    // spawn buffer.
+    const res = spawnSync(TIME_BIN, [TIME_FLAG, exe, ...args], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'ignore', 'pipe'],
+      timeout: COMMAND_TIMEOUT_MS,
+      windowsHide: true,
+    });
+    if (res.error) return { available: false, command: label, reason: `spawn failed: ${res.error.message}` };
+    if (res.status !== 0) {
+      const how = res.signal ? `signal ${res.signal}` : `exit status ${res.status}`;
+      return { available: false, command: label, reason: `${how} for \`${TIME_BIN} ${TIME_FLAG} ${label}\`` };
+    }
+    const rss = parseMaxRss(process.platform, `${res.stderr ?? ''}`);
+    if (rss === null) {
+      return {
+        available: false,
+        command: label,
+        reason: `could not parse "maximum resident set size" from \`${TIME_BIN} ${TIME_FLAG}\` report`,
+      };
+    }
+    if (i < WARMUP_RUNS) continue; // warm-up, discarded on purpose
+    maxRssKb = Math.max(maxRssKb, rss);
+  }
+  return { available: true, maxRssKb, runs: RUNS, command: label };
 }
 
 // ---------------------------------------------------------------------------
@@ -285,9 +427,20 @@ function extractArchive(archive: string, dir: string): void {
   // handles .zip as well as .tar.gz; Linux runners have GNU tar.
   mkdirSync(dir, { recursive: true });
   const res = spawnSync('tar', ['-xf', archive, '-C', dir], { encoding: 'utf8', windowsHide: true });
-  if (res.status !== 0) {
-    throw new Error(`tar -xf failed: ${(res.stderr ?? '').trim() || `exit ${res.status}`}`);
+  if (res.status === 0) return;
+  // grr's release archives are .tar.zst. GNU tar shells out to `zstd` for
+  // those, so a tar built without zstd support (or a machine without the
+  // zstd binary) fails where gzip/bzip2 would not. Decompress through an
+  // explicit pipe before giving up — .zst never appears on Windows, whose
+  // grr assets are .zip.
+  if (archive.endsWith('.zst') && process.platform !== 'win32') {
+    const piped = spawnSync('sh', ['-c', 'zstd -dc "$1" | tar -xf - -C "$2"', 'sh', archive, dir], {
+      encoding: 'utf8',
+    });
+    if (piped.status === 0) return;
+    throw new Error(`zstd | tar -xf failed: ${(piped.stderr ?? '').trim() || `exit ${piped.status}`}`);
   }
+  throw new Error(`tar -xf failed: ${(res.stderr ?? '').trim() || `exit ${res.status}`}`);
 }
 
 function findExecutable(dir: string, name: string): string | null {
@@ -329,6 +482,24 @@ function resolveGwsPayload(): string | null {
   // The package layout, after the launcher's first run: bin/<triple>/gws.
   const candidate = join(globalRoot, '@googleworkspace/cli', 'bin', gwsTriple, 'gws');
   return existsSync(candidate) ? candidate : null;
+}
+
+/**
+ * Download one release asset into the cache and return its path. The cached
+ * copy is validated by size, so a truncated download from a previous run is
+ * refetched rather than extracted. Throws on failure; callers decide whether
+ * that is fatal (competitors: recorded unavailable) or a skip (grr's shipped
+ * size: recorded not at all).
+ */
+async function cachedArchive(tool: string, tag: string | null | undefined, asset: GithubReleaseAsset): Promise<string> {
+  const archive = join(CACHE_DIR, `${tool}-${tag ?? 'unknown'}-${asset.name}`);
+  if (!existsSync(archive) || statSync(archive).size !== asset.size) {
+    mkdirSync(CACHE_DIR, { recursive: true });
+    const res = await fetch(asset.browser_download_url, { redirect: 'follow' });
+    if (!res.ok) throw new Error(`download ${asset.browser_download_url} -> HTTP ${res.status}`);
+    writeFileSync(archive, Buffer.from(await res.arrayBuffer()));
+  }
+  return archive;
 }
 
 /**
@@ -380,13 +551,7 @@ async function obtainCompetitor({ tool, project, exeName, assetTokens }: Competi
       );
     }
 
-    const archive = join(CACHE_DIR, `${tool}-${release.tag_name}-${asset.name}`);
-    if (!existsSync(archive) || statSync(archive).size !== asset.size) {
-      mkdirSync(CACHE_DIR, { recursive: true });
-      const res = await fetch(asset.browser_download_url, { redirect: 'follow' });
-      if (!res.ok) throw new Error(`download ${asset.browser_download_url} -> HTTP ${res.status}`);
-      writeFileSync(archive, Buffer.from(await res.arrayBuffer()));
-    }
+    const archive = await cachedArchive(tool, release.tag_name, asset);
 
     const extractDir = join(CACHE_DIR, tool, release.tag_name ?? 'unknown');
     extractArchive(archive, extractDir);
@@ -501,6 +666,67 @@ async function grrReleaseAssetBytes(): Promise<BinarySize> {
   return { bytes: asset.size, source: `github-release-asset: ${asset.name}`, form: 'release-archive' };
 }
 
+const GRR_ARCHIVE_RE = /\.(zip|tar\.gz|tar\.zst)$/;
+
+/**
+ * Locate grr's binary in an extracted release archive. The release workflow
+ * tars `stage/<target-name>` (see .github/workflows/release-binaries.yml), so
+ * the member is `linux-aarch64`, `macos-aarch64`, `windows-x86_64.exe` —
+ * not `grr`, which is why findExecutable() alone cannot locate it.
+ */
+function findGrrStagedBinary(dir: string): string | null {
+  const [os] = grrAssetTokens;
+  const named = join(dir, `${os}-${process.arch === 'arm64' ? 'aarch64' : 'x86_64'}${process.platform === 'win32' ? '.exe' : ''}`);
+  if (existsSync(named) && statSync(named).isFile()) return named;
+  const byName = findExecutable(dir, 'grr');
+  if (byName) return byName;
+  const files = walkFiles(dir).filter((path) => statSync(path).isFile());
+  return files.length === 1 ? files[0] : null;
+}
+
+/**
+ * The binary a user actually installs: the release artifact for this platform,
+ * downloaded and unpacked from the cached archive. Recorded alongside the
+ * locally built size so the compare page can lead with what ships.
+ *
+ * Best-effort by design: no released tag yet, offline, an archive tar cannot
+ * read — each records nothing at all, and the page falls back to the unpacked
+ * build under its own explicit label. A failed download must never be able to
+ * look like a measured shipped size.
+ */
+async function grrShippedBinary(): Promise<ShippedBinary | null> {
+  try {
+    const release = await githubJson(`https://api.github.com/repos/${GRR_PROJECT}/releases/latest`);
+    const asset = (release.assets ?? []).find(
+      (a) => grrAssetTokens.every((t) => a.name.includes(t)) && GRR_ARCHIVE_RE.test(a.name),
+    );
+    if (!asset) return null;
+
+    const archive = await cachedArchive('grr', release.tag_name, asset);
+
+    const extractDir = join(CACHE_DIR, 'grr', release.tag_name ?? 'unknown');
+    extractArchive(archive, extractDir);
+    const exe = findGrrStagedBinary(extractDir);
+    if (!exe) return null;
+
+    // UPX's own magic decides the label. release-binaries.yml falls back to
+    // shipping unpacked when packing fails (a win64 packer segfault, a packed
+    // binary that will not run), so "packed" is a property of this artifact,
+    // not of the tag.
+    const packed = readFileSync(exe).includes('UPX!');
+    return {
+      bytes: statSync(exe).size,
+      source: packed ? 'release archive (UPX-packed)' : 'release archive',
+      form: 'binary',
+      packed,
+      ...(typeof release.tag_name === 'string' ? { releaseTag: release.tag_name } : {}),
+      asset: asset.name,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Snapshot assembly
 // ---------------------------------------------------------------------------
@@ -514,7 +740,7 @@ async function buildSnapshot(): Promise<BenchmarkSnapshot> {
     nodeVersion: process.version,
   };
 
-  const grr: BenchmarkSnapshot['grr'] = { startup: null, schemaDump: null, apiList: null, binary: null };
+  const grr: BenchmarkSnapshot['grr'] = { startup: null, schemaDump: null, apiList: null, memory: null, binary: null };
   const binary = locateGrr();
 
   if (binary) {
@@ -527,10 +753,17 @@ async function buildSnapshot(): Promise<BenchmarkSnapshot> {
     grr.startup = measure(binary.path, ['--version'], 'grr --version');
     grr.schemaDump = measure(binary.path, ['schema'], 'grr schema');
     grr.apiList = measure(binary.path, ['api', 'list'], 'grr api list');
+    // Peak RSS on the schema dump, not --version: the dump is the closest
+    // equivalent of the workload every tool is asked to run below.
+    grr.memory = measurePeakRss(binary.path, ['schema'], 'grr schema');
+    // The timings/peak RSS above run the locally built (unpacked) binary; the
+    // size below additionally records the release artifact users download.
+    const shipped = await grrShippedBinary();
     grr.binary = {
       bytes: statSync(binary.path).size,
       source: binaryPath,
       form: 'binary',
+      ...(shipped ? { shipped } : {}),
     };
   } else {
     environment.binaryKind = 'none';
@@ -538,10 +771,15 @@ async function buildSnapshot(): Promise<BenchmarkSnapshot> {
     grr.startup = { available: false, reason: why };
     grr.schemaDump = { available: false, reason: why };
     grr.apiList = { available: false, reason: why };
+    grr.memory = { available: false, command: 'grr schema', reason: why };
+    const shipped = await grrShippedBinary();
     try {
-      grr.binary = await grrReleaseAssetBytes();
+      const archive = await grrReleaseAssetBytes();
+      grr.binary = shipped ? { ...archive, shipped } : archive;
     } catch (error) {
-      grr.binary = { available: false, reason: errorMessage(error) };
+      grr.binary = shipped
+        ? { bytes: shipped.bytes, source: shipped.source, form: 'release-archive', shipped }
+        : { available: false, reason: errorMessage(error) };
     }
   }
 
@@ -570,6 +808,7 @@ async function buildSnapshot(): Promise<BenchmarkSnapshot> {
       startup: { available: false, reason } as Metric,
       schemaDump: { available: false, reason } as Metric,
       apiList: { available: false, reason } as Metric,
+      memory: { available: false, reason } as MemoryMetric,
     });
 
     if ('error' in obtained) {
@@ -600,6 +839,11 @@ async function buildSnapshot(): Promise<BenchmarkSnapshot> {
     const apiList = competitor.apiListCommand
       ? measure(obtained.exe, competitor.apiListCommand, `${competitor.exeName} ${competitor.apiListCommand.join(' ')}`)
       : { available: false, reason: competitor.apiListReason ?? 'no api-index equivalent command' } satisfies Metric;
+    // Peak RSS on the same schema-dump command that was just timed, so the
+    // memory figure describes a workload the tool actually offers.
+    const memory = competitor.schemaCommand
+      ? measurePeakRss(obtained.exe, competitor.schemaCommand, `${competitor.exeName} ${competitor.schemaCommand.join(' ')}`)
+      : { available: false, reason: 'no schema-dump equivalent command' } satisfies MemoryMetric;
 
     competitors.push({
       ...row,
@@ -609,6 +853,7 @@ async function buildSnapshot(): Promise<BenchmarkSnapshot> {
       startup,
       schemaDump,
       apiList,
+      memory,
       binary: {
         // A launcher shim's bytes are not the tool's: when a payload was
         // resolved, the size metric follows it (see resolveGwsPayload).
@@ -628,6 +873,10 @@ async function buildSnapshot(): Promise<BenchmarkSnapshot> {
       warmupRunsDiscarded: WARMUP_RUNS,
       timer: 'process.hrtime.bigint() around spawnSync',
       stability: `re-runs whose medians land within max(${NOISE_ABS_MS} ms, ${Math.round(NOISE_REL * 100)}%) of the committed snapshot change nothing`,
+      memoryTimer: process.platform === 'win32'
+        ? `peak RSS: unavailable on Windows (no ${TIME_BIN}); never estimated`
+        : `peak RSS: max of ${RUNS} runs under ${TIME_BIN} ${TIME_FLAG} (${TIME_UNITS})`,
+      memoryWorkload: MEMORY_WORKLOAD,
     },
     grr,
     competitors,
@@ -658,6 +907,23 @@ const timingWithinNoise = (a: Metric | null | undefined, b: Metric | null | unde
 
 const sameJson = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
+/**
+ * Peak RSS comparison for the idempotency gate. Like the timings, only the
+ * reported statistic decides change: a re-run whose high-water mark lands
+ * within the memory band (max(2 MB, 10%)) rewrites nothing. Both sides
+ * missing is equal; one side missing is a real change (a metric appearing or
+ * disappearing from the snapshot must be committed, never papered over).
+ */
+const memoryWithinNoise = (a: MemoryMetric | null | undefined, b: MemoryMetric | null | undefined): boolean => {
+  if (!a || !b) return !a && !b;
+  if (a.available !== b.available) return false;
+  if (!a.available) return b.available === false && a.reason === b.reason;
+  return b.available === true
+    && typeof a.maxRssKb === 'number'
+    && typeof b.maxRssKb === 'number'
+    && withinBand(a.maxRssKb, b.maxRssKb, MEMORY_ABS_KB, MEMORY_REL);
+};
+
 function isEquivalent(previous: BenchmarkSnapshot | null, fresh: BenchmarkSnapshot): boolean {
   if (!previous) return false;
   if (!sameJson(previous.environment, fresh.environment)) return false;
@@ -666,6 +932,7 @@ function isEquivalent(previous: BenchmarkSnapshot | null, fresh: BenchmarkSnapsh
   if (!timingWithinNoise(previous.grr?.startup, fresh.grr.startup)) return false;
   if (!timingWithinNoise(previous.grr?.schemaDump, fresh.grr.schemaDump)) return false;
   if (!timingWithinNoise(previous.grr?.apiList, fresh.grr.apiList)) return false;
+  if (!memoryWithinNoise(previous.grr?.memory, fresh.grr.memory)) return false;
   if (!sameJson(previous.grr?.binary, fresh.grr.binary)) return false;
 
   const prevByTool = new Map((previous.competitors ?? []).map((c) => [c.tool, c] as const));
@@ -677,7 +944,9 @@ function isEquivalent(previous: BenchmarkSnapshot | null, fresh: BenchmarkSnapsh
     if (prevRow.project !== freshRow.project || prevRow.obtainedVia !== freshRow.obtainedVia) return false;
     if (prevRow.version !== freshRow.version) return false;
     if (freshRow.available) {
-      return timingWithinNoise(prevRow.startup, freshRow.startup) && sameJson(prevRow.binary, freshRow.binary);
+      return timingWithinNoise(prevRow.startup, freshRow.startup)
+        && memoryWithinNoise(prevRow.memory, freshRow.memory)
+        && sameJson(prevRow.binary, freshRow.binary);
     }
     return prevRow.reason === freshRow.reason;
   });
@@ -691,6 +960,17 @@ const fmtMs = (metric?: Metric | null): string =>
   metric?.available
     ? `median ${metric.medianMs} ms · p95 ${metric.p95Ms} ms · min ${metric.minMs} ms`
     : `unavailable: ${metric?.reason ?? 'not measured'}`;
+
+const fmtMemory = (metric?: MemoryMetric | null): string =>
+  metric?.available
+    ? `max ${metric.maxRssKb} kB RSS over ${metric.runs ?? '?'} runs of ${metric.command ?? 'the workload'}`
+    : `unavailable: ${metric?.reason ?? 'not measured'}`;
+
+const fmtSize = (binary?: BinarySize | null): string => {
+  if (binary?.shipped) return `${binary.shipped.bytes} bytes (${binary.shipped.source})`;
+  if (binary?.bytes) return `${binary.bytes} bytes (${binary.form}, ${binary.source})`;
+  return `unavailable: ${binary?.reason ?? 'not measured'}`;
+};
 
 function printSummary(snapshot: BenchmarkSnapshot): void {
   const { environment, versions, grr, competitors } = snapshot;
@@ -706,10 +986,16 @@ function printSummary(snapshot: BenchmarkSnapshot): void {
   console.log(`grr startup: ${fmtMs(grr.startup)}`);
   console.log(`grr schema: ${fmtMs(grr.schemaDump)}`);
   console.log(`grr api list: ${fmtMs(grr.apiList)}`);
-  if (grr.binary?.bytes) console.log(`grr binary: ${grr.binary.bytes} bytes (${grr.binary.form}, ${grr.binary.source})`);
+  console.log(`grr memory: ${fmtMemory(grr.memory)}`);
+  console.log(`grr binary: ${fmtSize(grr.binary)}`);
+  if (grr.binary?.shipped && grr.binary.bytes) {
+    console.log(`grr binary (unpacked build): ${grr.binary.bytes} bytes (${grr.binary.source})`);
+  }
   for (const row of competitors) {
     console.log(
-      row.available ? `${row.tool}: ${fmtMs(row.startup)} · via ${row.obtainedVia}` : `${row.tool}: unavailable — ${row.reason}`,
+      row.available
+        ? `${row.tool}: ${fmtMs(row.startup)} · ${fmtMemory(row.memory)} · via ${row.obtainedVia}`
+        : `${row.tool}: unavailable — ${row.reason}`,
     );
   }
 }
