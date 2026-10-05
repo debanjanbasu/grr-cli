@@ -53,14 +53,16 @@ rustflags = ["-C", "target-cpu=x86-64-v3", "-C", "panic=abort", "--cfg", "reqwes
 rustflags = ["-C", "target-cpu=generic", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
 linker = "aarch64-linux-gnu-gcc"
 
-# Windows x86_64: baseline x86-64-v3, statically linked CRT. +crt-static
-# makes the portable binary self-contained: winget's validation sandbox
-# (and plenty of real machines) lack the MSVC runtime DLLs, and a dynamic
-# CRT there means "exe doesn't run" — the Validation-Executable-Error the
-# first submission hit. Distribution binaries must not depend on a
-# redistributable.
+# Windows x86_64: x86-64-v2 (SSE4.2/POPCNT, 2009+) and a statically linked
+# CRT. Two hard-won constraints from winget's validation:
+#   * +crt-static: a dynamic MSVC CRT means "exe doesn't run" on a clean
+#     sandbox (no VC++ redistributable) — Validation-Executable-Error.
+#   * v2, not v3: v3 requires AVX2, and validation (plus plenty of VMs and
+#     older fleet machines) may not expose it; an illegal instruction is
+#     also an exe that does not run. A CLI's portability beats its last
+#     few percent.
 [target.x86_64-pc-windows-msvc]
-rustflags = ["-C", "target-cpu=x86-64-v3", "-C", "target-feature=+crt-static", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
+rustflags = ["-C", "target-cpu=x86-64-v2", "-C", "target-feature=+crt-static", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
 
 # Windows on ARM: Snapdragon X Elite/Plus (Oryon). oryon-1 excludes the
 # pre-X Snapdragon 8cx devices (Surface Pro X and older), which are out of
