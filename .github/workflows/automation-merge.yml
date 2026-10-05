@@ -176,14 +176,36 @@ jobs:
               chore/discovery-refresh|chore/release-v*) mode_fn=merge_code ;;
               *) mode_fn=merge_artifact ;;
             esac
-            # Approve every pending run for this head first — without an
-            # approval the CI never starts and --auto can never complete.
             sha="$(gh pr view "$n" --json headRefOid --jq .headRefOid)"
             state="$(gh pr view "$n" --json state --jq '.state | ascii_downcase')"
             if [ "$state" != "open" ]; then
               echo "::notice::PR #$n is $state; skipping."
               continue
             fi
+            # A CONFLICTED automation PR can never merge and cannot fix
+            # itself — its workflow only rewrites the branch on its next run,
+            # which for demo.yml means up to a week of a dead red PR on the
+            # list (the exact state #83 sat in). Close it with a pointer and
+            # dispatch the owning workflow so a clean PR replaces it now.
+            if [ "$(gh pr view "$n" --json mergeable --jq .mergeable)" = "CONFLICTING" ]; then
+              owner=""
+              case "$branch" in
+                chore/changelog-regenerate) owner=changelog.yml ;;
+                chore/demo-recording)       owner=demo.yml ;;
+                chore/benchmark-refresh)    owner=benchmark.yml ;;
+                chore/stats-refresh)        owner=stats.yml ;;
+                chore/discovery-refresh)    owner=discovery.yml ;;
+                chore/release-v*)           owner=auto-release.yml ;;
+              esac
+              gh pr close "$n" --comment "Closed: this automation PR conflicts with main, which means the artifact it carries is already stale — it can be regenerated, so there is nothing to resolve by hand. A fresh PR opens from the $owner run dispatched now."
+              if [ -n "$owner" ]; then
+                gh workflow run "$owner" --ref main || echo "::warning::could not dispatch $owner after closing #$n"
+              fi
+              echo "::notice::PR #$n was conflicted; closed and dispatched $owner."
+              continue
+            fi
+            # Approve every pending run for this head first — without an
+            # approval the CI never starts and --auto can never complete.
             ids="$(gh api --paginate \
               "repos/{owner}/{repo}/actions/runs?head_sha=$sha&status=action_required" \
               --jq '.workflow_runs[].id' || true)"
