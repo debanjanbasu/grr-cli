@@ -1,12 +1,36 @@
 {
-  "generatedAt": "2026-10-04T22:22:01.949Z",
+  "generatedAt": "2026-10-05T11:28:52.143Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": []
+    },
+    {
+      "version": "0.11.1",
+      "date": "2026-10-05",
+      "unreleased": false,
       "sections": [
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "v2 CPU baseline and no UPX — portability over the last percent",
+              "scope": "windows",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "keep v3 and UPX — the label's cause is the invocation, not the artifact",
+              "scope": "windows",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
         {
           "key": "internal",
           "heading": "Internal",
@@ -16,6 +40,24 @@
               "scope": "site",
               "type": "chore",
               "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v0.11.1",
+              "scope": "release",
+              "type": "chore",
+              "note": null
             }
           ]
         },
@@ -23,6 +65,12 @@
           "key": "other",
           "heading": "Other",
           "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
+              "note": null
+            },
             {
               "description": "refresh daily benchmark snapshot",
               "scope": "compare",
