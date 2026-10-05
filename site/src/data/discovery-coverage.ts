@@ -84,7 +84,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 10,
     scopes: 6,
-    revision: '20260927',
+    revision: '20260930',
     note: 'Form bodies, responses, publish settings, and push-notification watches.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261003',
+    revision: '20261004',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
