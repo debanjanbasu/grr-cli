@@ -211,17 +211,16 @@ jobs:
     # this workflow with `verify=true`, which is the second arm below. The
     # `release` arm is kept for the day a release is published by a human.
     #
-    # Two things make this go red, and both are fixed by a merge rather than
-    # by editing anything here:
-    #   1. The section for the tag that was just published cannot be in the
-    #      commit that tag points at (the tag did not exist when that commit
-    #      was made). Merging the regeneration PR above, or regenerating in
-    #      the release PR itself, is the remedy.
-    #   2. The committed CHANGELOG.md is out of date at the tag because a
-    #      regeneration PR was opened and never merged. Same remedy.
-    # Deleting the tag locally before generating was tried and does NOT help:
-    # the drift is real committed-file drift, not an artefact of the tag, so
-    # the check stays red until the regeneration is actually merged.
+    # Report-only on the section check, deliberately: the generator emits one
+    # heading per TAG, so the commit a tag points at cannot contain its own
+    # section — the tag did not exist when that commit was made. The old
+    # check grepped the tagged tree and therefore failed on every release,
+    # forever (v0.11.0 and v0.11.1 both went red this way). What is checked
+    # here instead is main's CHANGELOG.md, and a miss warns: the regeneration
+    # PR normally merges minutes after the release, so lagging is the expected
+    # state at release time. The hard, grace-windowed gate is the daily
+    # verify-delivery check (scripts/verify-delivery.ts), which fails once the
+    # release leaves the window with the section still missing.
     if: (github.event_name == 'release' && github.event.action == 'published') || inputs.verify == true
     runs-on: ubuntu-26.04-arm
     timeout-minutes: 10
@@ -240,24 +239,31 @@ jobs:
         with:
           node-version: "26"
 
-      - name: Check the released version has its changelog section
+      - name: Report on the released version's changelog section
         timeout-minutes: 5
         run: |
           set -euo pipefail
           # Two checks with different strictness, because they answer
           # different questions:
           #
-          # 1. HARD: the version being released must have its own section in
-          #    CHANGELOG.md. That is the real invariant — a release with no
-          #    changelog entry is a hole in the historical record, and the
-          #    remedy is merging the regeneration PR (or regenerating before
-          #    tagging).
+          # 1. REPORT: does main's CHANGELOG.md carry a section for the version
+          #    being released? main, not the checked-out tree — on the
+          #    `release` event the checkout is the tag, and a tag's commit can
+          #    never contain its own section (see the job comment above). A
+          #    miss warns here; verify-delivery.yml fails on it once the
+          #    release leaves its grace window, which is the enforcement.
           VERSION="$(grep -m1 '^version' Cargo.toml | sed 's/version = "\(.*\)"/\1/')"
-          if grep -Eq "^## \[?v?${VERSION}\]?" CHANGELOG.md; then
-            echo "CHANGELOG.md documents ${VERSION}."
+          # A failed fetch falls back to HEAD rather than failing a report:
+          # HEAD is the best available snapshot, and the enforcement lives in
+          # verify-delivery.yml.
+          ref=HEAD
+          git fetch --no-tags origin main && ref=origin/main || true
+          # No grep -q: it exits at the first match, git show takes SIGPIPE on
+          # the still-open pipe, and pipefail would read that as "no match".
+          if git show "$ref:CHANGELOG.md" | grep -E "^## \[?v?${VERSION}\]?" > /dev/null; then
+            echo "CHANGELOG.md on $ref documents ${VERSION}."
           else
-            echo "::error::CHANGELOG.md has no section for the released version ${VERSION}. Merge the regeneration PR (chore/changelog-regenerate), or regenerate before tagging."
-            exit 1
+            echo "::warning title=CHANGELOG.md has no section for ${VERSION} yet::The section is generated from the tag, so it can only land after the regeneration PR (chore/changelog-regenerate) merges — a snapshot taken minutes after a release is expected to lag. No action needed unless it is still missing tomorrow: verify-delivery.yml fails once the release leaves the 12h grace window."
           fi
           #
           # 2. ADVISORY: the generated file matching the moving HEAD exactly.
