@@ -533,17 +533,11 @@ pub(crate) async fn call_method(
     // Sending is the first moment a credential exists at all.
     let auth = auth.ok_or_else(|| anyhow::anyhow!("{}", crate::core::config::NO_CLIENT_HELP))?;
 
-    // Authorise what this method declares. grr's credential is consented
-    // for the union in SCOPES; a method needing something outside that set
-    // gets a clear message rather than a bare 403.
-    let needed = method.least_privilege_scope().unwrap_or_default();
-    if !needed.is_empty() && !crate::core::auth::SCOPES.contains(&needed) {
-        eprintln!(
-            "note: {}.{} wants `{needed}`, which is outside the scopes this build consented to. \
-             Attempting anyway; if Google answers 403, re-run `grr auth login` after extending the scope set.",
-            service.name, method.id
-        );
-    }
+    // No per-method consent gate: the login requests every scope the
+    // embedded index names (core::auth::scopes), so any method the index can
+    // express is inside the grant. What can still be stale is the TOKEN — a
+    // grant predates a widened set — and the 403 arm below names the scope
+    // and the remedy for exactly that case.
     let token = auth.get_access_token().await?;
 
     let parsed_url = url::Url::parse(&plan.url).with_context(|| {
@@ -577,10 +571,10 @@ pub(crate) async fn call_method(
             && let Some(scope) = method.least_privilege_scope()
         {
             bail!(
-                "{} {} -> HTTP 403: this method needs the `{scope}` scope, \
-                 which this build was not consented for.\n\
-                 Every other scope grr holds is working; re-consent with that scope added \
-                 to `SCOPES` in src/core/auth/mod.rs and rebuild.",
+                "{} {} -> HTTP 403: this method needs the `{scope}` scope.\n\
+                 This build requests every scope the embedded index names, so the likely cause \
+                 is a grant that predates the current set: re-run `grr auth login` to consent \
+                 again (and check the API is enabled on the Cloud project).",
                 plan.verb,
                 plan.url
             );

@@ -81,7 +81,7 @@ stdout stays JSON for `grr skills list`; `grr skills install` prints a human sum
 
 ## Scope honesty
 
-grr consents to a fixed scope set at login. A method whose least-privilege scope (the `leastPrivilegeScope` field in `describe`) falls outside that set prints a **note on stderr** and is attempted anyway; Google may then answer 403, and the error names the exact scope. That is a user decision, not a retry candidate — widening scopes requires a human to re-run `grr auth login`. Surface the note to the user instead of looping.
+grr consents to every scope the embedded index names, so any method the index can express is inside the grant — there is no per-method consent note and no escalation path. A 403 is therefore not a missing consent: it is either a grant that predates the current scope set (the remedy is a human re-running `grr auth login`) or an API that is not enabled on the Cloud project. Surface that distinction; never retry a 403 in a loop.
 
 ## Safety profiles — global flags, honored everywhere
 

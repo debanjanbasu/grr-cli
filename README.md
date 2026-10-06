@@ -3,9 +3,17 @@
 
 # grr
 
-[![CI](https://github.com/debanjanbasu/grr-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/debanjanbasu/grr-cli/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![CI](https://github.com/debanjanbasu/grr-cli/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/debanjanbasu/grr-cli/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/debanjanbasu/grr-cli?sort=semver)](https://github.com/debanjanbasu/grr-cli/releases)
 [![crates.io](https://img.shields.io/crates/v/grr-cli.svg)](https://crates.io/crates/grr-cli)
+[![downloads](https://img.shields.io/crates/d/grr-cli.svg)](https://crates.io/crates/grr-cli)
+[![docs.rs](https://img.shields.io/docsrs/grr-cli)](https://docs.rs/grr-cli)
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![Rust nightly](https://img.shields.io/badge/rust-nightly-orange.svg)](rust-toolchain.toml)
+[![Homebrew](https://img.shields.io/badge/homebrew-tap-FBB040?logo=homebrew&logoColor=white)](https://github.com/debanjanbasu/homebrew-tap)
+[![MCP server](https://img.shields.io/badge/MCP%20server-Glama-blue)](https://glama.ai/mcp/servers/debanjanbasu/grr-cli)
+[![Site](https://img.shields.io/badge/site-grr--cli.pages.dev-blue)](https://grr-cli.pages.dev)
 
 **Google tools from the terminal, at maximum performance.** `grr-cli` is one published Rust package built around the `grr` command-line binary. Fourteen Google APIs share one OAuth login and one command tree — generated straight from Google's own Discovery Service — while stdout stays clean and machine-readable.
 
@@ -236,11 +244,11 @@ grr gmail users messages list --user-id me --dry-run
 
 `grr api` stays as the flat escape hatch: `list [--service] [--filter] [--grouped]` to browse, `describe <id>` for parameters and scopes, `call <id>` to invoke, `refresh [--service]` to pull the index forward between releases. Because the index is embedded rather than fetched, both `grr api list` and `grr schema` work with no network at all.
 
-Authorisation is checked per method: `grr auth login` consents to a fixed set of scopes, and each call compares the method's least-privilege scope against that set instead of silently escalating — so a method needing something you never granted prints a note naming the scope and may fail with a spelled-out `403` rather than an opaque error. Docs, Sheets, and Slides work through the `drive` scope grr already holds; **Tasks needs the `tasks` scope, which this build does not request**, so a Tasks call prints a note naming the scope and can come back `403`. Their APIs (`tasks.googleapis.com`, `docs.googleapis.com`, `sheets.googleapis.com`, `slides.googleapis.com`) must be enabled on your Cloud project too — see [docs/gcp-setup.md](docs/gcp-setup.md).
+Consent is not per method: `grr auth login` requests the union of every scope the embedded index names — every method's scopes, plus a small curated floor — so any method the index can express is already inside the grant. `grr api describe` still reports each method's least-privilege scope for a human deciding what a call touches, but nothing is gated on it and a call is never refused for want of a narrower sibling. A `403` therefore means the token predates the current set (re-run `grr auth login` to consent again) or the API is not enabled on your Cloud project; the message names the scope and the remedy rather than failing opaquely. The trade-off is a long consent screen — the union is a heavy list to approve, and a heavier review for Google's app verification. Every API behind a command (`tasks.googleapis.com`, `docs.googleapis.com`, `sheets.googleapis.com`, `slides.googleapis.com`) must still be enabled on your Cloud project — see [docs/gcp-setup.md](docs/gcp-setup.md).
 
 ## Design philosophy
 
-- **Zero-config.** Release binaries carry an OAuth client compiled in by `build.rs`, so a fresh install runs `grr auth login` with nothing to configure. `~/.grr/config.toml` is the override, not the prerequisite, and holds only the OAuth client (ID, optionally a secret) plus — if you point `grr ask` at your own model — its `[systemone]` block (see [`grr ask` and System One](#grr-ask-and-system-one-jev)). Scopes, redirect URI, pool sizes, timeouts, and retry policy are compile-time constants tuned for Google's frontends ([src/core/http.rs](src/core/http.rs)). `GRR_CONFIG_PATH` overrides the file location, `RUST_LOG` the log level (`GRR_OAUTH__*` env vars exist for headless overrides) — nothing else is configurable, on purpose.
+- **Zero-config.** Release binaries carry an OAuth client compiled in by `build.rs`, so a fresh install runs `grr auth login` with nothing to configure. `~/.grr/config.toml` is the override, not the prerequisite, and holds only the OAuth client (ID, optionally a secret) plus — if you point `grr ask` at your own model — its `[systemone]` block (see [`grr ask` and System One](#grr-ask-and-system-one-jev)). Redirect URI, pool sizes, timeouts, and retry policy are compile-time constants tuned for Google's frontends ([src/core/http.rs](src/core/http.rs)), and the consent set is derived from the embedded index rather than a knob. `GRR_CONFIG_PATH` overrides the file location, `RUST_LOG` the log level (`GRR_OAUTH__*` env vars exist for headless overrides) — nothing else is configurable, on purpose.
 - **Generated, namespaced services.** The command tree is compiled from the Discovery index — the same machine-readable description Google publishes — so method additions land as a daily PR instead of a hand-written backlog. Mail is `grr gmail …`; Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, and Slides live alongside it, and account-level concerns stay top-level (`grr auth`, `grr api`, `grr ask`, `grr mcp`, `grr transport`, `grr schema`, `grr skills`). One login covers every service.
 - **Self-migrating installs.** A newer binary brings the agent skills it installed up to date on its own: files you never touched are replaced, files you edited get a 3-way merge against the bytes grr last wrote, and a conflict leaves your file untouched with the incoming version beside it (`.grr-incoming`). Files grr did not install are never touched. The check is lazy — a version compare; nothing is hashed until something actually needs merging.
 - **stdout purity.** Logs go to stderr, results go to stdout, so `| jq` always works. `-f jsonl` streams arrays one object per line.

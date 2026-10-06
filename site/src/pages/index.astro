@@ -236,8 +236,8 @@ const faqs = [
     answer: 'Release builds need no setup at all: a Google OAuth client is compiled into the binary, so `grr auth login` just works. Building from source? Run `grr auth setup`, which creates ~/.grr/config.toml for you, or bring your own client. PKCE is always enabled and tokens are kept in the operating system keyring, with a local file fallback for headless systems. `grr auth login --device` prints a URL and code for machines without a browser.',
   },
   {
-    question: 'Do I need to log in again for 0.5?',
-    answer: 'No. 0.5 does not add scopes, so an existing login keeps working. Version 0.4 did add chat.delete, chat.memberships, chat.messages.reactions and contacts.other.readonly, which needed a fresh `grr auth login`.',
+    question: 'Do I need to log in again after an update?',
+    answer: 'Once, for this release: the consent set is now derived from the embedded index — every scope any of the 401 methods names — so a token issued for the older, shorter set needs one fresh `grr auth login`. Logins after that keep working across releases until a discovery refresh adds a scope to the index, which needs another re-login.',
   },
   {
     question: 'Is grr affiliated with Google?',
@@ -257,7 +257,7 @@ const faqs = [
   },
   {
     question: 'Can an AI agent use it?',
-    answer: 'Yes, and the docs are written for that. Output is JSON on stdout with logs on stderr, so `grr ... | jq` and agent tool calls both get predictable data. An agent can discover capabilities with `grr api list` instead of assuming them, inspect any call with --dry-run, and authorise only the scopes the method it is calling actually needs. See the docs page for agents.',
+    answer: 'Yes, and the docs are written for that. Output is JSON on stdout with logs on stderr, so `grr ... | jq` and agent tool calls both get predictable data. An agent can discover capabilities with `grr api list` instead of assuming them, inspect any call with --dry-run, and read the exact scope a method declares before calling it — consent itself is granted once, for everything the embedded index names. See the docs page for agents.',
   },
 ];
 const storySteps = [

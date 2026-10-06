@@ -98,14 +98,14 @@ ${tasksMethodCount} methods
 
 $ grr api describe tasks.tasks.list
 # leastPrivilegeScope: https://www.googleapis.com/auth/tasks.readonly
-#   -> outside the scopes this build consented to
+#   -> inside the grant: login requests every scope the index names
 
 $ grr tasks tasks list --tasklist @default
-note: tasks.tasks.list wants 'https://www.googleapis.com/auth/tasks.readonly',
-      which is outside the scopes this build consented to. Attempting anyway;
-      if Google answers 403, re-run 'grr auth login' after extending the scope
-      set.
-... HTTP 403 ...`;
+GET https://tasks.googleapis.com/tasks/v1/users/@me/lists -> HTTP 403: this
+method needs the \`https://www.googleapis.com/auth/tasks.readonly\` scope.
+This build requests every scope the embedded index names, so the likely cause
+is a grant that predates the current set: re-run \`grr auth login\` to consent
+again (and check the API is enabled on the Cloud project).`;
 const idForms = `# Canonical: <service>.<resource>.<method>
 $ grr api call drive.files.list
 
@@ -136,7 +136,7 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
         <p>Two properties make this more than a thin passthrough:</p>
         <ul>
           <li><strong>It works offline.</strong> The index is compiled in, not fetched at runtime. <code>grr api list</code> and <code>grr api describe</code> need no network, no cache directory, and no API key, so an agent can discover what is available before it has a credential.</li>
-          <li><strong>Scope is reported per method, checked per call.</strong> Each method carries its own scope list; <code>grr api describe</code> reports the narrowest entry, and a call that needs a scope outside the consented set is noted (and gets a 403 if Google agrees). Consent itself is one fixed set of sixteen scopes, granted once at login &mdash; see the caveat below.</li>
+          <li><strong>Scope is reported per method, consented once for the whole index.</strong> Each method carries its own scope list, and <code>grr api describe</code> reports the narrowest entry. Consent is not per method: <code>grr auth login</code> requests the union of every scope the index names, so a call is never gated on a narrower sibling the build did not ask for &mdash; see the caveat below.</li>
         </ul>
         <p>The distilled index is a few hundred KiB across {discoveryServiceCount} service documents plus the manifest, against several megabytes for the raw documents &mdash; a meaningful difference in a binary whose size is a selling point.</p>
       </div>
@@ -239,16 +239,16 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
         <SectionIntro
           id="scopes-title"
           eyebrow="authorization"
-          title="One fixed consent set, and the services outside it."
-          copy="grr consents to one fixed set of sixteen scopes. Most of the index falls inside it; five services do not."
+          title="One consent set, derived from the index."
+          copy="grr consents to the union of every scope the embedded index names, so nothing the index can express falls outside it. A 403 now means a stale grant or a disabled API."
         />
         <div class="container prose reveal max-w-[68ch]">
           <p>Discovery lists each method&rsquo;s accepted scopes from broadest to narrowest, usually with <code>https://mail.google.com/</code> or <code>.../auth/drive</code> first. <code>grr api describe</code> reports the narrowest entry as <code>leastPrivilegeScope</code>, which is the right thing to show a human deciding what a call touches.</p>
-          <p>Before sending, grr compares that narrowest scope against the consented set. When it is not there, it prints a note to stderr and <strong>attempts the call anyway</strong>, because the narrow scope is often a sibling of a broader one the build does hold &mdash; <code>drive.readonly</code> and <code>drive.file</code> are both satisfied by the consented <code>auth/drive</code>. A note on stderr is a heads-up, not a failure. Treat the exit status as the answer.</p>
-          <p>Where a method genuinely needs a scope nobody consented to, grr names it. A 403 comes back with the specific scope and the file to edit, rather than a bare permission error:</p>
-          <CodeBlock code={tasks} label="tasks · the scope boundary" />
-          <p><strong>Five services fall outside the consent set.</strong> Tasks is the clearest: its {tasksMethodCount} methods need <code>.../auth/tasks</code> or <code>.../auth/tasks.readonly</code>, and neither is in the sixteen consented scopes nor covered by a broader one. Analytics Admin, Analytics Data and Search Console are in the same position, and Apps Script is too except for <code>scripts.run</code>, which accepts the Drive scope. All of them list and describe correctly, and <code>--dry-run</code> is accurate, but a live call returns 403 until the scope set in <code>src/core/auth/mod.rs</code> is extended and <code>grr auth login</code> is re-run.</p>
-          <p>A smaller tail behaves the same way for narrower reasons: Gmail CSE keypairs and S/MIME settings need <code>gmail.settings.*</code> scopes, directory people need <code>directory.readonly</code>, and most of the Chat admin surface (custom emoji, space import) needs scopes outside the consented set. Docs, Sheets, and Slides all work, because their methods accept the Drive scope the build already holds.</p>
+          <p>Reporting is the only place scope shows up during a call, though. There is no per-method consent gate: <code>grr auth login</code> requests the union of every scope the embedded index names, so any method the index can express is already inside the grant, and a call is never compared against the set or annotated when a narrow scope differs from a broader one you hold.</p>
+          <p>That leaves one honest failure mode, and it is almost always a stale token rather than a missing scope. grr names the scope it asked for and points at the remedy:</p>
+          <CodeBlock code={tasks} label="tasks · a 403 after the grant moved" />
+          <p><strong>Nothing in the index falls outside the consent set.</strong> Tasks, Analytics Admin, Analytics Data, Search Console, and Apps Script (including <code>scripts.run</code>) all declare scopes the login now requests, so a live call succeeds as soon as the API is enabled on your Cloud project. Gmail CSE keypairs, S/MIME settings, directory people, and the Chat admin surface fall inside it for the same reason. A residual 403 means the token predates the current set: re-run <code>grr auth login</code> to consent again.</p>
+          <p>The trade-off sits on the consent screen. The union is a long list to approve, and a heavier review for Google&rsquo;s app verification, in exchange for no call ever being refused for want of consent.</p>
         </div>
       </div>
     </section>
