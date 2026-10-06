@@ -22,7 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+
+- **verify:** keep --json stdout parseable, annotations go to stderr
+
+### Internal
+
+- 2 internal commits (chore 2)
 
 ## [0.11.2] - 2026-10-07
 
