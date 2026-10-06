@@ -22,7 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+
+- **ci:** run the rustsec audit on a resolved lockfile, re-aim the release changelog check
+
+### Internal
+
+- 5 internal commits (chore 5)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.11.1] - 2026-10-05
 
