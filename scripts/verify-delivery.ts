@@ -303,7 +303,11 @@ if (process.argv.includes('--json')) {
   }
   console.log(`\n${checks.length - failed.length}/${checks.length} ok${failed.length > 0 ? `, ${failed.length} FAILED` : ''}`);
 }
+// Annotations go to stderr so stdout stays parseable in EITHER mode: the
+// `::error::` lines used to follow the JSON object on stdout, which broke
+// every machine consumer of `--json` (and GitHub parses workflow commands
+// from stderr just as well as from stdout).
 for (const c of failed) {
-  console.log(`::error::${c.name}: ${c.detail}`);
+  console.error(`::error::${c.name}: ${c.detail}`);
 }
 process.exit(failed.length > 0 ? 1 : 0);
