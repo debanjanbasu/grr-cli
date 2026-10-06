@@ -1,12 +1,43 @@
 {
-  "generatedAt": "2026-10-06T14:28:02.147Z",
+  "generatedAt": "2026-10-06T15:07:24.308Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
-      "sections": []
+      "sections": [
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "keep --json stdout parseable, annotations go to stderr",
+              "scope": "verify",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "bump sharp from 0.35.4 to 0.35.5 in /site",
+              "scope": "deps-dev",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        }
+      ]
     },
     {
       "version": "0.11.2",
