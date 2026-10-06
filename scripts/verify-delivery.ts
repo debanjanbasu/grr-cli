@@ -229,6 +229,70 @@ if (typeof updatedAt !== 'string') {
   record('stats.json age', ageDays <= STATS_MAX_AGE_DAYS ? 'ok' : 'fail', `updated ${ageDays.toFixed(1)} days ago (limit ${STATS_MAX_AGE_DAYS})`);
 }
 
+// benchmarks.json — the /compare/ page's numbers. Freshness here is a VERSION
+// question, not a calendar one, so there is deliberately no day-count
+// threshold: a month with no grr and no competitor release leaves the
+// snapshot perfectly accurate, and failing it for age would be the kind of
+// check everyone learns to ignore. `scripts/benchmark.ts --gate` already
+// answers the real question — "has any measured version (grr, gog, gws)
+// moved since the snapshot was written?" — with three HTTPS fetches and no
+// build, so this asserts its verdict instead of re-implementing the
+// comparison; one comparator, one source of truth, and the same gate
+// benchmark.yml runs before deciding whether to spend a release build.
+//
+// Two nuances the gate itself cannot express:
+//   - it FAILS OPEN by design (a flaky GitHub API must never hide a
+//     competitor release) so skip=false with a fetch-problem reason is a
+//     warning here, not a failure — a delivery gate must not red on upstream
+//     flakiness;
+//   - drift right after a version bump is expected until the release (and
+//     then the benchmark run) catches up, hence the release grace window.
+// `--check` (the third mode) re-measures the whole suite and stays unwired
+// on purpose: benchmark.yml already refuses to open a PR when a fresh
+// measurement matches the committed one within the noise band.
+const benchmarks = readFileSync('site/src/data/benchmarks.json', 'utf8');
+const gate = spawnSync('node', ['scripts/benchmark.ts', '--gate'], { encoding: 'utf8' });
+const gateOut = gate.stdout ?? '';
+const gateReason = /^reason=(.*)$/m.exec(gateOut)?.[1]?.trim() ?? 'no reason reported';
+if (!/^skip=(true|false)$/m.test(gateOut)) {
+  record('benchmarks.json', 'fail', `the version gate produced no verdict (${gate.error?.message ?? (gateOut.trim() || 'empty output')})`);
+} else if (/^skip=true$/m.test(gateOut)) {
+  record('benchmarks.json', 'ok', 'snapshot matches every tracked version');
+} else if (/no readable committed snapshot/.test(gateReason)) {
+  record('benchmarks.json', 'fail', `snapshot unreadable: ${gateReason.slice(0, 160)}`);
+} else if (/could not be fetched|still unfetchable|gate error/.test(gateReason)) {
+  record('benchmarks.json', 'warn', `version gate could not be answered (fails open upstream): ${gateReason.slice(0, 160)}`);
+} else {
+  record('benchmarks.json', grace || anchor === null ? 'warn' : 'fail', `snapshot is behind: ${gateReason.slice(0, 200)}${grace || anchor === null ? ' (the benchmark refresh is still in flight, or the version has no tag yet)' : ''}`);
+}
+
+// The protocol block is what makes those numbers comparable at all — run
+// count, discarded warmups, the timer, the stability band, the memory
+// workload. A snapshot that lost it still parses and still renders; the page
+// just quietly stops being evidence. Exactly the fields the generator writes,
+// no more.
+const PROTOCOL_FIELDS = ['runs', 'warmupRunsDiscarded', 'timer', 'stability', 'memoryTimer', 'memoryWorkload'] as const;
+const protocolFieldOk = (key: string, value: unknown): boolean => {
+  if (typeof value === 'string') return value.trim().length > 0;
+  if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+  return key === 'runs' ? value > 0 : value >= 0;
+};
+let protocolProblem: string | null = null;
+try {
+  const snapshot = JSON.parse(benchmarks) as unknown;
+  const generatedAt = member(snapshot, 'generatedAt');
+  if (typeof generatedAt !== 'string' || Number.isNaN(Date.parse(generatedAt))) {
+    protocolProblem = 'generatedAt is missing or unparseable';
+  } else {
+    const protocol = member(snapshot, 'protocol');
+    const missing = PROTOCOL_FIELDS.filter((key) => !protocolFieldOk(key, member(protocol, key)));
+    if (missing.length > 0) protocolProblem = `protocol block lost ${missing.join(', ')}`;
+  }
+} catch (error) {
+  protocolProblem = `unreadable JSON (${error instanceof Error ? error.message : String(error)})`;
+}
+record('benchmarks.json protocol', protocolProblem === null ? 'ok' : 'fail', protocolProblem ?? 'generatedAt parses and the protocol block is intact');
+
 const failed = checks.filter((c) => c.status === 'fail');
 if (process.argv.includes('--json')) {
   console.log(JSON.stringify({ version, checks }, null, 2));
