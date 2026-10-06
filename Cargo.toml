@@ -12,7 +12,7 @@ resolver = "2"
 
 [package]
 name = "grr-cli"
-version = "0.11.1"
+version = "0.11.2"
 edition = "2024"
 license = "MIT"
 authors = ["Debanjan Basu <debanjanbasu2006@gmail.com>"]
