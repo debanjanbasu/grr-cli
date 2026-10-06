@@ -22,13 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [0.11.2] - 2026-10-07
+
 ### Fixed
 
 - **ci:** run the rustsec audit on a resolved lockfile, re-aim the release changelog check
+- **verify:** assert benchmarks.json drift and protocol instead of a calendar age
 
 ### Internal
 
-- 5 internal commits (chore 5)
+- 8 internal commits (chore 8)
 
 ### Other
 
@@ -372,7 +377,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.11.1...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.11.2...HEAD
+[0.11.2]: https://github.com/debanjanbasu/grr-cli/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/debanjanbasu/grr-cli/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.9.1...v0.10.0
