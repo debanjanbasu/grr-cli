@@ -22,8 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **auth:** consent to every scope the embedded index names
+
+### Internal
+
+- 2 internal commits (chore 2)
+
 ### Other
 
+- **compare:** refresh daily benchmark snapshot
 - **compare:** refresh daily benchmark snapshot
 
 ## [0.11.3] - 2026-10-06
