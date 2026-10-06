@@ -1,11 +1,17 @@
 {
-  "generatedAt": "2026-10-06T13:07:01.959Z",
+  "generatedAt": "2026-10-06T14:28:02.147Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": []
+    },
+    {
+      "version": "0.11.2",
+      "date": "2026-10-07",
+      "unreleased": false,
       "sections": [
         {
           "key": "fixed",
@@ -14,6 +20,12 @@
             {
               "description": "run the rustsec audit on a resolved lockfile, re-aim the release changelog check",
               "scope": "ci",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "assert benchmarks.json drift and protocol instead of a calendar age",
+              "scope": "verify",
               "type": "fix",
               "note": null
             }
@@ -50,6 +62,24 @@
             {
               "description": "refresh Google Discovery index",
               "scope": "discovery",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "bump source-map-js from 1.2.1 to 1.2.2 in /site",
+              "scope": "deps",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v0.11.2",
+              "scope": "release",
               "type": "chore",
               "note": null
             }
