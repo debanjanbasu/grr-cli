@@ -6,11 +6,11 @@ name: Daily benchmark
 # real runner time. The version gate keeps that cost honest in both
 # directions:
 #
-#   - Daily cron: a cheap first step (scripts/benchmark.ts --gate) fetches
+#   - Hourly cron: a cheap first step (scripts/benchmark.ts --gate) fetches
 #     the latest release tags of grr, gog and gws and compares them with the
 #     `versions` block recorded in the committed snapshot, plus the version
 #     in Cargo.toml. If nothing moved, the expensive suite is skipped
-#     entirely and the workflow exits as a quiet no-op day.
+#     entirely and the run ends in seconds as a quiet no-op.
 #   - Any version change (ours or a competitor's), a manual dispatch, or a
 #     published grr release: the full suite runs.
 #   - The script itself is idempotent within a documented noise band
@@ -23,10 +23,14 @@ name: Daily benchmark
 
 on:
   schedule:
-    # 03:23 UTC. Off the hour on purpose — every scheduled workflow in the
-    # world fires at :00 and GitHub queues them (same reasoning as
-    # discovery.yml's 17 4).
-    - cron: "23 3 * * *"
+    # Hourly at :23. A competitor's release can only be noticed by polling —
+    # their repository cannot webhook ours — so the polling cadence IS the
+    # lag on the /compare/ page, and the gate is three HTTPS fetches plus a
+    # compare (seconds), not the suite. The expensive measurement still only
+    # runs when a version actually moved. Off the hour on purpose — every
+    # scheduled workflow in the world fires at :00 and GitHub queues them
+    # (same reasoning as discovery.yml's 17 4).
+    - cron: "23 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -78,7 +82,7 @@ jobs:
         run: |
           node scripts/benchmark.ts --gate >> "$GITHUB_OUTPUT" || echo "skip=false" >> "$GITHUB_OUTPUT"
 
-      - name: Quiet no-op day
+      - name: Quiet no-op run
         if: steps.gate.outputs.skip == 'true'
         timeout-minutes: 2
         env:
