@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Verify the DELIVERED results, not just the repository: the crate on
 // crates.io, the docs.rs build, the release asset set, the Homebrew formula,
-// the live site's content — and the freshness of the generated data the site
-// renders. Every check here corresponds to a real, silent failure this repo
-// has already lived through: docs.rs failed 5/5 builds for weeks and nothing
+// the live site's content, the changelog section for the released version —
+// and the freshness of the generated data the site renders. Every check here
+// corresponds to a real, silent failure this repo has already lived through:
+// docs.rs failed 5/5 builds for weeks and nothing
 // noticed; the winget submission looped forever; a release could exist with
 // no crate, or a tag with no release, and only a human reading dashboards
 // would know.
@@ -123,6 +124,20 @@ if (release === null) {
   // "still landing", not a failure — the verifier caught exactly that race
   // on v0.9.1 before this policy applied here.
   record(`release ${tag} assets`, missing.length === 0 ? 'ok' : grace ? 'warn' : 'fail', missing.length === 0 ? `${assets.length} assets present` : `missing: ${missing.join(', ')}${grace ? ' (within the release grace window)' : ''}`);
+}
+
+// The changelog: every released version must have its own section in the
+// committed CHANGELOG.md. The generator emits one heading per TAG, so the
+// section cannot exist in the tagged commit — it lands when the regeneration
+// PR merges, minutes after the release on the automated path. That makes this
+// the only place the invariant can be enforced: the release-time changelog
+// job can only report, and a version whose write-up never landed fails here
+// once the release leaves the grace window (the v0.7.0-era hole).
+const changelog = readFileSync('CHANGELOG.md', 'utf8');
+if (new RegExp(`^## \\[?v?${version.replace(/\./g, '\\.')}\\]?`, 'm').test(changelog)) {
+  record('changelog', 'ok', `CHANGELOG.md documents ${version}`);
+} else {
+  record('changelog', grace ? 'warn' : 'fail', `CHANGELOG.md has no section for ${version}${grace ? ' (the regeneration PR is still merging)' : ' — the regeneration never landed'}`);
 }
 
 // crates.io: the published max stable version must be the manifest's.

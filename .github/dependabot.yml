@@ -42,7 +42,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 20
-    versioning-strategy: increase
+    # No `versioning-strategy` here, unlike cargo/npm below: the option is
+    # supported by bundler, cargo, composer, helm, mix, npm, pip, pub and uv
+    # only, and action pins are tags rather than ranges, so there is nothing
+    # for a strategy to widen.
     labels:
       - dependencies
       - github-actions

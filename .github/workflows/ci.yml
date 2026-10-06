@@ -206,6 +206,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         timeout-minutes: 2
+      - uses: dtolnay/rust-toolchain@nightly
+        timeout-minutes: 5
+      # Cargo.lock is deliberately untracked (.gitignore): every build resolves
+      # the latest semver-compatible versions instead of pinning. cargo-audit,
+      # however, reads a lockfile, and rustsec/audit-check passes
+      # `--file ./Cargo.lock` unconditionally — with no lock in the tree the
+      # job failed on EVERY run ("not found: Couldn't load ./Cargo.lock" →
+      # "Unexpected end of JSON input"), invisibly, because continue-on-error
+      # below keeps the run green. Resolve the graph the way a build does and
+      # audit that: the versions a fresh build will use are the ones worth
+      # checking against advisories.
+      - name: Resolve the lockfile the audit reads
+        timeout-minutes: 5
+        run: cargo generate-lockfile
       - name: Audit Rust dependencies
         uses: rustsec/audit-check@v2
         timeout-minutes: 10
