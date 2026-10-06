@@ -36,7 +36,7 @@ Values in `<angle brackets>` are placeholders — substitute real ids (`me` is t
 ## Scopes
 
 - Least privilege for reads: `https://www.googleapis.com/auth/presentations.readonly` — the narrowest scope the service's methods accept (it is the least-privilege scope for 3 of 5 methods). Per method, ask the index: `grr api describe <id>` → `leastPrivilegeScope`.
-- Scope honesty: grr consents to a fixed scope set at login. A method whose least-privilege scope falls outside that set prints a **note on stderr** and is attempted anyway; Google may answer 403, and the error names the exact scope. That is a user decision — widening scopes means a human re-runs `grr auth login`. Surface the note to the user; do not retry.
+- Scope honesty: the build consents to every scope the embedded index names, so any method in the index is inside the grant. A `403` is therefore not a missing consent: it is either a grant that predates the current scope set (the remedy is a human re-running `grr auth login`) or an API that is not enabled on the Cloud project. Surface that distinction; never retry a 403 in a loop.
 
 ## Contract
 

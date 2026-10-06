@@ -7,6 +7,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use anyhow::anyhow;
@@ -33,10 +34,33 @@ const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 /// Loopback redirect for the native-app flow (RFC 8252 §7.3).
 pub(crate) const REDIRECT_URI: &str = "http://localhost:3434/oauth/callback";
 
-/// Union of every service's scopes (Gmail, Calendar, Drive, People, Chat,
-/// Forms). Least-privilege selection is deliberately not implemented:
-/// one credential, everything works, nothing to configure.
-pub const SCOPES: &[&str] = &[
+/// The consent set: every scope the embedded index names, plus a curated
+/// floor for scopes no method declares. Requested in full at login —
+/// per-call escalation is deliberately not implemented, so "which scopes do
+/// I hold" is never a question: one credential, everything the index can
+/// express, nothing to configure. A token keeps whatever it was granted, so
+/// a build that widens this list needs one `grr auth login` to take effect.
+pub fn scopes() -> &'static [String] {
+    static SCOPES: LazyLock<Vec<String>> = LazyLock::new(|| {
+        let mut set: Vec<String> = CURATED_SCOPES.iter().map(|s| (*s).to_owned()).collect();
+        set.extend(crate::discovery::all_scopes());
+        set.sort_unstable();
+        set.dedup();
+        set
+    });
+    &SCOPES
+}
+
+/// Space-separated consent string, per RFC 6749 §3.3.
+pub(crate) fn scopes_joined() -> String {
+    scopes().join(" ")
+}
+
+/// Scopes every release has carried since long before the set became
+/// index-derived. The index names all of them today; keeping them as a floor
+/// means a discovery regression cannot silently drop a scope that an
+/// existing credential and an existing user rely on.
+const CURATED_SCOPES: &[&str] = &[
     // Gmail
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.compose",
@@ -59,11 +83,9 @@ pub const SCOPES: &[&str] = &[
     // Forms
     "https://www.googleapis.com/auth/forms.body",
     "https://www.googleapis.com/auth/forms.responses.readonly",
+    // Search Console
+    "https://www.googleapis.com/auth/webmasters.readonly",
 ];
-
-pub(crate) fn scopes_joined() -> String {
-    SCOPES.join(" ")
-}
 
 /// OAuth2 client with PKCE support
 #[derive(Clone)]
@@ -299,7 +321,7 @@ impl GoogleAuth {
             ));
         }
 
-        let mut storage = self::device::token_storage_from_response(&token_data, SCOPES)?;
+        let mut storage = self::device::token_storage_from_response(&token_data, scopes())?;
 
         // Google only sometimes rotates the refresh token; when the
         // response omits one, keep the stored value instead of clobbering

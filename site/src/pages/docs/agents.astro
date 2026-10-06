@@ -189,17 +189,16 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
           id="scope-title"
           eyebrow="rule four"
           title="Know which scopes you actually hold."
-          copy="grr consents to one fixed set of sixteen scopes. The narrowest scope each method accepts is reported per method; consent itself is not per-method."
+          copy="grr consents to every scope the embedded index names. The narrowest scope each method accepts is reported per method, but consent itself is not per-method: the grant already covers the whole index."
         />
         <div class="container prose reveal max-w-[68ch]">
-          <p class="lead">OAuth consent is granted once, for a fixed set of scopes, at <code>grr auth login</code>. You cannot widen it later from inside an agent run &mdash; that needs a new consent, which needs a human. So scope is a design constraint, not a runtime knob, and the per-method scope grr reports is a heads-up, not a request it can grant.</p>
-          <p>Because every command resolves its method against the index, the scope check is the same on both routes: read <code>leastPrivilegeScope</code> from <code>grr api describe</code> before relying on a method, and treat the result as part of your plan, not an afterthought.</p>
-          <p>Two behaviours to expect, both benign, both worth not misdiagnosing:</p>
+          <p class="lead">OAuth consent is granted once, at <code>grr auth login</code>, and it covers every scope the embedded index names &mdash; the union of every method&rsquo;s scopes, plus a small curated floor. You cannot change it from inside an agent run &mdash; a new consent needs a human &mdash; but there is nothing left outside the grant to ask for. So scope is a design constraint, not a runtime knob, and the per-method scope grr reports is a heads-up, not a request it can grant.</p>
+          <p>Because every command resolves its method against the index, scope reporting is the same on both routes: read <code>leastPrivilegeScope</code> from <code>grr api describe</code> to see what a call touches, though nothing gates on it.</p>
+          <p>That leaves one failure mode to expect, and it is worth not misdiagnosing:</p>
           <ul>
-            <li>A <strong>note on stderr</strong> saying a method wants a scope outside the consented set is a warning, not a verdict. grr attempts the call anyway, because the narrow scope is often a sibling of a broader one the build does hold. Check the exit status, not the note.</li>
-            <li>A <strong>403</strong> is the real answer. grr&rsquo;s error names the specific scope and the file to edit. The common cause is a method genuinely outside the consented set &mdash; Gmail CSE keypairs, S/MIME settings, directory people, most of the Chat admin surface, and the five services whose methods never accept a consented scope: Tasks, Analytics Admin, Analytics Data, Search Console, and Apps Script except <code>scripts.run</code> (which accepts the Drive scope).</li>
+            <li>A <strong>403</strong> is the real answer, but not a verdict on the method. grr&rsquo;s error names the scope it asked for and points at the remedy: the likely cause is a token that predates the current set, so re-run <code>grr auth login</code> to consent again &mdash; or the API is not enabled on the Cloud project. There is no note on stderr to watch for, and no method the index can express is refused for want of consent.</li>
           </ul>
-          <p>The full breakdown, including which services work and which do not, is on <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
+          <p>The full breakdown &mdash; how the set is derived, and the trade-off it carries &mdash; is on <a href={`${base}docs/discovery/`}>Discovery API</a>.</p>
         </div>
       </div>
     </section>

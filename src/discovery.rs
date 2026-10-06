@@ -14,11 +14,12 @@
 //!
 //! Two properties matter more than the coverage:
 //!
-//! 1. **Least privilege.** Each method carries its own scope list, and grr
-//!    authorises only the scopes the requested method needs. Asking for all
-//!    97 Workspace scopes up front would exceed the ~25-scope ceiling
-//!    Google applies to unverified apps in testing mode, and would fail at
-//!    consent; per-method authorisation sidesteps that entirely.
+//! 1. **One consent, everything works.** Every method carries its own scope
+//!    list — `grr api describe` reports it and a 403 names it — but the
+//!    login requests the union of all of them (`all_scopes` below), so a
+//!    method that exists is a method you can call without a second consent
+//!    round-trip. The index is the ceiling: whatever Google publishes next
+//!    is reachable, scope included, the day the discovery PR lands.
 //! 2. **Offline.** The index is compiled in, so `grr api list` and
 //!    `describe` work with no network and no cache directory.
 
@@ -272,6 +273,23 @@ pub fn cache_dir() -> Option<std::path::PathBuf> {
 /// corrupt cache lose to any embedded baseline rather than win.
 fn revision_rank(revision: &str) -> u64 {
     revision.trim().parse::<u64>().unwrap_or(0)
+}
+
+/// Every distinct scope the index names, sorted and deduped. The consent set
+/// is built from this (`core::auth::scopes`) instead of from a hand-typed
+/// list, so a scope Google adds arrives with the daily discovery PR rather
+/// than waiting for someone to notice a 403. Sorted, because the consent
+/// string must be byte-stable across runs.
+pub fn all_scopes() -> Vec<String> {
+    let mut scopes: Vec<String> = services()
+        .values()
+        .flat_map(|service| &service.methods)
+        .flat_map(|method| &method.scopes)
+        .cloned()
+        .collect();
+    scopes.sort_unstable();
+    scopes.dedup();
+    scopes
 }
 
 /// Every service, keyed by name: the embedded baseline overlaid with any
@@ -1012,6 +1030,50 @@ mod tests {
         assert!(err.contains("known:"), "should list services: {err}");
         let err = resolve("gmailonly").unwrap_err();
         assert!(err.contains("expected <service>"), "unhelpful: {err}");
+    }
+
+    #[test]
+    fn all_scopes_is_the_sorted_union_of_every_method() {
+        let union = all_scopes();
+        assert!(
+            union.windows(2).all(|pair| pair[0] < pair[1]),
+            "the union must be sorted and deduped"
+        );
+        for service in services().values() {
+            for method in &service.methods {
+                for scope in &method.scopes {
+                    assert!(
+                        union.binary_search(scope).is_ok(),
+                        "{scope} is not in the union"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_consent_set_contains_every_indexed_scope() {
+        // The login requests this set in full, so a scope that is indexed but
+        // not consented is a method that 403s on first use — the exact
+        // failure mode the whole design exists to prevent.
+        let consent = crate::core::auth::scopes();
+        for scope in all_scopes() {
+            assert!(
+                consent.contains(&scope),
+                "{scope} is indexed but not consented"
+            );
+        }
+        // The curated floor survives alongside the index union.
+        for scope in [
+            "https://mail.google.com/",
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/webmasters.readonly",
+        ] {
+            assert!(
+                consent.iter().any(|consented| consented == scope),
+                "{scope} was dropped from the consent set"
+            );
+        }
     }
 
     #[test]

@@ -141,7 +141,7 @@ impl super::GoogleAuth {
             }
         }
 
-        let storage = token_storage_from_response(&body, super::SCOPES)?;
+        let storage = token_storage_from_response(&body, super::scopes())?;
         *self.token_storage.write().await = Some(storage.clone());
         self.save_token(&storage).await?;
         Ok(Some(storage))
@@ -163,7 +163,7 @@ impl super::GoogleAuth {
 /// Shared by the PKCE exchange and the device poll.
 pub(crate) fn token_storage_from_response(
     token_data: &serde_json::Value,
-    scopes: &[&str],
+    scopes: &[String],
 ) -> Result<TokenStorage> {
     let access_token = token_data["access_token"]
         .as_str()

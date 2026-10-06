@@ -8,7 +8,7 @@ use url::Url;
 
 use crate::core::error::{GrrError, Result};
 
-use super::{REDIRECT_URI, SCOPES, TokenStorage};
+use super::{REDIRECT_URI, TokenStorage};
 
 impl super::GoogleAuth {
     /// Run full OAuth2 flow with PKCE
@@ -74,6 +74,6 @@ impl super::GoogleAuth {
             ));
         }
 
-        super::device::token_storage_from_response(&token_data, SCOPES)
+        super::device::token_storage_from_response(&token_data, super::scopes())
     }
 }
