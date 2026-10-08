@@ -2,7 +2,7 @@
   "version": "0.12.0",
   "crateDownloads": 140,
   "crateDownloads30d": 140,
-  "githubDownloads": 164,
+  "githubDownloads": 168,
   "latestRelease": "v0.12.0",
   "latestReleaseDate": "2026-10-06T21:05:04Z",
   "binarySizes": {
@@ -13,5 +13,5 @@
     "windows-x86_64": 3035556,
     "winget-manifests": 898
   },
-  "updatedAt": "2026-10-07T11:42:52.827Z"
+  "updatedAt": "2026-10-08T11:57:58.133Z"
 }
