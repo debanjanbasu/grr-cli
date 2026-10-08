@@ -38,7 +38,7 @@ If you add a service to the index, it goes in the `SERVICES` map in `scripts/fet
 
 ### Adding New Features
 
-- This is one package, `grr-cli`, whose binary is `grr`. The seven static commands are `auth` (including the `setup.rs` subcommand), `api`, `ask`, `mcp`, `schema`, `skills`, and `transport` — the files in `src/commands/` (`auth.rs`, `api.rs`, `ask.rs`, `mcp.rs`, `setup.rs`, `skills.rs`, `transport.rs`, plus the shared safety gate in `safety.rs`), with `grr schema` in `src/schema.rs`; shared transport, auth, and config live in `src/core/` (`http.rs`, `auth/`, `config.rs`).
+- This is one package, `grr-cli`, whose binary is `grr`. The eight static commands are `auth` (including the `setup.rs` subcommand), `api`, `ask`, `completions`, `mcp`, `schema`, `skills`, and `transport` — the files in `src/commands/` (`auth.rs`, `api.rs`, `ask.rs`, `completions.rs`, `mcp.rs`, `setup.rs`, `skills.rs`, `transport.rs`, plus the shared safety gate in `safety.rs`), with `grr schema` in `src/schema.rs`; shared transport, auth, and config live in `src/core/` (`http.rs`, `auth/`, `config.rs`).
 - **Service commands are not hand-written.** To add or change one, change the Discovery index (via the fetch script) and regenerate — never edit `src/commands/generated.rs` directly. A new method Google ships upstream reaches the CLI through the daily PR with no code change.
 - Keep the zero-config philosophy: new behavior should need no new config knobs unless there is no alternative
 - Each change needs a clear brief, tests, and self-review
