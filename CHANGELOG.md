@@ -22,7 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- **cli:** shell completions for bash, zsh, powershell and elvish
+
+### Internal
+
+- 6 internal commits (chore 6)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.12.0] - 2026-10-06
 
