@@ -195,7 +195,7 @@ fell_back: false
 ...
 
 $ grr schema | jq -r '.subcommands[].name'
-["auth","api","mcp","transport","schema","ask","skills","analyticsadmin","analyticsdata","calendar","chat","docs","drive","forms","gmail","people","script","searchconsole","sheets","slides","tasks"]`;
+["auth","api","mcp","transport","schema","completions","ask","skills","analyticsadmin","analyticsdata","calendar","chat","docs","drive","forms","gmail","people","script","searchconsole","sheets","slides","tasks"]`;
 const pipes = `# stdout is data, stderr is logs -- so this is always valid JSON.
 $ grr gmail users messages list --user-id me --q "from:github.com" --max-results 10 | jq -r '.messages[0].id'
 19f8ab2c
@@ -254,7 +254,7 @@ grr ask "show my unread messages" --run    # executes the resolved request
         />
         <div class="container prose reveal max-w-[68ch]">
           <CodeBlock code={naming} label="method id → command" />
-          <p>Top level: <code>grr auth</code>, <code>grr api</code>, <code>grr mcp</code>, <code>grr schema</code>, <code>grr transport</code>, <code>grr ask</code>, <code>grr skills</code>, plus one subcommand per service. The tree is emitted into <code>src/commands/generated.rs</code> by a generator that reads the committed Discovery index, and a daily workflow opens a PR when Google adds a method &mdash; so new surface arrives without a grr release.</p>
+          <p>Top level: <code>grr auth</code>, <code>grr api</code>, <code>grr mcp</code>, <code>grr schema</code>, <code>grr completions</code>, <code>grr transport</code>, <code>grr ask</code>, <code>grr skills</code>, plus one subcommand per service. The tree is emitted into <code>src/commands/generated.rs</code> by a generator that reads the committed Discovery index, and a daily workflow opens a PR when Google adds a method &mdash; so new surface arrives without a grr release.</p>
           <p>Flag names come from the same ids, camelCase collapsed to kebab-case, typed by what Discovery declares:</p>
           <ul>
             <li><strong>Integers</strong> are parsed as numbers: <code>--max-results 10</code>.</li>
@@ -314,7 +314,7 @@ grr ask "show my unread messages" --run    # executes the resolved request
         <SectionIntro
           id="account-title"
           eyebrow="account level"
-          title="The seven commands that are not a service."
+          title="Commands outside the service tree."
           copy="These sit at the top level because they are not about one API. grr schema is the one to build against."
         />
         <div class="install-grid mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -334,6 +334,12 @@ grr ask "show my unread messages" --run    # executes the resolved request
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base"><code>grr schema</code></h2>
               <p class="m-0 text-[13px] text-base-content/70">Dumps the entire command tree as JSON: every subcommand, every argument, whether it is required, whether it takes a value, its default, and its possible values. Because the tree itself is generated from the index, schema is a faithful census of all {discoveryMethodTotal} methods.</p>
+            </div>
+          </article>
+          <article class="install-card card card-border border-base-300 bg-base-100">
+            <div class="card-body gap-1 p-5">
+              <h2 class="card-title m-0 text-base"><code>grr completions</code></h2>
+              <p class="m-0 text-[13px] text-base-content/70">Prints a bash, zsh, PowerShell or elvish completion script generated from the same tree as schema, so every service command, alias and flag completes offline with zero configuration. Bash and zsh load installed scripts lazily; PowerShell and elvish snippets run the generator at shell startup. Fish is not supported yet: its generator stops two levels deep. <a class="link link-hover" href="https://github.com/debanjanbasu/grr-cli#install">Setup per shell &rarr;</a></p>
             </div>
           </article>
           <article class="install-card card card-border border-base-300 bg-base-100">

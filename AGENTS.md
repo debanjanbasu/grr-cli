@@ -43,6 +43,7 @@ node scripts/generate-changelog.ts --check # idempotency gate
 npm run demo                             # regenerate demo/demo.cast (local: + opencode segment)
 
 grr schema                                  # the full command tree as JSON — the contract
+grr completions <bash|elvish|powershell|zsh> # shell completion script for the full tree, offline (no fish: clap_complete's fish generator stops at 2 levels)
 grr api list [--service X] [--filter SUBSTR] # the 401 methods, offline, no login
 grr skills install [--claude] [--force]      # the packaged agent skills into ~/.agents/skills, offline
 grr skills list                              # what is installed, per target directory
@@ -52,7 +53,7 @@ grr skills list                              # what is installed, per target dir
 
 | Layer | Files | What lives there |
 |---|---|---|
-| CLI | `src/cli.rs`, `src/commands/*.rs` | Static commands (auth, api, mcp, transport, schema, ask, skills) as derive types; the entire service tree is `src/commands/generated.rs` (compiled from the index by the generator, dispatched by `gen_dispatch.rs` through the shared call path in `api.rs`). `auth setup`, `schema` and `skills` run before config load (they must work with zero configuration; `skills` embeds its payload with `include_str!`). |
+| CLI | `src/cli.rs`, `src/commands/*.rs` | Static commands (auth, api, mcp, transport, schema, completions, ask, skills) as derive types; the entire service tree is `src/commands/generated.rs` (compiled from the index by the generator, dispatched by `gen_dispatch.rs` through the shared call path in `api.rs`). `auth setup`, `schema`, `completions` and `skills` run before config load (they must work with zero configuration; `skills` embeds its payload with `include_str!`). |
 | Discovery | `src/discovery.rs` | The embedded index + `grr api` resolution: method ids, path templates, scopes, params. Parsed once into a `OnceLock`. This index is the single source of truth for BOTH surfaces — the generated tree is compiled from it. |
 | Core | `src/core/` | Auth (OAuth+PKCE, keyring), HTTP (HTTP/3), config, errors, runtime probes (io_uring availability). |
 | Build | `build.rs`, `.cargo/config.toml` | Nightly guard + compile-time OAuth client injection; build-std + per-target rustflags. |

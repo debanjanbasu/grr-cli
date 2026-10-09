@@ -27,6 +27,7 @@ pub(crate) async fn build_auth(config: &GrrConfig) -> Result<GoogleAuth> {
 pub mod api;
 pub mod ask;
 pub mod auth;
+pub mod completions;
 pub mod gen_dispatch;
 pub mod generated;
 pub mod mcp;
