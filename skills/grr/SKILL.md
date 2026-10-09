@@ -35,7 +35,7 @@ sheets.spreadsheets.values.get  ->  grr sheets spreadsheets values get
 tasks.tasklists.list            ->  grr tasks tasklists list
 ```
 
-Top level: `grr auth | api | ask | mcp | schema | skills | transport` plus one subcommand per service (gmail, calendar, drive, people, chat, forms, tasks, docs, sheets, slides, script, analyticsadmin, analyticsdata, searchconsole). Resources nest as subcommands; each method is a leaf that also carries its bare name as a visible alias (`list`, `get` — camelCase methods keep their casing, e.g. `getProfile`).
+Top level: `grr auth | api | ask | completions | mcp | schema | skills | transport` plus one subcommand per service (gmail, calendar, drive, people, chat, forms, tasks, docs, sheets, slides, script, analyticsadmin, analyticsdata, searchconsole). Resources nest as subcommands; each method is a leaf that also carries its bare name as a visible alias (`list`, `get` — camelCase methods keep their casing, e.g. `getProfile`).
 
 Flags are generated from the same ids, camelCase → kebab-case:
 

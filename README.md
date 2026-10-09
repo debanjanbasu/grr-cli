@@ -71,6 +71,26 @@ brew install grr
 
 The crates.io CLI build needs nightly Rust and `RUSTFLAGS="--cfg reqwest_unstable"` for HTTP/3; the prebuilt releases avoid that source-build step. `cargo install` also produces a binary with no embedded OAuth client, so budget five minutes for `grr auth setup` (or a `.env`) on that path.
 
+**Shell completions** — `grr completions <shell>` prints scripts from the same tree as `grr --help`. Bash and zsh: write the script once (refresh after upgrading); both load it lazily (the zsh script is ~2.6 MB). PowerShell and Elvish snippets below run the generator on each shell startup.
+
+```sh
+# zsh: any directory on $fpath; if ~/.zfunc is not on it yet, add
+# `fpath=(~/.zfunc $fpath)` to ~/.zshrc ABOVE compinit (or oh-my-zsh's source line)
+mkdir -p ~/.zfunc && grr completions zsh > ~/.zfunc/_grr
+
+# bash (bash-completion 2.x loads this lazily)
+mkdir -p ~/.local/share/bash-completion/completions
+grr completions bash > ~/.local/share/bash-completion/completions/grr
+
+# PowerShell: add to $PROFILE
+grr completions powershell | Out-String | Invoke-Expression
+
+# elvish: add to rc.elv
+eval (grr completions elvish | slurp)
+```
+
+Fish is not supported yet: clap_complete's fish generator stops below two levels of subcommand nesting, and grr's methods sit three to five levels deep.
+
 ## 60-second quickstart
 
 ```sh
@@ -198,6 +218,7 @@ The command tree is **generated** from the committed Discovery index by `scripts
 | `grr mcp` | an MCP (JSON-RPC over stdio) server exposing every method as a typed tool; `--readonly` for read-only | - |
 | `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 401 |
 | `grr schema` | the whole command tree as JSON | — |
+| `grr completions` | `<bash\|elvish\|powershell\|zsh>` — a shell completion script for the whole tree, offline; see [Install](#install) | — |
 | `grr transport` | negotiated HTTP version + runtime features | — |
 | `grr skills` | `install [--dir PATH] [--claude] [--force]`, `list` — the 16 packaged skill files (the core skill, one per service, and their index) into the user-level skills directory (`~/.agents/skills`, offline; `--claude` mirrors to `~/.claude/skills`) | — |
 | `grr gmail` | messages, threads, drafts, labels, history, attachments, filters, forwarding, POP/IMAP, send-as, CSE, delegates, watches | 79 |
@@ -295,7 +316,8 @@ Measured startup, binary size, and request-latency numbers against the other Goo
 │   │                         # config.rs, config_loader.rs, error.rs,
 │   │                         # runtime.rs (the io_uring probe)
 │   ├── commands/             # auth.rs, api.rs, setup.rs, transport.rs,
-│   │                         # skills.rs, mcp.rs, ask.rs, safety.rs (the static
+│   │                         # skills.rs, mcp.rs, ask.rs, completions.rs,
+│   │                         # safety.rs (the static
 │   │                         # + generated.rs (GENERATED — the
 │   │                         # whole service tree, ~470 KiB) and gen_dispatch.rs
 │   │                         # (resolves leaf ids, funnels into the shared path)

@@ -120,6 +120,7 @@ fn top_level_help_lists_static_commands_and_every_service() {
         .stdout(predicate::str::contains("auth"))
         .stdout(predicate::str::contains("api"))
         .stdout(predicate::str::contains("schema"))
+        .stdout(predicate::str::contains("completions"))
         .stdout(predicate::str::contains("transport"))
         .stdout(predicate::str::contains("skills"))
         .stdout(predicate::str::contains("gmail"))
@@ -310,6 +311,43 @@ fn schema_table_output_renders_field_value_table() {
         .stdout(predicate::str::contains("Value"))
         .stdout(predicate::str::contains("name"))
         .stdout(predicate::str::contains("subcommands"));
+}
+
+#[test]
+fn completions_cover_the_generated_tree_without_config() {
+    // Each script must name the binary and reach into the generated
+    // service tree, proving it is built from the composed root command
+    // rather than the static derive commands alone.
+    for (shell, marker) in [
+        ("bash", "complete -F _grr"),
+        ("zsh", "#compdef grr"),
+        ("powershell", "Register-ArgumentCompleter"),
+        ("elvish", "edit:completion:arg-completer[grr]"),
+    ] {
+        grr()
+            .arg("completions")
+            .arg(shell)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains(marker))
+            .stdout(predicate::str::contains("gmail"))
+            .stdout(predicate::str::contains("max-results"))
+            .stderr(predicate::str::is_empty());
+    }
+}
+
+#[test]
+fn completions_refuse_fish() {
+    // clap_complete's fish generator cannot reach grr's 3-5 level method
+    // depth, so fish is refused rather than given a misleading script.
+    grr()
+        .arg("completions")
+        .arg("fish")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "possible values: bash, elvish, powershell, zsh",
+        ));
 }
 
 #[test]

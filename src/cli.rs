@@ -4,8 +4,8 @@
 //! layers:
 //!
 //! * a thin, hand-written set of account-level commands — `auth`, `api`,
-//!   `mcp`, `transport`, `schema`, `ask`, `skills` — kept as clap derive
-//!   types;
+//!   `mcp`, `transport`, `schema`, `completions`, `ask`, `skills` — kept
+//!   as clap derive types;
 //! * the ENTIRE generated service command tree, built from the committed
 //!   Discovery index into `commands/generated.rs`, because the index is
 //!   the single source of truth for the CLI surface and it changes daily.
@@ -25,7 +25,8 @@ use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::commands::{
-    api, ask, auth, build_auth, gen_dispatch, generated, mcp, safety, skills, transport,
+    api, ask, auth, build_auth, completions, gen_dispatch, generated, mcp, safety, skills,
+    transport,
 };
 use crate::logo;
 use crate::schema;
@@ -72,6 +73,10 @@ enum StaticCommands {
     /// Dump the full command tree as JSON (machine-readable contract)
     Schema(schema::SchemaArgs),
 
+    /// Print a shell completion script for the full command tree
+    /// (bash, elvish, powershell, zsh)
+    Completions(completions::CompletionsArgs),
+
     /// Natural-language entry point: a System One model (Jev by default)
     /// picks the method from the discovery catalog and fills its
     /// parameters. Prints the plan; --run executes it.
@@ -83,9 +88,9 @@ enum StaticCommands {
     Skills(skills::SkillsCommands),
 }
 
-/// The complete parse tree: the seven static commands plus every generated
-/// service command. `grr --help` and `grr schema` both read this, so it
-/// is the single definition of the CLI surface.
+/// The complete parse tree: the eight static commands plus every generated
+/// service command. `grr --help`, `grr schema` and `grr completions` all
+/// read this, so it is the single definition of the CLI surface.
 ///
 /// The safety flags are `global(true)`: clap merges global args across
 /// levels, so `--readonly` parses whether it appears before the subcommand
@@ -126,10 +131,12 @@ pub async fn run() -> Result<()> {
     // LAZY — `skills::maybe_auto_migrate` reads the manifest and compares the
     // version before hashing a single file, and does nothing at all when no
     // manifest exists. Skipped for `skills` itself (it manages its own
-    // install/list) and unreachable for `--help`/`--version`, which clap
-    // handles and exits from inside `get_matches`. stdout stays pure: the
-    // one-line summary goes to stderr.
-    if name != "skills"
+    // install/list) and for `completions`, which shells commonly run on
+    // every startup (`source <(grr completions zsh)`) and so must not write
+    // files or print to the terminal; unreachable for `--help`/`--version`,
+    // which clap handles and exits from inside `get_matches`. stdout stays
+    // pure: the one-line summary goes to stderr.
+    if !matches!(name, "skills" | "completions")
         && let Some(summary) = skills::maybe_auto_migrate()
     {
         eprintln!("{summary}");
@@ -141,6 +148,13 @@ pub async fn run() -> Result<()> {
         "schema" => {
             let args = schema::SchemaArgs::from_arg_matches(sub)?;
             schema::handle_schema_cmd(root_command(), args)?;
+        }
+
+        // Completion scripts are clap introspection too, so they need no
+        // configuration and answer before it is loaded.
+        "completions" => {
+            let args = completions::CompletionsArgs::from_arg_matches(sub)?;
+            completions::handle_completions_cmd(root_command(), args)?;
         }
 
         // The skills are compiled into the binary (`include_str!`), so
