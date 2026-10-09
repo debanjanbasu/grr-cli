@@ -339,7 +339,7 @@ grr ask "show my unread messages" --run    # executes the resolved request
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base"><code>grr completions</code></h2>
-              <p class="m-0 text-[13px] text-base-content/70">Prints a bash, zsh, PowerShell or elvish completion script generated from the same tree as schema, so every service command, alias and flag completes, offline and with zero configuration. Write it to a file once rather than evaluating it at every shell start. Fish is not supported yet: its generator stops two levels deep. <a class="link link-hover" href="https://github.com/debanjanbasu/grr-cli#install">Setup per shell &rarr;</a></p>
+              <p class="m-0 text-[13px] text-base-content/70">Prints a bash, zsh, PowerShell or elvish completion script generated from the same tree as schema, so every service command, alias and flag completes offline with zero configuration. Bash and zsh load installed scripts lazily; PowerShell and elvish snippets run the generator at shell startup. Fish is not supported yet: its generator stops two levels deep. <a class="link link-hover" href="https://github.com/debanjanbasu/grr-cli#install">Setup per shell &rarr;</a></p>
             </div>
           </article>
           <article class="install-card card card-border border-base-300 bg-base-100">

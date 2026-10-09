@@ -71,7 +71,7 @@ brew install grr
 
 The crates.io CLI build needs nightly Rust and `RUSTFLAGS="--cfg reqwest_unstable"` for HTTP/3; the prebuilt releases avoid that source-build step. `cargo install` also produces a binary with no embedded OAuth client, so budget five minutes for `grr auth setup` (or a `.env`) on that path.
 
-**Shell completions** — `grr completions <shell>` prints a script generated from the same tree as `grr --help`, so every service command, alias and flag completes. Write it to a file once (and again after upgrading) rather than evaluating it on every shell start: the zsh script is ~2.6 MB, and an `fpath` file is only loaded on the first Tab.
+**Shell completions** — `grr completions <shell>` prints scripts from the same tree as `grr --help`. Bash and zsh: write the script once (refresh after upgrading); both load it lazily (the zsh script is ~2.6 MB). PowerShell and Elvish snippets below run the generator on each shell startup.
 
 ```sh
 # zsh: any directory on $fpath; if ~/.zfunc is not on it yet, add
