@@ -57,7 +57,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 64,
     scopes: 10,
-    revision: '20261003',
+    revision: '20261005',
     note: 'Files, permissions, comments, revisions, changes, drives, and team drives.',
   },
   {
@@ -66,7 +66,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 24,
     scopes: 12,
-    revision: '20261006',
+    revision: '20261007',
     note: 'Contacts, connections, other contacts, contact groups, and directory people.',
   },
   {
@@ -93,7 +93,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v4',
     methods: 17,
     scopes: 5,
-    revision: '20260930',
+    revision: '20261005',
     note: 'Spreadsheet values, batch updates, data filters, and developer metadata.',
   },
   {
@@ -111,7 +111,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 5,
     scopes: 7,
-    revision: '20261007',
+    revision: '20261006',
     note: 'Presentation batch updates, page reads, and thumbnails.',
   },
   {
@@ -120,7 +120,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 3,
     scopes: 5,
-    revision: '20261007',
+    revision: '20261006',
     note: 'Document create, read, and batch update.',
   },
   {
@@ -138,7 +138,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 55,
     scopes: 2,
-    revision: '20261006',
+    revision: '20261007',
     note: 'Accounts, properties, data streams, custom dimensions and metrics, conversion events, and the Ads and Firebase links.',
   },
   {
@@ -147,7 +147,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 11,
     scopes: 2,
-    revision: '20261006',
+    revision: '20261007',
     note: 'Run reports — standard, realtime, pivot, and batch — plus compatibility checks, metadata, and audience exports.',
   },
   {
