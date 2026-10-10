@@ -48,7 +48,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 38,
     scopes: 18,
-    revision: '20261002',
+    revision: '20261005',
     note: 'Calendars, events, instances, ACL, free/busy, colors, and settings.',
   },
   {
@@ -75,7 +75,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 54,
     scopes: 41,
-    revision: '20261005',
+    revision: '20261008',
     note: 'Spaces, messages, memberships, reactions, attachments, sections, and availability.',
   },
   {
