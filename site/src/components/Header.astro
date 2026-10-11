@@ -54,7 +54,7 @@ const isActive = (href: string) => {
           <span class="search-trigger-label" aria-hidden="true">Search</span>
           <kbd class="search-trigger-kbd" aria-hidden="true">/</kbd>
         </button>
-        <script is:inline>document.documentElement.dataset.searchReady = '';</script>
+        <script is:inline data-astro-rerun>document.documentElement.dataset.searchReady = '';</script>
         <noscript>
           <a class="search-noscript" href={`${base}docs/`}>Docs index</a>
         </noscript>

@@ -10,9 +10,9 @@ name: Dependabot auto-merge
 # where an API change can plausibly require a code edit, so those still go
 # through the full suite.
 #
-# Detection: every patch group in .github/dependabot.yml is named `patches`, so
-# Dependabot puts `patches-<hash>` in the branch name. Keep those group names
-# in sync with this check.
+# Detection: grouped patches carry the `patches` branch name. Dependabot can
+# also open single-dependency branches, so parse their SemVer bump; unknown
+# formats stay CI-gated.
 
 on:
   pull_request_target:
@@ -56,14 +56,30 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # `patches-<hash>` in the branch is the whole signal: dependabot.yml
-          # names every patch group `patches` precisely so this matches.
-          if [[ "$HEAD_REF" == *patches-* ]]; then
-            echo "mode=patch" >> "$GITHUB_OUTPUT"
-          else
-            echo "mode=gated" >> "$GITHUB_OUTPUT"
+          # Only bypass CI for a known patch update. Keep this tiny self-check
+          # so a regex edit cannot accidentally classify a minor/major as patch.
+          is_patch_update() {
+            local title="$1"
+            [[ "$title" =~ from[[:space:]]v?([0-9]+)\.([0-9]+)\.[0-9]+[[:space:]]to[[:space:]]v?([0-9]+)\.([0-9]+)\.[0-9]+ ]] &&
+              [[ "${BASH_REMATCH[1]}.${BASH_REMATCH[2]}" == "${BASH_REMATCH[3]}.${BASH_REMATCH[4]}" ]]
+          }
+          if ! is_patch_update "Bump x from 1.2.3 to 1.2.4" ||
+            is_patch_update "Bump x from 1.2.3 to 1.3.0" ||
+            is_patch_update "Bump x from 1.2.3 to 2.0.0"; then
+            echo "::error::Dependabot patch classification self-check failed"
+            exit 1
           fi
-          echo "head ref: $HEAD_REF -> ${{ steps.mode.outputs.mode }}"
+          mode='gated'
+          if [[ "$HEAD_REF" == *patches-* ]]; then
+            mode='patch'
+          else
+            title="$(gh pr view "$PR_NUMBER" --json title --jq .title)"
+            if is_patch_update "$title"; then
+              mode='patch'
+            fi
+          fi
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "head ref: $HEAD_REF -> $mode"
 
       - name: Merge a patch now, bypassing required checks
         if: steps.mode.outputs.skip != 'true' && steps.mode.outputs.mode == 'patch'
