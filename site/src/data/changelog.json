@@ -1,12 +1,146 @@
 {
-  "generatedAt": "2026-10-09T05:41:15.358Z",
+  "generatedAt": "2026-10-11T13:53:28.357Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
-      "sections": []
+      "sections": [
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.13.1",
+      "date": "2026-10-12",
+      "unreleased": false,
+      "sections": [
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "preserve search UI and correctly merge patch updates",
+              "scope": null,
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "set owner identity for generated commits",
+              "scope": "automation",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "update vulnerable transitive dependencies",
+              "scope": "site",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "use public registry URLs in lockfile",
+              "scope": "site",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh Google Discovery index",
+              "scope": "discovery",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh Google Discovery index",
+              "scope": "discovery",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh Google Discovery index",
+              "scope": "discovery",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v0.13.1",
+              "scope": "release",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
+              "note": null
+            },
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
+              "note": null
+            }
+          ]
+        }
+      ]
     },
     {
       "version": "0.13.0",
@@ -584,14 +718,14 @@
           "heading": "Added",
           "items": [
             {
-              "description": "installs that migrate themselves",
-              "scope": "skills",
+              "description": "sitewide search — a Pagefind index and a keyboard dialog",
+              "scope": "site",
               "type": "feat",
               "note": null
             },
             {
-              "description": "sitewide search — a Pagefind index and a keyboard dialog",
-              "scope": "site",
+              "description": "installs that migrate themselves",
+              "scope": "skills",
               "type": "feat",
               "note": null
             }
@@ -716,14 +850,14 @@
               "note": null
             },
             {
-              "description": "trim the toolchain and cargo config to what ships",
-              "scope": "rust",
+              "description": "the locale description counts nine more services, not ten",
+              "scope": "winget",
               "type": "chore",
               "note": null
             },
             {
-              "description": "the locale description counts nine more services, not ten",
-              "scope": "winget",
+              "description": "trim the toolchain and cargo config to what ships",
+              "scope": "rust",
               "type": "chore",
               "note": null
             },
