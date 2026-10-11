@@ -2,7 +2,7 @@
   "version": "0.13.1",
   "crateDownloads": 164,
   "crateDownloads30d": 164,
-  "githubDownloads": 183,
+  "githubDownloads": 187,
   "latestRelease": "v0.13.1",
   "latestReleaseDate": "2026-10-11T13:53:06Z",
   "binarySizes": {
@@ -10,7 +10,8 @@
     "linux-x86_64": 3682572,
     "macos-aarch64": 2966548,
     "windows-aarch64": 3520092,
-    "windows-x86_64": 3230129
+    "windows-x86_64": 3230129,
+    "winget-manifests": 898
   },
-  "updatedAt": "2026-10-11T13:53:26.535Z"
+  "updatedAt": "2026-10-11T14:51:08.645Z"
 }
