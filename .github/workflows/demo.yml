@@ -135,6 +135,8 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         timeout-minutes: 5
         with:
+          author: "debanjanbasu <10209115+debanjanbasu@users.noreply.github.com>"
+          committer: "debanjanbasu <10209115+debanjanbasu@users.noreply.github.com>"
           branch: chore/demo-recording
           title: "chore(demo): re-record the terminal demo from source"
           commit-message: "chore(demo): re-record the terminal demo from source"

@@ -117,6 +117,8 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         timeout-minutes: 5
         with:
+          author: "debanjanbasu <10209115+debanjanbasu@users.noreply.github.com>"
+          committer: "debanjanbasu <10209115+debanjanbasu@users.noreply.github.com>"
           branch: chore/discovery-refresh
           title: "chore(discovery): refresh Google Discovery index"
           commit-message: "chore(discovery): refresh Google Discovery index"

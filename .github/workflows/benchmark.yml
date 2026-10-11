@@ -188,6 +188,8 @@ jobs:
         timeout-minutes: 5
         uses: peter-evans/create-pull-request@v8
         with:
+          author: "debanjanbasu <10209115+debanjanbasu@users.noreply.github.com>"
+          committer: "debanjanbasu <10209115+debanjanbasu@users.noreply.github.com>"
           branch: chore/benchmark-refresh
           title: "bench(compare): refresh daily benchmark snapshot"
           commit-message: "bench(compare): refresh daily benchmark snapshot"

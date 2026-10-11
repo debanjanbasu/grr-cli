@@ -151,6 +151,8 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         timeout-minutes: 5
         with:
+          author: "debanjanbasu <10209115+debanjanbasu@users.noreply.github.com>"
+          committer: "debanjanbasu <10209115+debanjanbasu@users.noreply.github.com>"
           branch: chore/changelog-regenerate
           title: "docs(changelog): regenerate for ${{ steps.gen.outputs.newest_tag }}"
           commit-message: "docs(changelog): regenerate for ${{ steps.gen.outputs.newest_tag }}"
