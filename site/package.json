@@ -23,5 +23,9 @@
   },
   "dependencies": {
     "asciinema-player": "3.17.0"
+  },
+  "overrides": {
+    "http-cache-semantics": "^4.3.0",
+    "solid-js": "^1.9.17"
   }
 }
