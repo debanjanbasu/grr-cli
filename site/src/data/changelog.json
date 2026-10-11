@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-11T14:18:25.804Z",
+  "generatedAt": "2026-10-11T14:23:32.874Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -20,6 +20,12 @@
             {
               "description": "refresh download counts and archive sizes",
               "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
               "type": "chore",
               "note": null
             },
