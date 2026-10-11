@@ -22,7 +22,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Internal
+
+- 1 internal commit (chore 1)
+
+## [0.13.1] - 2026-10-12
+
+### Fixed
+
+- preserve search UI and correctly merge patch updates
+- **automation:** set owner identity for generated commits
+- **site:** update vulnerable transitive dependencies
+- **site:** use public registry URLs in lockfile
+
+### Internal
+
+- 10 internal commits (chore 10)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.13.0] - 2026-10-09
 
@@ -145,8 +165,8 @@ _No changes yet._
 
 ### Added
 
-- **skills:** installs that migrate themselves
 - **site:** sitewide search — a Pagefind index and a keyboard dialog
+- **skills:** installs that migrate themselves
 
 ### Changed
 
@@ -420,7 +440,8 @@ _No changes yet._
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.0...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.1...HEAD
+[0.13.1]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.11.3...v0.12.0
 [0.11.3]: https://github.com/debanjanbasu/grr-cli/compare/v0.11.2...v0.11.3
