@@ -24,7 +24,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **auth:** store the granted scopes, not the requested ones
+
+## [0.13.4] - 2026-10-12
+
+### Fixed
+
 - **auth:** give the browser login five minutes, not two
+
+### Internal
+
+- 3 internal commits (chore 3)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.13.3] - 2026-10-13
 
@@ -470,7 +484,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.3...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.4...HEAD
+[0.13.4]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.3...v0.13.4
 [0.13.3]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.2...v0.13.3
 [0.13.2]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.0...v0.13.1
