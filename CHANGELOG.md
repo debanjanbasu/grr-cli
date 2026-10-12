@@ -22,12 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **auth:** drop Chat app-authentication scopes from the consent set
+
 ### Internal
 
-- 6 internal commits (chore 6)
+- 8 internal commits (chore 8)
 
 ### Other
 
+- **compare:** refresh daily benchmark snapshot
 - **compare:** refresh daily benchmark snapshot
 
 ## [0.13.1] - 2026-10-12

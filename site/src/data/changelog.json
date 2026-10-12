@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-11T14:51:09.398Z",
+  "generatedAt": "2026-10-12T07:02:03.699Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -8,9 +8,33 @@
       "unreleased": true,
       "sections": [
         {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "drop Chat app-authentication scopes from the consent set",
+              "scope": "auth",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
           "key": "internal",
           "heading": "Internal",
           "items": [
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
             {
               "description": "re-record the terminal demo from source",
               "scope": "demo",
@@ -53,6 +77,12 @@
           "key": "other",
           "heading": "Other",
           "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
+              "note": null
+            },
             {
               "description": "refresh daily benchmark snapshot",
               "scope": "compare",
