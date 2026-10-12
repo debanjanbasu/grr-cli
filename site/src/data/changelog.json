@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-12T21:29:16.021Z",
+  "generatedAt": "2026-10-12T22:00:51.917Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -14,6 +14,12 @@
             {
               "description": "drop the trim-paths gate Cargo stabilized in 1.101",
               "scope": "build",
+              "type": "fix",
+              "note": null
+            },
+            {
+              "description": "make grr auth login --device actually work",
+              "scope": "auth",
               "type": "fix",
               "note": null
             }
@@ -32,6 +38,24 @@
             {
               "description": "refresh download counts and archive sizes",
               "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v0.13.3",
+              "scope": "release",
               "type": "chore",
               "note": null
             },

@@ -25,10 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **build:** drop the trim-paths gate Cargo stabilized in 1.101
+- **auth:** make grr auth login --device actually work
 
 ### Internal
 
-- 4 internal commits (chore 4)
+- 7 internal commits (chore 7)
 
 ### Other
 
