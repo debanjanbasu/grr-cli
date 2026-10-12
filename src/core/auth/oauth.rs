@@ -55,13 +55,16 @@ impl super::GoogleAuth {
         }
 
         let (status, token_data) = self
-            .token_request(vec![
-                ("code", code),
-                ("client_id", self.config.client_id.clone()),
-                ("redirect_uri", REDIRECT_URI.to_string()),
-                ("grant_type", "authorization_code".to_string()),
-                ("code_verifier", verifier),
-            ])
+            .token_request(
+                self.config.client_secret.as_deref(),
+                vec![
+                    ("code", code),
+                    ("client_id", self.config.client_id.clone()),
+                    ("redirect_uri", REDIRECT_URI.to_string()),
+                    ("grant_type", "authorization_code".to_string()),
+                    ("code_verifier", verifier),
+                ],
+            )
             .await?;
 
         if !status.is_success() {

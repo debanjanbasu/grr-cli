@@ -27,7 +27,10 @@ pub enum AuthCommands {
 
 #[derive(clap::Args, Debug)]
 pub struct LoginArgs {
-    /// Use the OAuth device flow instead of the browser loopback flow
+    /// Use the OAuth device flow instead of the browser loopback flow.
+    /// Needs a client of type "TVs and Limited Input devices"
+    /// (GRR_OAUTH__DEVICE_CLIENT_ID); the browser flow's Desktop client is
+    /// not accepted by Google's device endpoint.
     #[arg(long)]
     pub device: bool,
 

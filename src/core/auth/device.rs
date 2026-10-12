@@ -12,11 +12,53 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use anyhow::anyhow;
 
 use crate::core::error::{GrrError, Result, json_error_detail};
+use tracing::warn;
 
 use super::TokenStorage;
 
 const DEVICE_CODE_URL: &str = "https://oauth2.googleapis.com/device/code";
 const DEVICE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
+
+/// The scopes Google's device flow will actually grant.
+///
+/// The flow keeps its own allowlist: anything outside it comes back as
+/// `invalid_scope: Invalid device flow scope: <scope>`, which fails the whole
+/// request. It lives per flow, not in the Discovery index, so it cannot be
+/// derived from the embedded data.
+///
+/// Verified against the live device endpoint on 2026-10-13 with a "TVs and
+/// Limited Input devices" client — one scope at a time, because Google names
+/// only the first offender. Google's own page (below) is *not* the endpoint's
+/// truth: it lists `drive.appdata` and `drive.metadata.readonly`, which the
+/// endpoint rejects, and omits the legacy GData scopes, which it accepts.
+///
+/// Source: <https://developers.google.com/identity/protocols/oauth2/limited-input-device>
+const DEVICE_FLOW_SCOPES: &[&str] = &[
+    "https://www.google.com/calendar/feeds",
+    "https://www.google.com/m8/feeds",
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+    "openid",
+];
+
+/// The consent string the device flow may send: [`super::scopes`] filtered to
+/// what a TV/limited-input client can be granted.
+///
+/// A device login is therefore a *narrower* credential than a browser login —
+/// Gmail, Chat, Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and
+/// the admin surfaces are all outside Google's allowlist. That is Google's
+/// rule, not a choice here; asking anyway would grant nothing at all.
+pub(crate) fn device_flow_scopes_joined() -> String {
+    super::scopes()
+        .iter()
+        .filter(|scope| DEVICE_FLOW_SCOPES.contains(&scope.as_str()))
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
 
 /// Pending device authorization: show `verification_url` + `user_code` to
 /// the user, then poll with [`super::GoogleAuth::poll_device_code`] until done.
@@ -43,13 +85,72 @@ impl DeviceAuthChallenge {
 }
 
 impl super::GoogleAuth {
+    /// The client the device flow must authenticate as, plus its secret.
+    ///
+    /// Google's device endpoint accepts one client type only — "TVs and
+    /// Limited Input devices" — and answers the browser flow's Desktop
+    /// client with `invalid_client: Invalid client type`, which tells a
+    /// user nothing. Refusing locally, with the console steps, is the fix.
+    fn device_client(&self) -> Result<(String, Option<String>)> {
+        let id = self
+            .config
+            .device_client_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| {
+                GrrError::Auth(
+                    anyhow!(
+                        "the device flow needs an OAuth client of type \"TVs and Limited Input \
+                         devices\": Google rejects the Desktop client with `Invalid client type`.\n\
+                         Create one in the Google Cloud console (APIs & Services → Credentials → \
+                         Create credentials → OAuth client ID → TVs and Limited Input devices), \
+                         then supply it as GRR_OAUTH__DEVICE_CLIENT_ID / \
+                         GRR_OAUTH__DEVICE_CLIENT_SECRET, or as device-client-id / \
+                         device-client-secret in the [oauth] block of ~/.grr/config.toml. \
+                         Building from source can also bake it in: GRR_DEVICE_CLIENT_ID / \
+                         GRR_DEVICE_CLIENT_SECRET (or a repo-root .env).\n\
+                         The browser flow (`grr auth login`) needs none of this."
+                    )
+                    .into(),
+                )
+            })?;
+
+        let secret = self
+            .config
+            .device_client_secret
+            .as_deref()
+            .map(str::trim)
+            .filter(|secret| !secret.is_empty())
+            .map(str::to_owned);
+        Ok((id.to_owned(), secret))
+    }
+
     /// Start a device flow: returns the challenge to display to the user.
     pub async fn request_device_code(&self) -> Result<DeviceAuthChallenge> {
-        let mut form = vec![
-            ("client_id", self.config.client_id.clone()),
-            ("scope", super::scopes_joined()),
-        ];
-        if let Some(secret) = self.config.client_secret.clone().filter(|s| !s.is_empty()) {
+        let (client_id, client_secret) = self.device_client()?;
+        let scopes = device_flow_scopes_joined();
+        if scopes.is_empty() {
+            return Err(GrrError::Auth(
+                anyhow!(
+                    "no configured scope is available to Google's device flow; the browser flow \
+                     (`grr auth login`) is the way in"
+                )
+                .into(),
+            ));
+        }
+        // The user must know the grant is narrower than a browser login's
+        // before they approve it, not after a 403 surprises them.
+        warn!(
+            "device flow: Google grants a TV/limited-input client only {} of this build's scopes \
+             (drive.file, calendar and legacy Calendar/Contacts, userinfo, openid). Gmail, Chat, \
+             Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and the admin APIs need \
+             the browser flow (`grr auth login`).",
+            scopes.split(' ').count()
+        );
+
+        let mut form = vec![("client_id", client_id), ("scope", scopes)];
+        if let Some(secret) = client_secret {
             form.push(("client_secret", secret));
         }
 
@@ -70,12 +171,20 @@ impl super::GoogleAuth {
         })?;
 
         if !status.is_success() {
+            // `invalid_scope` here means Google's per-flow allowlist moved:
+            // the scope is one this flow cannot show, so the whole request is
+            // refused. Say that, rather than repeating a bare scope URL, and
+            // point at the list that has to be updated.
+            let detail = json_error_detail(&body);
+            let hint = if body["error"].as_str() == Some("invalid_scope") {
+                "\nGoogle's device flow keeps its own scope allowlist (DEVICE_FLOW_SCOPES in \
+                 src/core/auth/device.rs, verified 2026-10-13). It has moved: update that list, \
+                 or use the browser flow (`grr auth login`), which has no such ceiling."
+            } else {
+                ""
+            };
             return Err(GrrError::Auth(
-                anyhow!(
-                    "device endpoint returned {status}: {}",
-                    json_error_detail(&body)
-                )
-                .into(),
+                anyhow!("device endpoint returned {status}: {detail}{hint}").into(),
             ));
         }
 
@@ -118,12 +227,16 @@ impl super::GoogleAuth {
     ) -> Result<Option<TokenStorage>> {
         // Device polling reports status via 400 + JSON error codes, so the
         // body — not the HTTP status — drives the decision below.
+        let (client_id, client_secret) = self.device_client()?;
         let (_, body) = self
-            .token_request(vec![
-                ("client_id", self.config.client_id.clone()),
-                ("device_code", challenge.device_code.clone()),
-                ("grant_type", DEVICE_GRANT.to_string()),
-            ])
+            .token_request(
+                client_secret.as_deref(),
+                vec![
+                    ("client_id", client_id),
+                    ("device_code", challenge.device_code.clone()),
+                    ("grant_type", DEVICE_GRANT.to_string()),
+                ],
+            )
             .await?;
 
         if let Some(code) = body["error"].as_str() {
@@ -186,4 +299,116 @@ pub(crate) fn token_storage_from_response(
         token_type: "Bearer".to_string(),
         scope: scopes.join(" "),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::{GoogleAuth, TokenStorage};
+    use crate::core::config::OAuthConfig;
+
+    async fn auth(device: Option<(&str, &str)>) -> crate::core::error::Result<GoogleAuth> {
+        let config = OAuthConfig {
+            client_id: "desktop-id.apps.googleusercontent.com".into(),
+            client_secret: Some("desktop-secret".into()),
+            device_client_id: device.map(|(id, _)| id.to_owned()),
+            device_client_secret: device.map(|(_, secret)| secret.to_owned()),
+        };
+        let storage = TokenStorage {
+            access_token: "test-token".into(),
+            refresh_token: None,
+            expires_at: u64::MAX,
+            token_type: "Bearer".into(),
+            scope: String::new(),
+        };
+        GoogleAuth::with_token(config, storage).await
+    }
+
+    /// Google rejects every scope outside its device-flow allowlist with
+    /// `invalid_scope` — one bad scope fails the whole request — so the device
+    /// consent string is the intersection, and it is deliberately narrower
+    /// than the browser one (Gmail and Chat are not in it).
+    #[test]
+    fn the_device_flow_requests_only_scopes_google_grants() {
+        let device = super::device_flow_scopes_joined();
+        let requested: Vec<&str> = device.split(' ').collect();
+
+        // The flow stays usable: the two scopes that matter are in it.
+        for useful in [
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/calendar.readonly",
+        ] {
+            assert!(requested.contains(&useful), "{useful} was dropped");
+        }
+        // Scopes Google's device endpoint rejects — one bad scope fails the
+        // whole request. mail.google.com and chat.* are outside the flow's
+        // allowlist entirely; the other two are on Google's *page* for the
+        // flow but rejected by the endpoint itself (verified 2026-10-13).
+        for rejected in [
+            "https://mail.google.com/",
+            "https://www.googleapis.com/auth/drive.appdata",
+            "https://www.googleapis.com/auth/drive.metadata.readonly",
+        ] {
+            assert!(
+                !requested.contains(&rejected),
+                "{rejected} must never reach the device endpoint"
+            );
+        }
+        assert!(
+            !requested.iter().any(|s| s.contains("/auth/chat.")),
+            "Chat is not a device-flow scope: {device}"
+        );
+        // Never wider than the browser consent set.
+        for scope in &requested {
+            assert!(
+                crate::core::auth::scopes().iter().any(|s| s == scope),
+                "{scope} is not in the consent set at all"
+            );
+        }
+    }
+
+    /// Google answers the Desktop client's device request with
+    /// `invalid_client: Invalid client type` — a message that names neither
+    /// the cause nor the fix. The flow refuses locally instead, naming the
+    /// client type and every knob that supplies it.
+    #[tokio::test]
+    async fn a_missing_device_client_is_refused_locally_with_instructions() -> anyhow::Result<()> {
+        let Err(err) = auth(None).await?.device_client() else {
+            return Err(anyhow::anyhow!(
+                "a build with no device client must refuse locally, not call Google"
+            ));
+        };
+        let err = err.to_string();
+        assert!(
+            err.contains("TVs and Limited Input devices"),
+            "does not name the client type: {err}"
+        );
+        assert!(
+            err.contains("GRR_OAUTH__DEVICE_CLIENT_ID"),
+            "the runtime env knob is not named: {err}"
+        );
+        assert!(
+            err.contains("device-client-id"),
+            "no config-file knob named: {err}"
+        );
+        Ok(())
+    }
+
+    /// The device flow authenticates as the device client, so the Desktop id
+    /// never reaches Google's device endpoint (which would reject it).
+    #[tokio::test]
+    async fn the_configured_device_client_is_the_one_used() -> anyhow::Result<()> {
+        let (id, secret) = auth(Some((
+            "device-id.apps.googleusercontent.com",
+            "device-secret",
+        )))
+        .await?
+        .device_client()?;
+        assert_eq!(id, "device-id.apps.googleusercontent.com");
+        assert_eq!(secret.as_deref(), Some("device-secret"));
+        assert_ne!(
+            id, "desktop-id.apps.googleusercontent.com",
+            "the browser client must not be sent to the device endpoint"
+        );
+        Ok(())
+    }
 }

@@ -18,8 +18,7 @@ pub(crate) async fn build_auth(config: &GrrConfig) -> Result<GoogleAuth> {
     }
 
     Ok(AuthConfigBuilder::new()
-        .client_id(config.oauth.client_id.clone())
-        .client_secret(config.oauth.client_secret.clone())
+        .oauth(config.oauth.clone())
         .build()
         .await?)
 }

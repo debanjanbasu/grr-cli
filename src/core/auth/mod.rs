@@ -293,7 +293,11 @@ impl GoogleAuth {
     }
 
     /// POST one form to the OAuth token endpoint and parse the JSON body a
-    /// single time. The client secret is appended when configured.
+    /// single time. `client_secret` is appended when the caller names one —
+    /// a parameter rather than a field read, because the device flow
+    /// authenticates as a *different* client (type "TVs and Limited Input
+    /// devices") than the browser flow, and one request carrying both
+    /// secrets would be rejected.
     ///
     /// Returns `(status, body)` rather than making a success decision here,
     /// so each caller keeps its own logic and messages: the PKCE exchange
@@ -302,14 +306,10 @@ impl GoogleAuth {
     /// previously duplicated this request/parse plumbing byte for byte.
     async fn token_request(
         &self,
+        client_secret: Option<&str>,
         mut form: Vec<(&str, String)>,
     ) -> Result<(reqwest::StatusCode, serde_json::Value)> {
-        if let Some(secret) = self
-            .config
-            .client_secret
-            .as_deref()
-            .filter(|s| !s.is_empty())
-        {
+        if let Some(secret) = client_secret.filter(|s| !s.is_empty()) {
             form.push(("client_secret", secret.to_string()));
         }
 
@@ -336,11 +336,14 @@ impl GoogleAuth {
     /// for Desktop clients; PKCE-only providers omit it entirely).
     async fn refresh_token(&self, refresh_token: &str) -> Result<TokenStorage> {
         let (status, token_data) = self
-            .token_request(vec![
-                ("client_id", self.config.client_id.clone()),
-                ("refresh_token", refresh_token.to_string()),
-                ("grant_type", "refresh_token".to_string()),
-            ])
+            .token_request(
+                self.config.client_secret.as_deref(),
+                vec![
+                    ("client_id", self.config.client_id.clone()),
+                    ("refresh_token", refresh_token.to_string()),
+                    ("grant_type", "refresh_token".to_string()),
+                ],
+            )
             .await?;
 
         if !status.is_success() {
@@ -389,14 +392,19 @@ impl AuthConfigBuilder {
         }
     }
 
-    pub fn client_id(mut self, id: impl Into<String>) -> Self {
-        self.config.client_id = id.into();
-        self
-    }
-
-    pub fn client_secret(mut self, secret: Option<String>) -> Self {
+    /// Take the whole [`OAuthConfig`] instead of copying fields one at a
+    /// time: the config carries the device-flow client too, and a
+    /// field-by-field copy silently dropped it — `grr auth login --device`
+    /// then refused a device client the user had configured.
+    pub fn oauth(mut self, config: OAuthConfig) -> Self {
+        self.config = config;
         // Empty strings behave as absent: the secret is omitted everywhere.
-        self.config.client_secret = secret.filter(|s| !s.is_empty());
+        self.config.client_secret = self.config.client_secret.take().filter(|s| !s.is_empty());
+        self.config.device_client_secret = self
+            .config
+            .device_client_secret
+            .take()
+            .filter(|s| !s.is_empty());
         self
     }
 

@@ -384,6 +384,7 @@ mod tests {
         let config = OAuthConfig {
             client_id: "test-id.apps.googleusercontent.com".into(),
             client_secret: None,
+            ..Default::default()
         };
         let storage = TokenStorage {
             access_token: "test-token".into(),

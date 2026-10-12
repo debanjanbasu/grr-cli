@@ -847,6 +847,7 @@ mod tests {
         let config = crate::core::config::OAuthConfig {
             client_id: "test-id.apps.googleusercontent.com".into(),
             client_secret: None,
+            ..Default::default()
         };
         let storage = crate::core::auth::TokenStorage {
             access_token: "test-token".into(),

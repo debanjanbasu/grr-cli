@@ -465,6 +465,7 @@ mod tests {
         let config = OAuthConfig {
             client_id: "test-id.apps.googleusercontent.com".into(),
             client_secret: None,
+            ..Default::default()
         };
         let storage = test_storage(access_token);
         Ok(super::super::GoogleAuth::with_token(config, storage)

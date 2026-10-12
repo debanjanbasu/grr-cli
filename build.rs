@@ -5,11 +5,19 @@ use std::process::Command;
 
 const CLIENT_ID: &str = "GRR_CLIENT_ID";
 const CLIENT_SECRET: &str = "GRR_CLIENT_SECRET";
+/// The device flow (`grr auth login --device`) authenticates as a client of
+/// type "TVs and Limited Input devices"; Google's device endpoint rejects the
+/// Desktop client above. Absent means `--device` refuses locally with setup
+/// instructions — the browser flow is unaffected.
+const DEVICE_CLIENT_ID: &str = "GRR_DEVICE_CLIENT_ID";
+const DEVICE_CLIENT_SECRET: &str = "GRR_DEVICE_CLIENT_SECRET";
 
 fn main() {
     println!("cargo:rerun-if-env-changed=RUSTC");
     println!("cargo:rerun-if-env-changed={CLIENT_ID}");
     println!("cargo:rerun-if-env-changed={CLIENT_SECRET}");
+    println!("cargo:rerun-if-env-changed={DEVICE_CLIENT_ID}");
+    println!("cargo:rerun-if-env-changed={DEVICE_CLIENT_SECRET}");
     println!("cargo:rerun-if-changed=build.rs");
 
     require_nightly();
@@ -75,8 +83,32 @@ fn inject_default_oauth_client() {
         println!("cargo:rustc-env={CLIENT_SECRET}={value}");
     }
 
+    let device_id = lookup(DEVICE_CLIENT_ID, &dotenv);
+    let device_secret = lookup(DEVICE_CLIENT_SECRET, &dotenv);
+    match (&device_id, &device_secret) {
+        (Some(_), None) | (None, Some(_)) => {
+            println!(
+                "cargo:warning={DEVICE_CLIENT_ID}/{DEVICE_CLIENT_SECRET} is only partially set; the embedded device-flow client will be ignored. Set both, or neither."
+            );
+        }
+        _ => {}
+    }
+    if let Some(value) = &device_id {
+        println!("cargo:rustc-env={DEVICE_CLIENT_ID}={value}");
+    }
+    if let Some(value) = &device_secret {
+        println!("cargo:rustc-env={DEVICE_CLIENT_SECRET}={value}");
+    }
+
     if client_id.is_some() && client_secret.is_some() {
-        println!("cargo:warning=embedded default OAuth client: configured");
+        let device = if device_id.is_some() && device_secret.is_some() {
+            "configured"
+        } else {
+            "absent (`grr auth login --device` explains the client type it needs)"
+        };
+        println!(
+            "cargo:warning=embedded default OAuth client: configured; device-flow client: {device}"
+        );
     } else {
         println!(
             "cargo:warning=embedded default OAuth client: not configured (users supply their own client id via `grr auth setup`, or GRR_OAUTH__* env vars)"

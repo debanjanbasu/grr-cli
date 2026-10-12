@@ -76,7 +76,7 @@ stdout stays JSON for `grr skills list`; `grr skills install` prints a human sum
 ## Auth state
 
 - `grr auth status` — check first. One live `gmail.users.getProfile` call; JSON `{authenticated, email, …}`; non-zero exit when there is no valid credential. Do not retry auth failures in a loop.
-- `grr auth login` — PKCE browser flow. `grr auth login --device` for headless machines (prints a URL + code; a human still approves it).
+- `grr auth login` — PKCE browser flow. `grr auth login --device` for headless machines (prints a URL + code; a human still approves it). The device flow needs a client of type "TVs and Limited Input devices" (`GRR_OAUTH__DEVICE_CLIENT_ID`, or `device-client-id` in `~/.grr/config.toml`); when it is missing the command says so and exits — surface that, do not retry. A device login is also *narrower*: Google caps that flow at drive.file, calendar, userinfo and openid, so a 403 on Gmail/Chat/Docs/Tasks after a device login is the flow's ceiling, not a stale grant — say that instead of recommending another login.
 - Release binaries are zero-config (an OAuth client is compiled in). Source builds need `grr auth setup` first.
 
 ## Scope honesty

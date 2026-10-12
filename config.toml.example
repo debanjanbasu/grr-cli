@@ -19,7 +19,8 @@
 #
 # Resolution order: GRR_OAUTH__CLIENT_ID / GRR_OAUTH__CLIENT_SECRET in the
 # environment (wins over the file) > this file > the client compiled into the
-# binary.
+# binary. The device keys below resolve the same way
+# (GRR_OAUTH__DEVICE_CLIENT_ID / GRR_OAUTH__DEVICE_CLIENT_SECRET).
 
 [oauth]
 # Desktop-app OAuth client ID (ends in .apps.googleusercontent.com).
@@ -31,6 +32,14 @@ client_id = ""
 # Desktop clients. Sent at the token endpoint only when present;
 # PKCE is always on. Leave commented out for PKCE-only providers.
 # client_secret = ""
+
+# Device-flow client (optional; only `grr auth login --device` uses it).
+# Google's device endpoint accepts one application type only — "TVs and
+# Limited Input devices" — and rejects the Desktop client above with
+# `invalid_client: Invalid client type`, so the two flows cannot share a
+# client. Create a second one with that application type and uncomment.
+# device-client-id = ""
+# device-client-secret = ""
 
 # [systemone]
 # Optional: the System One model behind `grr ask` (plain English -> a typed

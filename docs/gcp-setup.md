@@ -106,6 +106,20 @@ Open <https://console.cloud.google.com/apis/credentials>:
 2. Application type: **Desktop app** (name it anything, e.g. `grr`)
 3. Copy the **Client ID** (ends in `.apps.googleusercontent.com`) and the **client secret** shown next to it
 
+### Optional: a second client for `grr auth login --device`
+
+Google's device endpoint (`RFC 8628`) accepts exactly one application type — **TVs and Limited Input devices** — and answers a Desktop client with `invalid_client: Invalid client type`, so `--device` cannot ride on the client above. If you log in on headless machines, repeat the steps above with **Application type: TVs and Limited Input devices**, then add the pair to `~/.grr/config.toml`:
+
+```toml
+[oauth]
+device-client-id = "123456789-def.apps.googleusercontent.com"
+device-client-secret = "GOCSPX-..."
+```
+
+Without it, `grr auth login --device` says exactly this and stops — no half-finished request to Google. The browser flow never needs it.
+
+**What a device login can reach.** Google's device flow keeps its own scope allowlist, and it is small: `drive.file`, `calendar`, `calendar.readonly`, the legacy Calendar/Contacts feeds, `userinfo.email`, `userinfo.profile`, `openid`. A device login therefore covers Calendar and Drive-file calls and nothing else — Gmail, Chat, Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and the admin surfaces need `grr auth login` in a browser. `grr auth login --device` prints that list before you approve anything. (Google's own documentation for the flow lists `drive.appdata` and `drive.metadata.readonly`, which its endpoint actually rejects — `grr` requests only what the endpoint accepts.)
+
 ## 7. Write the config
 
 Let `grr` do it:

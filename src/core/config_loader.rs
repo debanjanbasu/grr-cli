@@ -1,6 +1,6 @@
 //! Configuration loading with TOML file and environment variable support
 
-use crate::core::config::{GrrConfig, embedded_oauth_client};
+use crate::core::config::{GrrConfig, embedded_device_client, embedded_oauth_client};
 use crate::core::error::{GrrError, Result};
 use figment::{
     Figment, Provider,
@@ -43,15 +43,25 @@ impl ConfigLoader {
             Some(s) if !s.is_empty() => info!("client_secret: configured"),
             _ => info!("client_secret: absent (PKCE-only)"),
         }
+        match config.oauth.device_client_id.as_deref().map(str::trim) {
+            Some(id) if !id.is_empty() => info!("device-flow client: configured"),
+            _ => info!(
+                "device-flow client: absent (`grr auth login --device` explains the client type Google requires)"
+            ),
+        }
         Ok(config)
     }
 
-    /// Fill in the build-time OAuth client when nothing else supplied one.
+    /// Fill in the build-time OAuth clients when nothing else supplied them.
     ///
     /// This is the zero-config path: release binaries are compiled with a
     /// client, so a fresh install can `grr auth login` with no setup at all.
+    /// The device-flow client is a separate pair (Google types the two flows
+    /// differently) and stays optional — `--device` explains itself when it
+    /// is missing.
     fn apply_embedded_default(config: GrrConfig) -> GrrConfig {
-        Self::apply_client(config, embedded_oauth_client())
+        let config = Self::apply_client(config, embedded_oauth_client());
+        Self::apply_device_client(config, embedded_device_client())
     }
 
     fn apply_client(mut config: GrrConfig, embedded: Option<(&str, &str)>) -> GrrConfig {
@@ -66,6 +76,29 @@ impl ConfigLoader {
         info!("Using the OAuth client built into this binary");
         config.oauth.client_id = client_id.to_owned();
         config.oauth.client_secret = Some(client_secret.to_owned());
+        config
+    }
+
+    /// [`Self::apply_client`] for the device-flow credentials: an explicit
+    /// id wins, a half-embedded pair falls through to "not configured".
+    fn apply_device_client(mut config: GrrConfig, embedded: Option<(&str, &str)>) -> GrrConfig {
+        let explicit = config
+            .oauth
+            .device_client_id
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|id| !id.is_empty());
+        if explicit {
+            return config;
+        }
+
+        let Some((client_id, client_secret)) = embedded else {
+            return config;
+        };
+
+        info!("Using the device-flow OAuth client built into this binary");
+        config.oauth.device_client_id = Some(client_id.to_owned());
+        config.oauth.device_client_secret = Some(client_secret.to_owned());
         config
     }
 
@@ -123,6 +156,7 @@ mod resolution_order_tests {
             oauth: OAuthConfig {
                 client_id: id.to_owned(),
                 client_secret: secret.map(str::to_owned),
+                ..OAuthConfig::default()
             },
             ..GrrConfig::default()
         }

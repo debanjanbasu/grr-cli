@@ -36,6 +36,19 @@ pub struct OAuthConfig {
     /// (currently including Google, even for Desktop clients) need it.
     #[serde(default, alias = "client_secret")]
     pub client_secret: Option<String>,
+
+    /// Client for the RFC 8628 device flow (`grr auth login --device`).
+    /// Google's device endpoint accepts a single client type — "TVs and
+    /// Limited Input devices" — and rejects the Desktop client above with
+    /// `invalid_client: Invalid client type`, so the device flow carries
+    /// credentials of its own. Absent means the flow refuses locally with
+    /// setup instructions instead of failing at Google.
+    #[serde(default, alias = "device_client_id")]
+    pub device_client_id: Option<String>,
+
+    /// Secret for [`Self::device_client_id`], sent when present.
+    #[serde(default, alias = "device_client_secret")]
+    pub device_client_secret: Option<String>,
 }
 
 /// System One provider configuration — the only tunable surface of the
@@ -127,6 +140,25 @@ impl SystemOneConfig {
 pub(crate) fn embedded_oauth_client() -> Option<(&'static str, &'static str)> {
     let id = option_env!("GRR_CLIENT_ID")?.trim();
     let secret = option_env!("GRR_CLIENT_SECRET")?.trim();
+    if id.is_empty() || secret.is_empty() {
+        return None;
+    }
+    Some((id, secret))
+}
+
+/// The device-flow client compiled in at build time, from
+/// `GRR_DEVICE_CLIENT_ID` / `GRR_DEVICE_CLIENT_SECRET` — the same route as
+/// the browser client above (process environment or repo-root `.env`,
+/// re-exported by `build.rs`). Deliberately separate credentials: Google's
+/// device endpoint takes one client type ("TVs and Limited Input devices")
+/// and refuses the Desktop client, and a build that ships only the Desktop
+/// client keeps working — `grr auth login --device` then explains what to
+/// create instead of failing at Google.
+///
+/// Half a pair is treated as absent, exactly like the browser client.
+pub(crate) fn embedded_device_client() -> Option<(&'static str, &'static str)> {
+    let id = option_env!("GRR_DEVICE_CLIENT_ID")?.trim();
+    let secret = option_env!("GRR_DEVICE_CLIENT_SECRET")?.trim();
     if id.is_empty() || secret.is_empty() {
         return None;
     }

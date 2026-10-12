@@ -102,7 +102,7 @@ grr auth login
 grr gmail users getProfile --user-id me
 ```
 
-There is nothing to configure first: a release binary already carries an OAuth client, so `grr auth login` opens the browser, you consent, and every service works. Headless machine? `grr auth login --device` prints a URL + code instead of opening a browser.
+There is nothing to configure first: a release binary already carries an OAuth client, so `grr auth login` opens the browser, you consent, and every service works. Headless machine? `grr auth login --device` prints a URL + code instead of opening a browser — that flow authenticates as a *separate* client of type **TVs and Limited Input devices** (Google's device endpoint rejects the Desktop client with `Invalid client type`), which release binaries also carry; a source build supplies it with `GRR_DEVICE_CLIENT_ID` / `GRR_DEVICE_CLIENT_SECRET`. Google also caps what that flow may ask for: a device login grants **drive.file, calendar, userinfo and openid** and nothing else, so Gmail, Chat, Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and the admin APIs still need the browser flow.
 
 Building from source instead of installing a release? Read [Authentication and configuration](#authentication-and-configuration) before your first `grr` invocation.
 

@@ -23,10 +23,15 @@ jobs:
     # Scoped to this job on purpose: the archive and release jobs run from
     # the same workflow and have no business seeing the OAuth client. build.rs
     # bakes these into the binaries (see .env.example for the local
-    # equivalent), so a downloaded grr can `auth login` with no setup.
+    # equivalent), so a downloaded grr can `auth login` with no setup. The
+    # device pair is a second client of type "TVs and Limited Input devices":
+    # Google's device endpoint rejects the Desktop client, so `auth login
+    # --device` needs its own credentials.
     env:
       GRR_CLIENT_ID: ${{ secrets.GRR_CLIENT_ID }}
       GRR_CLIENT_SECRET: ${{ secrets.GRR_CLIENT_SECRET }}
+      GRR_DEVICE_CLIENT_ID: ${{ secrets.GRR_DEVICE_CLIENT_ID }}
+      GRR_DEVICE_CLIENT_SECRET: ${{ secrets.GRR_DEVICE_CLIENT_SECRET }}
       UPX_VERSION: "5.2.1"
     strategy:
       fail-fast: false

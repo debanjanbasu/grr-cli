@@ -796,6 +796,7 @@ mod tests {
         let config = crate::core::config::OAuthConfig {
             client_id: "test-id.apps.googleusercontent.com".into(),
             client_secret: None,
+            ..Default::default()
         };
         let storage = TokenStorage {
             access_token: "test-token".into(),
@@ -812,6 +813,7 @@ mod tests {
             oauth: crate::core::config::OAuthConfig {
                 client_id: "test-id.apps.googleusercontent.com".into(),
                 client_secret: None,
+                ..Default::default()
             },
             systemone: crate::core::config::SystemOneConfig {
                 endpoint: endpoint.into(),
