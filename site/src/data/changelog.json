@@ -1,11 +1,30 @@
 {
-  "generatedAt": "2026-10-12T22:00:51.917Z",
+  "generatedAt": "2026-10-12T22:16:57.527Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": [
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "give the browser login five minutes, not two",
+              "scope": "auth",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.13.3",
+      "date": "2026-10-13",
+      "unreleased": false,
       "sections": [
         {
           "key": "fixed",
