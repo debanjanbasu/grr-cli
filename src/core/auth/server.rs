@@ -70,10 +70,23 @@ impl super::GoogleAuth {
             }
         });
 
-        let callback = tokio::time::timeout(Duration::from_secs(120), rx).await;
+        // Five minutes, not two: the consent screen lists every scope this
+        // build asks for (a hundred-plus entries to approve) and a fresh
+        // sign-in — account picker, possibly a second factor — has to happen
+        // first. Running out of time means the user starts the login over,
+        // so the window is generous; it stays bounded so a forgotten flow
+        // cannot hold the terminal open forever.
+        let callback = tokio::time::timeout(Duration::from_secs(300), rx).await;
         server_handle.abort();
         let (code, state) = callback
-            .map_err(|_| GrrError::Timeout("OAuth callback timeout".into()))?
+            .map_err(|_| {
+                GrrError::Timeout(
+                    "OAuth callback timeout: the consent screen was not finished within 5 minutes. \
+                     Rerun `grr auth login` and complete the tab it opens — the login only lands \
+                     while this command is still waiting."
+                        .into(),
+                )
+            })?
             .map_err(|_| GrrError::Auth(anyhow!("OAuth callback channel closed").into()))?;
 
         if code.is_empty() {
