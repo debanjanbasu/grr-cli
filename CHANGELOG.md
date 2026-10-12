@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **auth:** give the browser login five minutes, not two
+
+## [0.13.3] - 2026-10-13
+
+### Fixed
+
 - **build:** drop the trim-paths gate Cargo stabilized in 1.101
 - **auth:** make grr auth login --device actually work
 
@@ -464,7 +470,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.2...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.3...HEAD
+[0.13.3]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.2...v0.13.3
 [0.13.2]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.1...v0.13.2
 [0.13.1]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.0...v0.13.1
 [0.13.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.12.0...v0.13.0
