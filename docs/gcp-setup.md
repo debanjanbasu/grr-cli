@@ -96,6 +96,22 @@ Open <https://console.cloud.google.com/apis/credentials/consent>:
 
 One login covers every `grr` service, so the consent screen asks for everything the embedded Discovery index names — the union of every scope any of the 401 methods accepts, across all 14 APIs — even if you only plan to use one, minus the handful Google only ever grants to a *service account* (Chat's `chat.bot`, `chat.app.*`, `chat.import`). Those are filtered out on purpose: a user consent screen cannot show them, and requesting one fails the whole authorization with `invalid_scope`, so leaving them in would mean no login at all. That set is derived from the index rather than hand-maintained, so it grows when Google publishes new surface. Enable the matching APIs (step 4) for the services you use.
 
+### Declare the scopes: Google Auth Platform → Data access
+
+A consent screen grants only the scopes the project has **declared**. Anything else is dropped silently at the moment of consent: the login still succeeds and hands you a token, but it holds just `openid`, `email`, `profile`, and `userinfo.*`, and the first real call fails with `403 insufficientPermissions`. A fresh project has this list empty — the register is behaviour, not an error message, so it is easy to miss.
+
+1. Open **Google Auth Platform → Data access → Add or remove scopes**.
+2. Paste the scope list into **Manually add scopes** (one per line), click **Add to table**, then **Update**.
+3. Re-run `grr auth login`.
+
+Take the list from the embedded index rather than typing it — from a checkout:
+
+```sh
+node -e 'const fs=require("fs"),p="src/discovery/";const s=new Set();const w=o=>{if(o&&typeof o==="object")Array.isArray(o.scopes)?o.scopes.forEach(x=>s.add(x)):Object.values(o).forEach(w)};fs.readdirSync(p).filter(f=>f.endsWith(".json")).forEach(f=>w(JSON.parse(fs.readFileSync(p+f))));console.log([...s].sort().join("\n"))' > /tmp/grr-scopes.txt
+```
+
+Declaring a scope does not grant it — you still approve scopes on the consent screen, and you can leave any of them unticked there. Declaring sensitive or restricted ones is also what puts the app on Google's verification path; an unverified app can still use them with its own test users.
+
 While the consent screen is in **Testing** mode, Google expires refresh tokens after about 7 days — rerun `grr auth login` when that happens. A release that widens the derived scope set (a discovery refresh that brings new API surface) needs one fresh `grr auth login` to grant it; otherwise an existing token keeps working. Publishing the app avoids the testing-mode expiry, but is unnecessary for personal use.
 
 ## 6. Create the OAuth client

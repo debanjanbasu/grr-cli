@@ -274,6 +274,15 @@ impl super::GoogleAuth {
 
 /// Build [`TokenStorage`] from a successful token-endpoint JSON body.
 /// Shared by the PKCE exchange and the device poll.
+///
+/// `scopes` is what was *requested*; Google's response carries what was
+/// actually *granted* in `scope`, and the two genuinely differ — the consent
+/// screen lets a user approve a subset, and a project whose consent screen
+/// does not declare a scope (Google Auth Platform → Data access) is granted
+/// nothing for it, silently. Storing the request as if it were the grant
+/// makes a later 403 look like a stale token instead of a scope the account
+/// never approved, so the response wins whenever it says anything; the
+/// requested list is only the fallback for providers that omit it.
 pub(crate) fn token_storage_from_response(
     token_data: &serde_json::Value,
     scopes: &[String],
@@ -292,12 +301,19 @@ pub(crate) fn token_storage_from_response(
         .unwrap_or(0)
         + expires_in;
 
+    let granted = token_data["scope"]
+        .as_str()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(|| scopes.join(" "));
+
     Ok(TokenStorage {
         access_token,
         refresh_token,
         expires_at,
         token_type: "Bearer".to_string(),
-        scope: scopes.join(" "),
+        scope: granted,
     })
 }
 
@@ -321,6 +337,45 @@ mod tests {
             scope: String::new(),
         };
         GoogleAuth::with_token(config, storage).await
+    }
+
+    /// The token response says what was granted; the request only says what
+    /// was asked for. Google drops scopes a project has not declared (Data
+    /// access), and the consent screen lets a user approve a subset — so the
+    /// stored grant is what makes a later 403 diagnosable instead of looking
+    /// like a stale token.
+    #[test]
+    fn the_stored_scope_is_the_grant_not_the_request() -> anyhow::Result<()> {
+        let requested = vec!["https://www.googleapis.com/auth/gmail.readonly".to_owned()];
+
+        let granted = super::token_storage_from_response(
+            &serde_json::json!({
+                "access_token": "t",
+                "expires_in": 3600,
+                "scope": "openid https://www.googleapis.com/auth/userinfo.email",
+            }),
+            &requested,
+        )?;
+        assert_eq!(
+            granted.scope,
+            "openid https://www.googleapis.com/auth/userinfo.email"
+        );
+
+        // A response that says nothing about scope falls back to the request.
+        let silent = super::token_storage_from_response(
+            &serde_json::json!({ "access_token": "t", "expires_in": 3600 }),
+            &requested,
+        )?;
+        assert_eq!(silent.scope, requested.join(" "));
+
+        // So does a blank one (a provider placeholder must not erase the set).
+        let blank = super::token_storage_from_response(
+            &serde_json::json!({ "access_token": "t", "scope": "   " }),
+            &requested,
+        )?;
+        assert_eq!(blank.scope, requested.join(" "));
+
+        Ok(())
     }
 
     /// Google rejects every scope outside its device-flow allowlist with

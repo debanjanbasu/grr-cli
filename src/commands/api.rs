@@ -566,15 +566,26 @@ pub(crate) async fn call_method(
 
     if !status.is_success() {
         // 403 with insufficient_scope is the common case when a method
-        // needs a scope this build did not request; name it.
+        // needs a scope this build did not request; name it. Google's own
+        // message tells the three real causes apart ("Request had
+        // insufficient authentication scopes" vs "… API has not been used in
+        // project … or it is disabled"), so quote it rather than replace it.
         if status.as_u16() == 403
             && let Some(scope) = method.least_privilege_scope()
         {
+            let detail = parsed["error"]["message"].as_str().unwrap_or("");
+            let google_said = if detail.is_empty() {
+                String::new()
+            } else {
+                format!("\nGoogle said: {detail}")
+            };
             bail!(
                 "{} {} -> HTTP 403: this method needs the `{scope}` scope.\n\
-                 This build requests every scope the embedded index names, so the likely cause \
-                 is a grant that predates the current set: re-run `grr auth login` to consent \
-                 again (and check the API is enabled on the Cloud project).",
+                 This build requests every scope the embedded index names, so the grant is what \
+                 to check: a token that predates the current set (re-run `grr auth login`), a \
+                 scope the project's consent screen never declared (Google Auth Platform → Data \
+                 access — undeclared scopes are dropped silently at consent), or an API that is \
+                 disabled on the Cloud project.{google_said}",
                 plan.verb,
                 plan.url
             );
