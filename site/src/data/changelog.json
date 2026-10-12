@@ -1,11 +1,72 @@
 {
-  "generatedAt": "2026-10-12T07:02:03.699Z",
+  "generatedAt": "2026-10-12T21:29:16.021Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": [
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "drop the trim-paths gate Cargo stabilized in 1.101",
+              "scope": "build",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "refresh Google Discovery index",
+              "scope": "discovery",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.13.2",
+      "date": "2026-10-12",
+      "unreleased": false,
       "sections": [
         {
           "key": "fixed",
@@ -62,6 +123,18 @@
             {
               "description": "re-record the terminal demo from source",
               "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v0.13.2",
+              "scope": "release",
               "type": "chore",
               "note": null
             },
