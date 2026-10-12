@@ -16,9 +16,9 @@ rustflags = [
 build-std = ["std", "panic_abort", "core", "alloc"]
 panic-abort-tests = true
 profile-rustflags = true
-# Gates for `panic = "immediate-abort"` and `trim-paths` in Cargo.toml.
+# Gate for `panic = "immediate-abort"` in Cargo.toml. `trim-paths` used to sit
+# here as well; Cargo stabilized it in 1.101, where an unused key only warns.
 panic-immediate-abort = true
-trim-paths = true
 
 # VFE (-Zvirtual-function-elimination) requires nightly + LTO + embed-bitcode=yes,
 # but the current nightly LLVM crashes with "Do not know how to promote this operator!"
