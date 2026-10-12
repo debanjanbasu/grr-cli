@@ -94,7 +94,7 @@ Open <https://console.cloud.google.com/apis/credentials/consent>:
 4. Add `grr-cli.pages.dev` as the authorized domain.
 5. Add the Google account you will sign in with as a **Test user**.
 
-One login covers every `grr` service, so the consent screen asks for everything the embedded Discovery index names — the union of every scope any of the 401 methods accepts, across all 14 APIs — even if you only plan to use one. That set is derived from the index rather than hand-maintained, so it grows when Google publishes new surface. Enable the matching APIs (step 4) for the services you use.
+One login covers every `grr` service, so the consent screen asks for everything the embedded Discovery index names — the union of every scope any of the 401 methods accepts, across all 14 APIs — even if you only plan to use one, minus the handful Google only ever grants to a *service account* (Chat's `chat.bot`, `chat.app.*`, `chat.import`). Those are filtered out on purpose: a user consent screen cannot show them, and requesting one fails the whole authorization with `invalid_scope`, so leaving them in would mean no login at all. That set is derived from the index rather than hand-maintained, so it grows when Google publishes new surface. Enable the matching APIs (step 4) for the services you use.
 
 While the consent screen is in **Testing** mode, Google expires refresh tokens after about 7 days — rerun `grr auth login` when that happens. A release that widens the derived scope set (a discovery refresh that brings new API surface) needs one fresh `grr auth login` to grant it; otherwise an existing token keeps working. Publishing the app avoids the testing-mode expiry, but is unnecessary for personal use.
 

@@ -34,7 +34,8 @@ const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 /// Loopback redirect for the native-app flow (RFC 8252 §7.3).
 pub(crate) const REDIRECT_URI: &str = "http://localhost:3434/oauth/callback";
 
-/// The consent set: every scope the embedded index names, plus a curated
+/// The consent set: every scope the embedded index names, minus the ones
+/// Google will not show a user (see [`APP_AUTH_SCOPES`]), plus a curated
 /// floor for scopes no method declares. Requested in full at login —
 /// per-call escalation is deliberately not implemented, so "which scopes do
 /// I hold" is never a question: one credential, everything the index can
@@ -44,6 +45,7 @@ pub fn scopes() -> &'static [String] {
     static SCOPES: LazyLock<Vec<String>> = LazyLock::new(|| {
         let mut set: Vec<String> = CURATED_SCOPES.iter().map(|s| (*s).to_owned()).collect();
         set.extend(crate::discovery::all_scopes());
+        set.retain(|scope| !APP_AUTH_SCOPES.contains(&scope.as_str()));
         set.sort_unstable();
         set.dedup();
         set
@@ -85,6 +87,39 @@ const CURATED_SCOPES: &[&str] = &[
     "https://www.googleapis.com/auth/forms.responses.readonly",
     // Search Console
     "https://www.googleapis.com/auth/webmasters.readonly",
+];
+
+/// Scopes the index names that are granted to a *service account*, never to a
+/// user, and that Google therefore refuses to show on a user consent screen.
+/// They are Chat's app-authentication surface: `chat.bot` "only supports app
+/// authentication", the `chat.app.*` family is used by a Chat app's service
+/// account (with administrator approval), and `chat.import` exists solely for
+/// domain-wide delegation to a service account.
+///
+/// One of them in the request fails the *entire* authorization with
+/// `Error 400: invalid_scope — Some requested scopes cannot be shown:
+/// [...]`, granting nothing, so they must stay out of [`scopes`]. Nothing is
+/// lost by leaving them out: a user credential cannot call the methods behind
+/// them, because those methods authenticate as the app, not as the user.
+///
+/// Keep in sync with Google's Chat authentication docs
+/// (<https://developers.google.com/workspace/chat/authenticate-authorize> and
+/// <https://developers.google.com/workspace/chat/authorize-import>): a refresh
+/// that adds another `chat.app.*` scope needs it listed here too, or login
+/// stops working for everyone.
+pub(crate) const APP_AUTH_SCOPES: &[&str] = &[
+    "https://www.googleapis.com/auth/chat.bot",
+    "https://www.googleapis.com/auth/chat.import",
+    "https://www.googleapis.com/auth/chat.app.delete",
+    "https://www.googleapis.com/auth/chat.app.memberships",
+    "https://www.googleapis.com/auth/chat.app.memberships.readonly",
+    "https://www.googleapis.com/auth/chat.app.messages.readonly",
+    "https://www.googleapis.com/auth/chat.app.spaces",
+    "https://www.googleapis.com/auth/chat.app.spaces.create",
+    "https://www.googleapis.com/auth/chat.app.spaces.readonly",
+    "https://www.googleapis.com/auth/chat.app.all.memberships.readonly",
+    "https://www.googleapis.com/auth/chat.app.all.messages.readonly",
+    "https://www.googleapis.com/auth/chat.app.all.spaces.readonly",
 ];
 
 /// OAuth2 client with PKCE support
@@ -373,5 +408,36 @@ impl AuthConfigBuilder {
 impl Default for AuthConfigBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The regression this guards: an app-authentication scope in the consent
+    /// request makes Google reject the whole authorization — no scope is
+    /// granted at all, so login cannot complete. And the filter must be
+    /// surgical: Chat's *user* scopes stay in.
+    #[test]
+    fn the_consent_set_drops_app_authentication_scopes_only() {
+        let consent = scopes();
+        for scope in APP_AUTH_SCOPES {
+            assert!(
+                !consent.iter().any(|consented| consented == scope),
+                "{scope} is app-authentication-only; Google refuses to show it and \
+                 fails the entire authorization request"
+            );
+        }
+        for scope in [
+            "https://www.googleapis.com/auth/chat.messages",
+            "https://www.googleapis.com/auth/chat.admin.spaces",
+            "https://www.googleapis.com/auth/chat.memberships.app",
+        ] {
+            assert!(
+                consent.iter().any(|consented| consented == scope),
+                "{scope} is a user-consent scope and must stay in the request"
+            );
+        }
     }
 }

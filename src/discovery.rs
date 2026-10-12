@@ -1052,12 +1052,23 @@ mod tests {
     }
 
     #[test]
-    fn the_consent_set_contains_every_indexed_scope() {
+    fn the_consent_set_contains_every_indexed_scope_google_will_show() {
         // The login requests this set in full, so a scope that is indexed but
         // not consented is a method that 403s on first use — the exact
-        // failure mode the whole design exists to prevent.
+        // failure mode the whole design exists to prevent. The one exception
+        // is Google's app-authentication surface, which a user consent screen
+        // cannot show: asking for it fails the entire authorization request,
+        // so it is filtered out of the consent set (core::auth::APP_AUTH_SCOPES)
+        // and left to the service account those methods actually need.
         let consent = crate::core::auth::scopes();
         for scope in all_scopes() {
+            if crate::core::auth::APP_AUTH_SCOPES.contains(&scope.as_str()) {
+                assert!(
+                    !consent.contains(&scope),
+                    "{scope} is app-authentication-only and must not be requested"
+                );
+                continue;
+            }
             assert!(
                 consent.contains(&scope),
                 "{scope} is indexed but not consented"
@@ -1260,10 +1271,9 @@ mod tests {
 
     #[test]
     fn most_methods_need_only_a_handful_of_scopes() {
-        // This is why per-method authorisation is viable. Asking for the
-        // union of everything would need 97 scopes and blow past the ~25
-        // Google allows on an unverified app; asking for one method's scopes
-        // needs a median of 3.
+        // What `least_privilege_scope` reports in `grr api describe` and in a
+        // 403 message is a real, narrow answer: one method's scopes, a median
+        // of three, because Discovery orders them broadest-first.
         let counts: Vec<usize> = services()
             .values()
             .flat_map(|s| s.methods.iter())
@@ -1279,21 +1289,5 @@ mod tests {
         // takes 16); the point is the tail, not the ceiling.
         let worst = counts.iter().max().copied().unwrap_or(0);
         assert!(worst <= 20, "a method accepts {worst} scopes");
-    }
-
-    #[test]
-    fn no_method_requests_the_full_workspace_surface_at_once() {
-        // The reason per-method scopes exist: the union of every method's
-        // scopes is far past what an unverified app may request at consent.
-        let union: std::collections::BTreeSet<&str> = services()
-            .values()
-            .flat_map(|s| s.methods.iter())
-            .flat_map(|m| m.scopes.iter().map(String::as_str))
-            .collect();
-        assert!(
-            union.len() > 25,
-            "expected the union to exceed Google's unverified-app ceiling, got {}",
-            union.len()
-        );
     }
 }

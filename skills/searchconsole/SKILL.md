@@ -39,7 +39,7 @@ Values in `<angle brackets>` are placeholders — substitute real ids (`me` is t
 ## Scopes
 
 - Least privilege for reads: `https://www.googleapis.com/auth/webmasters.readonly` — the narrowest scope the service's methods accept (it is the least-privilege scope for 6 of 11 methods). Per method, ask the index: `grr api describe <id>` → `leastPrivilegeScope`.
-- Scope honesty: the build consents to every scope the embedded index names, so any method in the index is inside the grant. A `403` is therefore not a missing consent: it is either a grant that predates the current scope set (the remedy is a human re-running `grr auth login`) or an API that is not enabled on the Cloud project. Surface that distinction; never retry a 403 in a loop.
+- Scope honesty: the build consents to every scope the embedded index names — minus the Chat app-authentication scopes Google grants only to a service account (`chat.bot`, `chat.app.*`, `chat.import`), which a user consent screen cannot show — so any method that authenticates as a user is inside the grant. A `403` is therefore not a missing consent: it is either a grant that predates the current scope set (the remedy is a human re-running `grr auth login`) or an API that is not enabled on the Cloud project. Surface that distinction; never retry a 403 in a loop.
 
 ## Contract
 

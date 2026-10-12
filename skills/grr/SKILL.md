@@ -81,7 +81,7 @@ stdout stays JSON for `grr skills list`; `grr skills install` prints a human sum
 
 ## Scope honesty
 
-grr consents to every scope the embedded index names, so any method the index can express is inside the grant — there is no per-method consent note and no escalation path. A 403 is therefore not a missing consent: it is either a grant that predates the current scope set (the remedy is a human re-running `grr auth login`) or an API that is not enabled on the Cloud project. Surface that distinction; never retry a 403 in a loop.
+grr consents to every scope the embedded index names — minus the Chat scopes Google grants only to a service account (`chat.bot`, `chat.app.*`, `chat.import`), which a user consent screen cannot show, so any method that authenticates as a *user* is inside the grant. There is no per-method consent note and no escalation path; the app-authentication methods behind those scopes need a service account, not a token. A 403 is therefore not a missing consent: it is either a grant that predates the current scope set (the remedy is a human re-running `grr auth login`) or an API that is not enabled on the Cloud project. Surface that distinction; never retry a 403 in a loop.
 
 ## Safety profiles — global flags, honored everywhere
 
