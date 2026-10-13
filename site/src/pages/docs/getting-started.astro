@@ -129,7 +129,7 @@ const scopes = `$ grr api call gmail.users.messages.list --param userId=me --dry
       </div>
       <div class="container prose reveal">
         <p class="lead">PKCE is always enabled. The browser flow binds a loopback listener on port 3434 and completes when Google redirects back; <code>--device</code> prints a URL and a code instead, for SSH sessions and containers.</p>
-        <p>Tokens are written to the operating system keyring &mdash; Windows Credential Manager, macOS Keychain, or the Linux Secret Service over D-Bus. On a headless machine with no keyring daemon, grr falls back to <code>&lt;cache dir&gt;/grr/token.json</code> and imports it back into the keyring later. Check which one you got from the <code>token_backend</code> field that <code>grr auth login</code> prints.</p>
+        <p>Tokens are written to the operating system keyring &mdash; Windows Credential Manager, macOS Keychain, or the Linux Secret Service over D-Bus. On a headless machine with no keyring daemon, grr falls back to <code>&lt;cache dir&gt;/grr/token.json</code> and imports it back into the keyring later. Check which one you got from the <code>token_backend</code> field that <code>grr auth login</code> prints. <code>GRR_TOKEN_STORE=file</code> skips the keyring altogether &mdash; what a script, an agent, or CI wants, since an OS approval prompt is a hang rather than a question.</p>
         <CodeBlock code={firstRun} label="first run" />
       </div>
     </section>
@@ -171,6 +171,7 @@ const scopes = `$ grr api call gmail.users.messages.list --param userId=me --dry
         <p>Two commands behave differently when there is no terminal, and both refuse to hang rather than block forever on a prompt.</p>
         <ul>
           <li><code>grr auth login --device</code> prints the verification URL and a user code, then polls until you approve. It is the only login path that works over plain SSH.</li>
+          <li><code>GRR_TOKEN_STORE=file</code> keeps grr away from the OS keyring: the token goes to <code>&lt;cache dir&gt;/grr/token.json</code>, with no approval dialog that only a human at the keyboard can clear &mdash; the right default for a script, an agent, or CI.</li>
           <li><code>grr auth setup</code> needs <code>--client-id</code> and <code>--client-secret</code> when stdin is not a TTY, and exits with an error instead of waiting for input. Add <code>--print-only</code> to get the recipe and the config path without writing anything.</li>
           <li><code>grr auth setup --force</code> overwrites an existing <code>~/.grr/config.toml</code>. Without it, an existing file is never replaced.</li>
           <li><code>--enable-apis</code> shells out to <code>gcloud services enable</code> for the service APIs behind every command in the index (gmail, calendar-json, drive, people, chat, forms, tasks, docs, sheets, slides, script, analyticsadmin, analyticsdata, searchconsole) when <code>gcloud</code> is on <code>PATH</code>. It is best-effort: a failure warns and setup still succeeds.</li>

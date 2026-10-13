@@ -110,6 +110,11 @@ impl TokenStore {
     }
 
     async fn detect(keyring_account: String, fallback: PathBuf) -> Result<Self> {
+        if Self::forced_file() {
+            info!("GRR_TOKEN_STORE=file: file token store, no keyring access");
+            return Ok(Self::File(fallback));
+        }
+
         let probe = keyring_account.clone();
         let result = tokio::task::spawn_blocking(move || {
             keyring::Entry::new(KEYRING_SERVICE, &probe).map(|_| ())
@@ -132,6 +137,19 @@ impl TokenStore {
     /// Explicit file store (test injection).
     pub fn file(path: PathBuf) -> Self {
         Self::File(path)
+    }
+
+    /// `GRR_TOKEN_STORE=file` forces the fallback file store instead of the
+    /// OS keyring.
+    ///
+    /// The keyring is the better home for a token — encrypted, and gated by
+    /// the OS. But macOS re-prompts for approval on every rebuild of an
+    /// unsigned binary, which parks the command behind a dialog nobody is
+    /// watching: fatal for a script, an agent, or a CI run. This is the
+    /// switch those callers set once. Any other value (or none) keeps
+    /// auto-detection.
+    fn forced_file() -> bool {
+        is_file_store_requested(std::env::var("GRR_TOKEN_STORE").ok().as_deref())
     }
 
     fn fallback_path() -> PathBuf {
@@ -298,6 +316,14 @@ impl TokenStore {
     }
 }
 
+/// Whether `GRR_TOKEN_STORE` asks for the file store. Split from the env
+/// read so the rule is testable without mutating process-wide state.
+fn is_file_store_requested(value: Option<&str>) -> bool {
+    value
+        .map(|value| value.trim().eq_ignore_ascii_case("file"))
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -314,6 +340,19 @@ mod tests {
         assert_eq!(KEYRING_SERVICE, "grr");
         let fallback = TokenStore::fallback_path();
         assert!(fallback.ends_with(std::path::Path::new("grr").join("token.json")));
+    }
+
+    /// `GRR_TOKEN_STORE=file` is the escape hatch for anything that cannot
+    /// answer a keyring prompt (script, agent, CI). Only `file` selects it:
+    /// a typo must not silently move somebody's token to a plain file.
+    #[test]
+    fn only_the_word_file_selects_the_file_store() {
+        assert!(super::is_file_store_requested(Some("file")));
+        assert!(super::is_file_store_requested(Some("  FILE ")));
+        assert!(!super::is_file_store_requested(Some("keyring")));
+        assert!(!super::is_file_store_requested(Some("files")));
+        assert!(!super::is_file_store_requested(Some("")));
+        assert!(!super::is_file_store_requested(None));
     }
 
     #[test]
