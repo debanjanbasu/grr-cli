@@ -22,7 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Added
+
+- **auth:** GRR\_TOKEN\_STORE=file - the keyring-free token store
+
+### Internal
+
+- 2 internal commits (chore 2)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.14.0] - 2026-10-13
 
