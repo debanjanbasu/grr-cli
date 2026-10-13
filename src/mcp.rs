@@ -5,11 +5,15 @@
 //! per request out, logs to stderr ONLY (stdout is the MCP stream, the
 //! same discipline as the rest of grr).
 //!
-//! * `initialize` — protocol-version negotiation + capabilities
+//! * `initialize` — protocol-version negotiation + capabilities (the
+//!   handshake revisions, up to `2025-11-25`)
+//! * `server/discover` — `2026-07-28`'s mandatory replacement for the
+//!   handshake: revisions served, capabilities, identity, no prior call
 //! * `notifications/initialized` — a notification; never answered
 //! * `tools/list` — every method in the Discovery index as a tool
 //! * `tools/call` — one method invocation through the shared call path
-//! * `ping` — an empty result
+//! * `ping` — an empty result (`2026-07-28` dropped `ping`; a server that
+//!   serves several revisions keeps answering it for the older ones)
 //!
 //! Tool names are the dotted method ids `grr api call` takes
 //! (`gmail.users.messages.list`), so an agent reaches every method Google
@@ -31,21 +35,30 @@ use crate::core::auth::GoogleAuth;
 use crate::discovery::{self, Method, Parameter, Service};
 use serde_json::{Map, Value, json};
 
-/// The protocol version this server speaks. A client asking for a version
-/// we understand gets it echoed; anything else gets this one — MCP's
-/// negotiation rule makes the server's answer authoritative.
+/// The protocol version this server answers `initialize` with — the
+/// handshake revision it speaks. A client asking for a version we understand
+/// gets it echoed; anything else gets this one, since MCP makes the server's
+/// answer authoritative.
 ///
-/// `2025-11-25` is the latest revision the official TypeScript SDK ships
-/// (`LATEST_PROTOCOL_VERSION` in @modelcontextprotocol/sdk 1.31.0), and
-/// its handshake is byte-compatible with this server's surface. The newer
-/// spec revision `2026-07-28` REMOVED the `initialize` handshake in favor
-/// of `server/discover` plus per-request version metadata — a different
-/// handshake shape this server does not implement, so it is deliberately
-/// not in the list: echoing it would promise a surface we cannot serve.
+/// `2025-11-25` stays the handshake version deliberately: the current
+/// revision (`2026-07-28`, latest on modelcontextprotocol.io) is a
+/// *stateless* redesign that removed the `initialize`/`notifications/
+/// initialized` handshake, made `server/discover` mandatory, and moved the
+/// protocol version and client capabilities into per-request `_meta`.
+/// Answering `initialize` with `2026-07-28` would promise a handshake that
+/// revision does not have, so it is advertised where the spec looks for it —
+/// [`ADVERTISED_VERSIONS`], through `server/discover`.
 pub(crate) const PROTOCOL_VERSION: &str = "2025-11-25";
 
-/// Versions understood well enough to echo verbatim.
+/// Handshake revisions understood well enough to echo verbatim.
 const SUPPORTED_VERSIONS: [&str; 3] = ["2024-11-05", "2025-06-18", "2025-11-25"];
+
+/// Every revision this server can serve, newest first — exactly what
+/// `server/discover` reports as `supportedVersions`. The stateless revision
+/// leads: a client that speaks it skips the handshake entirely, calls
+/// `tools/*` inline, and reads the server's identity from each result's
+/// `_meta`.
+const ADVERTISED_VERSIONS: [&str; 4] = ["2026-07-28", "2025-11-25", "2025-06-18", "2024-11-05"];
 
 /// JSON-RPC 2.0 error codes.
 const PARSE_ERROR: i64 = -32700;
@@ -101,14 +114,24 @@ impl McpServer {
                 "id": id,
                 "result": initialize_result(&params),
             }),
+            "server/discover" => json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": discover_result(),
+            }),
             "ping" => json!({ "jsonrpc": "2.0", "id": id, "result": {} }),
             "tools/list" => json!({
                 "jsonrpc": "2.0",
                 "id": id,
-                "result": { "tools": tools_list() },
+                "result": { "tools": tools_list(), "_meta": server_meta() },
             }),
             "tools/call" => {
-                let result = self.tools_call(&params).await;
+                let mut result = self.tools_call(&params).await;
+                // The stateless revision has no handshake to carry identity,
+                // so every result names the server that produced it.
+                if let Some(object) = result.as_object_mut() {
+                    object.insert("_meta".to_owned(), server_meta());
+                }
                 json!({ "jsonrpc": "2.0", "id": id, "result": result })
             }
             "" => error_response(&id, INVALID_REQUEST, "request has no method".to_owned()),
@@ -215,7 +238,36 @@ fn initialize_result(params: &Value) -> Value {
     json!({
         "protocolVersion": version,
         "capabilities": { "tools": {} },
-        "serverInfo": { "name": "grr", "version": env!("CARGO_PKG_VERSION") },
+        "serverInfo": server_info(),
+    })
+}
+
+/// The server's identity. It rides in three places because each revision
+/// looks somewhere different for it: `serverInfo` in the `initialize` result
+/// (the handshake revisions), in the `server/discover` result, and under
+/// `io.modelcontextprotocol/serverInfo` in the `_meta` of every result the
+/// stateless revision produces.
+fn server_info() -> Value {
+    json!({ "name": "grr", "version": env!("CARGO_PKG_VERSION") })
+}
+
+fn server_meta() -> Value {
+    json!({ "io.modelcontextprotocol/serverInfo": server_info() })
+}
+
+/// `server/discover` — the mandatory RPC of the stateless revision. No body
+/// parameters, no prior call, no state: it reports the revisions served, the
+/// capabilities, and the identity, so a client can pick a revision (or just
+/// call `tools/*` inline) before doing anything else.
+fn discover_result() -> Value {
+    json!({
+        "resultType": "complete",
+        "supportedVersions": ADVERTISED_VERSIONS,
+        "capabilities": { "tools": {} },
+        "_meta": server_meta(),
+        "instructions": "Google Workspace and Google Cloud APIs from the embedded Discovery \
+                         index. Tool names are dotted method ids (gmail.users.messages.list); \
+                         --readonly, --deny-service and --deny-verb gate every write.",
     })
 }
 
@@ -457,6 +509,61 @@ mod tests {
         let line = request(3, "initialize", r#"{"protocolVersion":"1999-01-01"}"#);
         let response = server.handle_line(&line).await.unwrap();
         assert_eq!(response["result"]["protocolVersion"], PROTOCOL_VERSION);
+    }
+
+    /// The stateless revision has no handshake, so `server/discover` may be
+    /// a client's first call — and `tools/list` works with no prior call at
+    /// all. The server holds no handshake state to satisfy.
+    #[tokio::test]
+    async fn server_discover_answers_without_a_handshake() {
+        let server = test_server().await;
+
+        let line = request(
+            1,
+            "server/discover",
+            r#"{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"probe","version":"0"}}}"#,
+        );
+        let response = server.handle_line(&line).await.unwrap();
+        let result = &response["result"];
+
+        assert_eq!(result["resultType"], "complete");
+        assert_eq!(
+            result["supportedVersions"][0], "2026-07-28",
+            "the newest revision leads"
+        );
+        assert!(
+            result["supportedVersions"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("2025-11-25")),
+            "older revisions stay served"
+        );
+        assert!(result["capabilities"]["tools"].is_object());
+        assert_eq!(
+            result["_meta"]["io.modelcontextprotocol/serverInfo"]["name"],
+            "grr"
+        );
+
+        // A 2026-07-28 client may also skip discovery entirely.
+        let inline = request(2, "tools/list", "{}");
+        let response = server.handle_line(&inline).await.unwrap();
+        assert!(response["result"]["tools"].is_array());
+    }
+
+    /// No handshake means no `serverInfo` to carry identity, so every result
+    /// names the server — the spec asks for `_meta` on each one.
+    #[tokio::test]
+    async fn results_identify_the_server_per_request() {
+        let server = test_server().await;
+
+        for method in ["tools/list", "server/discover"] {
+            let line = request(1, method, "{}");
+            let response = server.handle_line(&line).await.unwrap();
+            assert_eq!(
+                response["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"], "grr",
+                "{method} did not identify the server"
+            );
+        }
     }
 
     #[tokio::test]

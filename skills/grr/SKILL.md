@@ -106,6 +106,7 @@ An agent driving grr for a user should pass `--readonly` unless the user asked f
 - Tool name = the dotted method id (`gmail.users.messages.list`); `tools/list` returns every tool with an inputSchema built from Discovery (typed properties, required list, enum values) plus `params`/`body_file`/`query`/`dry_run`.
 - `tools/call` runs through the same engine as the CLI — results come back as JSON text content; errors are `isError` results, never a dead server.
 - Connect any MCP client: register `grr mcp` as a stdio server (Claude Desktop, Gemini CLI, VS Code, Cursor). `--readonly` gives a server that refuses writes.
+- Protocol: the stateless `2026-07-28` revision — no `initialize`; call `tools/*` inline, and `server/discover` reports `supportedVersions` plus the server identity (also carried in every result's `_meta`). The handshake revisions `2025-11-25`, `2025-06-18`, and `2024-11-05` are served too, so older clients negotiate as before.
 - The stream is stdout; logs go to stderr. Do not print to the stream.
 
 ## Natural language: `grr ask`
