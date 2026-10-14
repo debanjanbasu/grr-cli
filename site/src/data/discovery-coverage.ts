@@ -48,7 +48,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 38,
     scopes: 18,
-    revision: '20261005',
+    revision: '20261009',
     note: 'Calendars, events, instances, ACL, free/busy, colors, and settings.',
   },
   {
@@ -66,7 +66,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 24,
     scopes: 12,
-    revision: '20261011',
+    revision: '20261012',
     note: 'Contacts, connections, other contacts, contact groups, and directory people.',
   },
   {
@@ -75,7 +75,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 54,
     scopes: 41,
-    revision: '20261008',
+    revision: '20261011',
     note: 'Spaces, messages, memberships, reactions, attachments, sections, and availability.',
   },
   {
@@ -138,7 +138,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 55,
     scopes: 2,
-    revision: '20261011',
+    revision: '20261012',
     note: 'Accounts, properties, data streams, custom dimensions and metrics, conversion events, and the Ads and Firebase links.',
   },
   {
@@ -147,7 +147,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 11,
     scopes: 2,
-    revision: '20261011',
+    revision: '20261012',
     note: 'Run reports — standard, realtime, pivot, and batch — plus compatibility checks, metadata, and audience exports.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261012',
+    revision: '20261013',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
