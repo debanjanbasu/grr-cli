@@ -22,7 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Breaking changes
+
+- **mcp:** serve only the stateless 2026-07-28 revision
+
+### Internal
+
+- 4 internal commits (chore 4)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [0.15.0] - 2026-10-13
 
