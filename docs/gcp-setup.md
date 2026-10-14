@@ -100,7 +100,12 @@ One login covers every `grr` service, so the consent screen asks for everything 
 
 ### Declare the scopes: Google Auth Platform → Data access
 
-A consent screen grants only the scopes the project has **declared**. Anything else is dropped silently at the moment of consent: the login still succeeds and hands you a token, but it holds just `openid`, `email`, `profile`, and `userinfo.*`, and the first real call fails with `403 insufficientPermissions`. A fresh project has this list empty — the register is behaviour, not an error message, so it is easy to miss.
+A consent screen grants only the scopes the project has **declared**. There are two failure modes, and only the first one is quiet:
+
+- **Empty list.** Everything is dropped silently: the login succeeds and hands you a token holding just `openid`, `email`, `profile` and `userinfo.*`, and the first real call fails with `403 insufficientPermissions`.
+- **Partial list** — the state a half-finished declaration leaves behind. A request naming a scope that is *not* declared can leave Google's consent page **hanging forever** after Continue: no error, no redirect, no callback, nothing in the log, and `grr auth login` times out after five minutes. This looks exactly like a broken browser and is not one.
+
+Declare the whole list, and expect to do it in **batches**: the console's *Manually add scopes* box refuses a large paste with "unable to save changes", and a silently partial save is what produces the hang above. The panel lists only scopes whose APIs are enabled, so run step 4 first — a scope for a disabled API cannot be declared at all.
 
 1. Open **Google Auth Platform → Data access → Add or remove scopes**.
 2. Paste the scope list into **Manually add scopes** (one per line), click **Add to table**, then **Update**.

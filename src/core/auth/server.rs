@@ -83,9 +83,11 @@ impl super::GoogleAuth {
                 GrrError::Timeout(
                     "OAuth callback timeout: the consent screen was not finished within 5 minutes. \
                      Rerun `grr auth login` and complete the tab it opens — the login only lands \
-                     while this command is still waiting. If that page never completes, check the \
-                     project's Audience → Test users list: in Testing mode only listed accounts may \
-                     grant the scopes, and Google refuses silently — no error, no redirect."
+                     while this command is still waiting. If that page never completes, check two \
+                     project settings: in Testing mode only the accounts on Audience → Test users \
+                     may grant the scopes, and a scope the project has not declared (Data access) \
+                     or whose API is disabled (API library) makes Google's consent page hang — no \
+                     error, no redirect."
                         .into(),
                 )
             })?
