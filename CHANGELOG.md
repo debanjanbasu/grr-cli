@@ -22,13 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [1.0.1] - 2026-10-14
+
 ### Fixed
 
 - **auth:** name both consent-screen traps in the login timeout
 
 ### Internal
 
-- 2 internal commits (chore 2)
+- 4 internal commits (chore 4)
 
 ### Other
 
@@ -548,7 +552,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/debanjanbasu/grr-cli/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.15.0...v1.0.0
 [0.15.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.13.5...v0.14.0
