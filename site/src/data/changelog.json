@@ -1,12 +1,55 @@
 {
-  "generatedAt": "2026-10-14T01:16:18.601Z",
+  "generatedAt": "2026-10-14T03:26:56.993Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
-      "sections": []
+      "sections": [
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "name both consent-screen traps in the login timeout",
+              "scope": "auth",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
+              "note": null
+            }
+          ]
+        }
+      ]
     },
     {
       "version": "1.0.0",
