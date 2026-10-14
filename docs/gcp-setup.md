@@ -107,6 +107,8 @@ A consent screen grants only the scopes the project has **declared**. There are 
 
 Declare the whole list, and expect to do it in **batches**: the console's *Manually add scopes* box refuses a large paste with "unable to save changes", and a silently partial save is what produces the hang above. The panel lists only scopes whose APIs are enabled, so run step 4 first — a scope for a disabled API cannot be declared at all.
 
+Two more things bite in practice. **A save takes minutes to take effect**: a `grr auth login` started right after it can still hang exactly as before. Reload the page, confirm the new rows are listed, then retry. And **tick the scopes on the consent screen**: a submit with everything unticked still succeeds, but grants only the scopes the account already held — the token comes back missing the families you just declared. `Select all` first, then Continue.
+
 1. Open **Google Auth Platform → Data access → Add or remove scopes**.
 2. Paste the scope list into **Manually add scopes** (one per line), click **Add to table**, then **Update**.
 3. Re-run `grr auth login`.
