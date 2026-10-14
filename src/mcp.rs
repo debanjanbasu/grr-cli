@@ -1,19 +1,20 @@
 //! Model Context Protocol (MCP) server for grr.
 //!
 //! Hand-rolled JSON-RPC 2.0 over stdio — no SDK crate: a tool-only server
-//! needs five methods. Newline-delimited requests in, one response line
+//! needs four RPCs. Newline-delimited requests in, one response line
 //! per request out, logs to stderr ONLY (stdout is the MCP stream, the
 //! same discipline as the rest of grr).
 //!
-//! * `initialize` — protocol-version negotiation + capabilities (the
-//!   handshake revisions, up to `2025-11-25`)
-//! * `server/discover` — `2026-07-28`'s mandatory replacement for the
-//!   handshake: revisions served, capabilities, identity, no prior call
-//! * `notifications/initialized` — a notification; never answered
+//! * `server/discover` — the stateless revision's discovery RPC: revisions
+//!   served, capabilities, identity, and it needs no prior call
 //! * `tools/list` — every method in the Discovery index as a tool
 //! * `tools/call` — one method invocation through the shared call path
-//! * `ping` — an empty result (`2026-07-28` dropped `ping`; a server that
-//!   serves several revisions keeps answering it for the older ones)
+//!
+//! `2026-07-28` is the only revision served, so the handshake methods of
+//! earlier revisions are deliberately absent: `initialize`, `ping` and
+//! `logging/setLevel` answer with a JSON-RPC error naming the revision to
+//! speak instead. Notifications (`notifications/initialized`, whatever the
+//! revision) carry no id, so they are never answered at all.
 //!
 //! Tool names are the dotted method ids `grr api call` takes
 //! (`gmail.users.messages.list`), so an agent reaches every method Google
@@ -22,8 +23,7 @@
 //! contract), a protocol failure a JSON-RPC error object.
 //!
 //! ```text
-//! {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}
-//! {"jsonrpc":"2.0","method":"notifications/initialized"}
+//! {"jsonrpc":"2.0","id":1,"method":"server/discover"}
 //! {"jsonrpc":"2.0","id":2,"method":"tools/list"}
 //! {"jsonrpc":"2.0","id":3,"method":"tools/call",
 //!  "params":{"name":"gmail.users.messages.list","arguments":{"userId":"me","dry_run":true}}}
@@ -35,30 +35,23 @@ use crate::core::auth::GoogleAuth;
 use crate::discovery::{self, Method, Parameter, Service};
 use serde_json::{Map, Value, json};
 
-/// The protocol version this server answers `initialize` with — the
-/// handshake revision it speaks. A client asking for a version we understand
-/// gets it echoed; anything else gets this one, since MCP makes the server's
-/// answer authoritative.
+/// The one protocol revision this server speaks: `2026-07-28`, the current
+/// MCP revision, and a *stateless* redesign — it removed the `initialize`/
+/// `notifications/initialized` handshake, made `server/discover` mandatory,
+/// and moved the protocol version and client capabilities into per-request
+/// `_meta`.
 ///
-/// `2025-11-25` stays the handshake version deliberately: the current
-/// revision (`2026-07-28`, latest on modelcontextprotocol.io) is a
-/// *stateless* redesign that removed the `initialize`/`notifications/
-/// initialized` handshake, made `server/discover` mandatory, and moved the
-/// protocol version and client capabilities into per-request `_meta`.
-/// Answering `initialize` with `2026-07-28` would promise a handshake that
-/// revision does not have, so it is advertised where the spec looks for it —
-/// [`ADVERTISED_VERSIONS`], through `server/discover`.
-pub(crate) const PROTOCOL_VERSION: &str = "2025-11-25";
-
-/// Handshake revisions understood well enough to echo verbatim.
-const SUPPORTED_VERSIONS: [&str; 3] = ["2024-11-05", "2025-06-18", "2025-11-25"];
+/// Legacy revisions are deliberately not served. Their handshake shape
+/// (`initialize`, `ping`, `logging/setLevel`) is gone from the spec, and
+/// carrying it forever buys nothing a client cannot get by reading this
+/// constant out of `server/discover` — so a client that still opens with
+/// `initialize` gets an error naming the revision to speak instead.
+pub(crate) const PROTOCOL_VERSION: &str = "2026-07-28";
 
 /// Every revision this server can serve, newest first — exactly what
-/// `server/discover` reports as `supportedVersions`. The stateless revision
-/// leads: a client that speaks it skips the handshake entirely, calls
-/// `tools/*` inline, and reads the server's identity from each result's
-/// `_meta`.
-const ADVERTISED_VERSIONS: [&str; 4] = ["2026-07-28", "2025-11-25", "2025-06-18", "2024-11-05"];
+/// `server/discover` reports as `supportedVersions`. One entry, on purpose:
+/// this server speaks the current revision and nothing older.
+const SUPPORTED_VERSIONS: [&str; 1] = ["2026-07-28"];
 
 /// JSON-RPC 2.0 error codes.
 const PARSE_ERROR: i64 = -32700;
@@ -109,17 +102,11 @@ impl McpServer {
         let params = message.get("params").cloned().unwrap_or(Value::Null);
 
         let response = match method {
-            "initialize" => json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "result": initialize_result(&params),
-            }),
             "server/discover" => json!({
                 "jsonrpc": "2.0",
                 "id": id,
                 "result": discover_result(),
             }),
-            "ping" => json!({ "jsonrpc": "2.0", "id": id, "result": {} }),
             "tools/list" => json!({
                 "jsonrpc": "2.0",
                 "id": id,
@@ -134,6 +121,17 @@ impl McpServer {
                 }
                 json!({ "jsonrpc": "2.0", "id": id, "result": result })
             }
+            // Gone from the spec, and served by nothing here. The caller is
+            // a client that has not caught up, which is exactly the audience
+            // an error should help: name the revision, name the replacement.
+            "initialize" | "ping" | "logging/setLevel" => error_response(
+                &id,
+                METHOD_NOT_FOUND,
+                format!(
+                    "`{method}` is not part of MCP {PROTOCOL_VERSION} — the handshake is gone. \
+                     Call `server/discover` for the revisions served, then `tools/*` inline."
+                ),
+            ),
             "" => error_response(&id, INVALID_REQUEST, "request has no method".to_owned()),
             other => error_response(&id, METHOD_NOT_FOUND, format!("method not found: {other}")),
         };
@@ -229,24 +227,9 @@ impl McpServer {
     }
 }
 
-fn initialize_result(params: &Value) -> Value {
-    let requested = params.get("protocolVersion").and_then(|v| v.as_str());
-    let version = match requested {
-        Some(version) if SUPPORTED_VERSIONS.contains(&version) => (*version).to_owned(),
-        _ => PROTOCOL_VERSION.to_owned(),
-    };
-    json!({
-        "protocolVersion": version,
-        "capabilities": { "tools": {} },
-        "serverInfo": server_info(),
-    })
-}
-
-/// The server's identity. It rides in three places because each revision
-/// looks somewhere different for it: `serverInfo` in the `initialize` result
-/// (the handshake revisions), in the `server/discover` result, and under
-/// `io.modelcontextprotocol/serverInfo` in the `_meta` of every result the
-/// stateless revision produces.
+/// The server's identity, for `_meta`. With no handshake to carry it once,
+/// `io.modelcontextprotocol/serverInfo` on EVERY result is the only place a
+/// client can read it.
 fn server_info() -> Value {
     json!({ "name": "grr", "version": env!("CARGO_PKG_VERSION") })
 }
@@ -262,7 +245,7 @@ fn server_meta() -> Value {
 fn discover_result() -> Value {
     json!({
         "resultType": "complete",
-        "supportedVersions": ADVERTISED_VERSIONS,
+        "supportedVersions": SUPPORTED_VERSIONS,
         "capabilities": { "tools": {} },
         "_meta": server_meta(),
         "instructions": "Google Workspace and Google Cloud APIs from the embedded Discovery \
@@ -454,18 +437,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_stdio_loop_pipes_the_full_handshake() {
+    async fn the_stdio_loop_pipes_the_stateless_requests() {
         let server = test_server().await;
         let input = format!(
-            "{}\n{}\n{}\n{}\n",
-            request(
-                1,
-                "initialize",
-                r#"{"protocolVersion":"2024-11-05","clientInfo":{"name":"t","version":"0"}}"#
-            ),
+            "{}\n{}\n{}\n",
+            request(1, "server/discover", "{}"),
             r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
             request(2, "tools/list", "{}"),
-            request(3, "ping", "{}"),
         );
         let mut out: Vec<u8> = Vec::new();
         serve(&server, input.as_bytes(), &mut out).await.unwrap();
@@ -476,39 +454,42 @@ mod tests {
             .lines()
             .map(|l| serde_json::from_str(l).unwrap())
             .collect();
-        assert_eq!(lines.len(), 3);
+        assert_eq!(lines.len(), 2);
 
         assert_eq!(lines[0]["jsonrpc"], "2.0");
         assert_eq!(lines[0]["id"], 1);
-        assert!(lines[0]["result"]["protocolVersion"].is_string());
+        assert_eq!(lines[0]["result"]["resultType"], "complete");
+        assert_eq!(
+            lines[0]["result"]["supportedVersions"],
+            json!(["2026-07-28"])
+        );
         assert!(lines[0]["result"]["capabilities"]["tools"].is_object());
-        assert_eq!(lines[0]["result"]["serverInfo"]["name"], "grr");
-        assert!(lines[0]["result"]["serverInfo"]["version"].is_string());
+        assert_eq!(
+            lines[0]["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"],
+            "grr"
+        );
 
         assert_eq!(lines[1]["id"], 2);
         let tools = lines[1]["result"]["tools"].as_array().unwrap();
         assert_eq!(tools.len(), server.tool_count());
-
-        assert_eq!(lines[2]["id"], 3);
-        assert_eq!(lines[2]["result"], json!({}));
     }
 
+    /// The handshake revisions are not served at all. A client that opens
+    /// with one of their methods gets an error naming the revision to speak
+    /// and the RPC that replaced the handshake.
     #[tokio::test]
-    async fn initialize_echoes_a_supported_protocol_version() {
+    async fn legacy_handshake_methods_are_refused_with_the_revision_to_speak() {
         let server = test_server().await;
 
-        let line = request(1, "initialize", r#"{"protocolVersion":"2025-06-18"}"#);
-        let response = server.handle_line(&line).await.unwrap();
-        assert_eq!(response["result"]["protocolVersion"], "2025-06-18");
+        for method in ["initialize", "ping", "logging/setLevel"] {
+            let line = request(1, method, "{}");
+            let response = server.handle_line(&line).await.unwrap();
 
-        let line = request(2, "initialize", r#"{"protocolVersion":"2025-11-25"}"#);
-        let response = server.handle_line(&line).await.unwrap();
-        assert_eq!(response["result"]["protocolVersion"], "2025-11-25");
-
-        // An unknown version: the server's answer is authoritative.
-        let line = request(3, "initialize", r#"{"protocolVersion":"1999-01-01"}"#);
-        let response = server.handle_line(&line).await.unwrap();
-        assert_eq!(response["result"]["protocolVersion"], PROTOCOL_VERSION);
+            assert_eq!(response["error"]["code"], METHOD_NOT_FOUND, "{method}");
+            let message = response["error"]["message"].as_str().unwrap();
+            assert!(message.contains(PROTOCOL_VERSION), "{method}: {message}");
+            assert!(message.contains("server/discover"), "{method}: {message}");
+        }
     }
 
     /// The stateless revision has no handshake, so `server/discover` may be
@@ -528,15 +509,9 @@ mod tests {
 
         assert_eq!(result["resultType"], "complete");
         assert_eq!(
-            result["supportedVersions"][0], "2026-07-28",
-            "the newest revision leads"
-        );
-        assert!(
-            result["supportedVersions"]
-                .as_array()
-                .unwrap()
-                .contains(&json!("2025-11-25")),
-            "older revisions stay served"
+            result["supportedVersions"],
+            json!(["2026-07-28"]),
+            "the current revision, and only it"
         );
         assert!(result["capabilities"]["tools"].is_object());
         assert_eq!(

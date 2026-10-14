@@ -76,7 +76,7 @@ stdout stays JSON for `grr skills list`; `grr skills install` prints a human sum
 ## Auth state
 
 - `grr auth status` — check first. One live `gmail.users.getProfile` call; JSON `{authenticated, email, …}`; non-zero exit when there is no valid credential. Do not retry auth failures in a loop.
-- `grr auth login` — PKCE browser flow. `grr auth login --device` for headless machines (prints a URL + code; a human still approves it). The device flow needs a client of type "TVs and Limited Input devices" (`GRR_OAUTH__DEVICE_CLIENT_ID`, or `device-client-id` in `~/.grr/config.toml`); when it is missing the command says so and exits — surface that, do not retry. A device login is also *narrower*: Google caps that flow at drive.file, calendar, userinfo and openid, so a 403 on Gmail/Chat/Docs/Tasks after a device login is the flow's ceiling, not a stale grant — say that instead of recommending another login.
+- `grr auth login` — PKCE browser flow. `grr auth login --device` for headless machines (prints a URL + code; a human still approves it). The device flow needs a client of type "TVs and Limited Input devices" (`GRR_OAUTH__DEVICE_CLIENT_ID`, or `device-client-id` in `~/.grr/config.toml`); when it is missing the command says so and exits — surface that, do not retry. A device login is also *narrower*: Google caps that flow at drive.file, calendar, userinfo and openid, so a 403 on Gmail/Chat/Docs/Tasks after a device login is the flow's ceiling, not a stale grant — say that instead of recommending another login. A BYO-client project in **Testing** mode authorizes only the accounts on its **Audience → Test users** list: for any other account Google renders the consent page and then refuses to complete it — no error, no redirect, just a page that never finishes — and the 5-minute callback timeout is what the user sees. That is a project setting, not a grr bug: point them at that list instead of retrying the login.
 - Release binaries are zero-config (an OAuth client is compiled in). Source builds need `grr auth setup` first.
 
 ## Scope honesty
@@ -108,7 +108,7 @@ Scripts, agents, and CI: set `GRR_TOKEN_STORE=file` before anything else. It kee
 - Tool name = the dotted method id (`gmail.users.messages.list`); `tools/list` returns every tool with an inputSchema built from Discovery (typed properties, required list, enum values) plus `params`/`body_file`/`query`/`dry_run`.
 - `tools/call` runs through the same engine as the CLI — results come back as JSON text content; errors are `isError` results, never a dead server.
 - Connect any MCP client: register `grr mcp` as a stdio server (Claude Desktop, Gemini CLI, VS Code, Cursor). `--readonly` gives a server that refuses writes.
-- Protocol: the stateless `2026-07-28` revision — no `initialize`; call `tools/*` inline, and `server/discover` reports `supportedVersions` plus the server identity (also carried in every result's `_meta`). The handshake revisions `2025-11-25`, `2025-06-18`, and `2024-11-05` are served too, so older clients negotiate as before.
+- Protocol: `2026-07-28` only — the stateless revision. There is no `initialize`: call `tools/*` inline, and `server/discover` reports `supportedVersions` plus the server identity (also carried in every result's `_meta`). A legacy handshake (`initialize`, `ping`, `logging/setLevel`) fails with an error naming the revision to speak, so nothing is silently negotiated.
 - The stream is stdout; logs go to stderr. Do not print to the stream.
 
 ## Natural language: `grr ask`

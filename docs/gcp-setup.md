@@ -94,6 +94,8 @@ Open <https://console.cloud.google.com/apis/credentials/consent>:
 4. Add `grr-cli.pages.dev` as the authorized domain.
 5. Add the Google account you will sign in with as a **Test user**.
 
+If the account is missing from that list, Google still *shows* the consent page and then refuses to complete it: the page keeps loading, **Continue** appears to do nothing, and no error ever surfaces — in every browser, on every input method. In Testing mode only test users may authorize sensitive or restricted scopes; `openid`, `email`, `profile` and the `userinfo.*` pair are exempt, which is why a login that grants only those still succeeds and looks healthy. Check **Audience → Test users** before suspecting the browser, the network, or the scope list.
+
 One login covers every `grr` service, so the consent screen asks for everything the embedded Discovery index names — the union of every scope any of the 401 methods accepts, across all 14 APIs — even if you only plan to use one, minus the handful Google only ever grants to a *service account* (Chat's `chat.bot`, `chat.app.*`, `chat.import`). Those are filtered out on purpose: a user consent screen cannot show them, and requesting one fails the whole authorization with `invalid_scope`, so leaving them in would mean no login at all. That set is derived from the index rather than hand-maintained, so it grows when Google publishes new surface. Enable the matching APIs (step 4) for the services you use.
 
 ### Declare the scopes: Google Auth Platform → Data access
