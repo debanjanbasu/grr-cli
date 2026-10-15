@@ -103,14 +103,6 @@ impl SafetyProfile {
         denied_verbs: BTreeSet::new(),
     };
 
-    /// A reads-only profile: every write verb is refused.
-    pub fn readonly() -> Self {
-        SafetyProfile {
-            readonly: true,
-            ..SafetyProfile::default()
-        }
-    }
-
     /// Build a profile from raw flag values, normalising on the way in:
     /// service names are matched case-insensitively (`--deny-service
     /// Gmail` == `--deny-service gmail`), verbs are upper-cased so
@@ -193,7 +185,7 @@ mod tests {
 
     #[test]
     fn readonly_refuses_every_write_verb_and_allows_reads() {
-        let profile = SafetyProfile::readonly();
+        let profile = SafetyProfile::new(true, [], []);
 
         let (service, get) = discovery::resolve("gmail.users.messages.list").unwrap();
         assert!(profile.check(&service.name, get).is_ok());

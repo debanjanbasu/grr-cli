@@ -1,4 +1,5 @@
 import type { APIRoute } from 'astro';
+import { discoveryServices } from '../data/discovery-coverage';
 
 export const prerender = true;
 
@@ -11,20 +12,9 @@ const pages = [
   'docs/discovery/',
   'docs/agents/',
   'docs/api-reference/',
-  'docs/api-reference/analyticsadmin/',
-  'docs/api-reference/analyticsdata/',
-  'docs/api-reference/calendar/',
-  'docs/api-reference/chat/',
-  'docs/api-reference/docs/',
-  'docs/api-reference/drive/',
-  'docs/api-reference/forms/',
-  'docs/api-reference/gmail/',
-  'docs/api-reference/people/',
-  'docs/api-reference/script/',
-  'docs/api-reference/searchconsole/',
-  'docs/api-reference/sheets/',
-  'docs/api-reference/slides/',
-  'docs/api-reference/tasks/',
+  // One page per service, exactly the set [service].astro builds from the
+  // same index.
+  ...discoveryServices.map((service) => `docs/api-reference/${service.name}/`),
   'changelog/',
   'compare/',
   'blog/',

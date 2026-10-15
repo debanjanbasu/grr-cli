@@ -277,14 +277,16 @@ impl super::GoogleAuth {
 /// Build [`TokenStorage`] from a successful token-endpoint JSON body.
 /// Shared by the PKCE exchange and the device poll.
 ///
-/// `scopes` is what was *requested*; Google's response carries what was
-/// actually *granted* in `scope`, and the two genuinely differ — the consent
-/// screen lets a user approve a subset, and a project whose consent screen
-/// does not declare a scope (Google Auth Platform → Data access) is granted
-/// nothing for it, silently. Storing the request as if it were the grant
-/// makes a later 403 look like a stale token instead of a scope the account
-/// never approved, so the response wins whenever it says anything; the
-/// requested list is only the fallback for providers that omit it.
+/// `scopes` is what the caller wants stored when the response is silent:
+/// the *requested* list on a fresh login, or the stored credential's own
+/// scope on a refresh (which sends no scope list at all). Google's response
+/// carries what was actually *granted* in `scope`, and the two genuinely
+/// differ — the consent screen lets a user approve a subset, and a project
+/// whose consent screen does not declare a scope (Google Auth Platform →
+/// Data access) is granted nothing for it, silently. Storing the request as
+/// if it were the grant makes a later 403 look like a stale token instead of
+/// a scope the account never approved, so the response wins whenever it says
+/// anything; this list is only the fallback for providers that omit it.
 pub(crate) fn token_storage_from_response(
     token_data: &serde_json::Value,
     scopes: &[String],

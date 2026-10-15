@@ -414,7 +414,7 @@ function scopesSection(a: Analysis): string[] {
     );
   }
   lines.push(
-    '- Scope honesty: the build consents to every scope the embedded index names — minus the Chat app-authentication scopes Google grants only to a service account (`chat.bot`, `chat.app.*`, `chat.import`), which a user consent screen cannot show — so any method that authenticates as a user is inside the grant. A `403` is therefore not a missing consent: it is either a grant that predates the current scope set (the remedy is a human re-running `grr auth login`) or an API that is not enabled on the Cloud project. Surface that distinction; never retry a 403 in a loop.',
+    '- Scope honesty: a login grants only the scopes it asked for — `grr auth login` requests a small default set, `--service <name>` adds one service\'s scopes from the embedded index, `--all-scopes` the whole union — minus the Chat app-authentication scopes Google grants only to a service account (`chat.bot`, `chat.app.*`, `chat.import`), which a user consent screen cannot show. A `403` is therefore not a missing consent: it is either a scope outside the current grant (the remedy is a human re-running `grr auth login --service <name>`) or an API that is not enabled on the Cloud project. Surface that distinction; never retry a 403 in a loop.',
   );
   return lines;
 }

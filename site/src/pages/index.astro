@@ -27,9 +27,16 @@ import glyphChat from '../assets/glyph-chat.svg';
 
 
 // The per-service line under each card in the inventory panel; the count is
-// read from the coverage table rather than typed, so it cannot drift.
-const methodCountFor = (name: string): number =>
-  discoveryServices.find((service) => service.name === name)?.methods ?? 0;
+// read from the coverage table rather than typed, so it cannot drift. An
+// unknown service name is a hard build failure, not a silent 0: a rename must
+// break the build rather than print a wrong number.
+const methodCountFor = (name: string): number => {
+  const service = discoveryServices.find((entry) => entry.name === name);
+  if (!service) {
+    throw new Error(`index.astro: no "${name}" service in the Discovery coverage table`);
+  }
+  return service.methods;
+};
 const base = import.meta.env.BASE_URL;
 const releaseUrl = 'https://github.com/debanjanbasu/grr-cli/releases';
 const services = [
@@ -122,27 +129,27 @@ const services = [
 const commandSurfaces = [
   {
     name: 'Gmail',
-    commands: 'users: messages, threads, drafts, labels, history, settings (filters, forwarding, sendAs, CSE), watch · 79 methods',
+    commands: `users: messages, threads, drafts, labels, history, settings (filters, forwarding, sendAs, CSE), watch · ${methodCountFor('gmail')} methods`,
   },
   {
     name: 'Calendar',
-    commands: 'calendars, events, calendarList, freebusy, acl, colors, settings, channels · 38 methods',
+    commands: `calendars, events, calendarList, freebusy, acl, colors, settings, channels · ${methodCountFor('calendar')} methods`,
   },
   {
     name: 'Drive',
-    commands: 'files, permissions, comments, replies, revisions, changes, drives, accessproposals, approvals, teamdrives · 64 methods',
+    commands: `files, permissions, comments, replies, revisions, changes, drives, accessproposals, approvals, teamdrives · ${methodCountFor('drive')} methods`,
   },
   {
     name: 'People',
-    commands: 'people, contactGroups, otherContacts · 24 methods',
+    commands: `people, contactGroups, otherContacts · ${methodCountFor('people')} methods`,
   },
   {
     name: 'Chat',
-    commands: 'spaces, messages, members, reactions, spaceEvents, customEmojis, media, availability · 54 methods',
+    commands: `spaces, messages, members, reactions, spaceEvents, customEmojis, media, availability · ${methodCountFor('chat')} methods`,
   },
   {
     name: 'Forms',
-    commands: 'forms, responses, watches · 10 methods',
+    commands: `forms, responses, watches · ${methodCountFor('forms')} methods`,
   },
   {
     name: 'Tasks',
@@ -150,15 +157,15 @@ const commandSurfaces = [
   },
   {
     name: 'Docs',
-    commands: 'documents · 3 methods',
+    commands: `documents · ${methodCountFor('docs')} methods`,
   },
   {
     name: 'Sheets',
-    commands: 'spreadsheets, values, sheets, developerMetadata · 17 methods',
+    commands: `spreadsheets, values, sheets, developerMetadata · ${methodCountFor('sheets')} methods`,
   },
   {
     name: 'Slides',
-    commands: 'presentations, pages · 5 methods',
+    commands: `presentations, pages · ${methodCountFor('slides')} methods`,
   },
   {
     name: 'Apps Script',
@@ -237,7 +244,7 @@ const faqs = [
   },
   {
     question: 'Do I need to log in again after an update?',
-    answer: 'Once, for this release: the consent set is now derived from the embedded index — every scope any of the 401 methods names, minus the Chat app-authentication scopes Google grants only to a service account — so a token issued for the older, shorter set needs one fresh `grr auth login`. Logins after that keep working across releases until a discovery refresh adds a scope to the index, which needs another re-login.',
+    answer: `Only when you ask for more: the default consent set is deliberately small — Gmail, Drive, Calendar, Tasks, Docs, Sheets, Slides and sign-in — because Google's consent screen stops submitting past roughly 27 ticked boxes on an unverified project. \`grr auth login --service <name>\` asks for one service's full scope set instead, and \`--all-scopes\` asks for every scope the ${discoveryMethodTotal} methods name. Each login merges with the account's existing grant, so widening the request needs one fresh \`grr auth login\` and nothing else.`,
   },
   {
     question: 'Is grr affiliated with Google?',
@@ -257,7 +264,7 @@ const faqs = [
   },
   {
     question: 'Can an AI agent use it?',
-    answer: 'Yes, and the docs are written for that. Output is JSON on stdout with logs on stderr, so `grr ... | jq` and agent tool calls both get predictable data. An agent can discover capabilities with `grr api list` instead of assuming them, inspect any call with --dry-run, and read the exact scope a method declares before calling it — consent itself is granted once, for everything the embedded index names. See the docs page for agents.',
+    answer: 'Yes, and the docs are written for that. Output is JSON on stdout with logs on stderr, so `grr ... | jq` and agent tool calls both get predictable data. An agent can discover capabilities with `grr api list` instead of assuming them, inspect any call with --dry-run, and read the exact scope a method declares before calling it — consent itself is granted once, for the small default set, and any other service is one `grr auth login --service <name>` away. See the docs page for agents.',
   },
 ];
 const storySteps = [

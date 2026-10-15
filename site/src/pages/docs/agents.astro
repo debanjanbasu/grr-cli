@@ -300,7 +300,7 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
         <h2 id="harness-title">Mapping this onto a harness</h2>
         <p>Claude Code, Codex, Cursor, Gemini CLI, OpenClaw, and anything else that shells out can be set up from the same sources, in this order:</p>
         <ul>
-          <li><code>grr skills install</code> &mdash; writes the packaged core skill plus the 14 per-service skills into <code>~/.agents/skills/</code>, offline and globally (never a project directory); <code>--claude</code> mirrors into <code>~/.claude/skills/</code> for Claude Code, which reads nothing else. <code>grr skills list</code> reports the state of each target.</li>
+          <li><code>grr skills install</code> &mdash; writes the packaged core skill plus the {discoveryServiceCount} per-service skills into <code>~/.agents/skills/</code>, offline and globally (never a project directory); <code>--claude</code> mirrors into <code>~/.claude/skills/</code> for Claude Code, which reads nothing else. <code>grr skills list</code> reports the state of each target.</li>
           <li><a href="https://github.com/debanjanbasu/grr-cli/blob/main/skills/grr/SKILL.md" target="_blank" rel="noreferrer">skills/grr/SKILL.md ↗</a> &mdash; the packaged agent skill: the discovery-first discipline, the naming rule, and the output contract in one file. Install it with <code>npx skills add https://github.com/debanjanbasu/grr-cli</code>.</li>
           <li><a href={`${base}llms.txt`}>llms.txt</a> &mdash; the site&rsquo;s machine-readable index, for orientation. Fetch it once at session start.</li>
           <li><code>grr schema</code> &mdash; the generated command tree, for building tool definitions. Regenerate it rather than hand-writing flags.</li>

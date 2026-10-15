@@ -4,7 +4,7 @@
 //! every Workspace method: HTTP verb, path template, parameters and OAuth
 //! scopes. `scripts/fetch-discovery.mjs` distils those documents into a
 //! compact index (method id, verb, path, scopes, parameters) which this
-//! module embeds — 308 methods across ten services in ~350 KiB, versus
+//! module embeds — 401 methods across 14 services in ~430 KiB, versus
 //! several megabytes for the raw documents.
 //!
 //! This is the escape hatch that makes the curated commands unnecessary for
@@ -14,12 +14,12 @@
 //!
 //! Two properties matter more than the coverage:
 //!
-//! 1. **One consent, everything works.** Every method carries its own scope
-//!    list — `grr api describe` reports it and a 403 names it — but the
-//!    login requests the union of all of them (`all_scopes` below), so a
-//!    method that exists is a method you can call without a second consent
-//!    round-trip. The index is the ceiling: whatever Google publishes next
-//!    is reachable, scope included, the day the discovery PR lands.
+//! 1. **The index is the scope ceiling.** Every method carries its own scope
+//!    list — `grr api describe` reports it and a 403 names it — so whatever
+//!    Google publishes next is reachable the day the discovery PR lands. The
+//!    login requests only a small default set (`core::auth::login_scopes`),
+//!    not the union; a method outside the current grant answers 403 until
+//!    `grr auth login --service …` / `--all-scopes` widens it.
 //! 2. **Offline.** The index is compiled in, so `grr api list` and
 //!    `describe` work with no network and no cache directory.
 

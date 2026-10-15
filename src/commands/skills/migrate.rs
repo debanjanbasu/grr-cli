@@ -18,9 +18,10 @@
 //! Two entry points:
 //! * [`sync_into`] — the install/upgrade pass (explicit `grr skills install`
 //!   or the lazy auto-migration).
-//! * [`migrate_dir`] — the opportunistic pass. It is LAZY: one stat for
-//!   the manifest, a tiny JSON compare, and only if the recorded version
-//!   differs does anything hash a file.
+//! * [`migrate_dir`] — the opportunistic pass. It is LAZY: read the
+//!   manifest JSON and compare its recorded version, and only if that
+//!   differs does anything hash a file. A read plus a small parse is cheap
+//!   enough to run before every command.
 //!
 //! The manifest and the backup are per target directory. The `--claude`
 //! mirror (`~/.claude/skills`) therefore keeps its own, so the two trees

@@ -689,7 +689,7 @@ mod tests {
 
     #[tokio::test]
     async fn readonly_refuses_writes_with_an_mcp_error_result() {
-        let server = test_server_with_profile(SafetyProfile::readonly()).await;
+        let server = test_server_with_profile(SafetyProfile::new(true, [], [])).await;
 
         let line = request(
             7,

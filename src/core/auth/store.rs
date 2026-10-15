@@ -15,6 +15,7 @@
 //! clobber another's credential.
 
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 use tracing::{debug, info, warn};
 
@@ -78,9 +79,16 @@ pub(crate) enum TokenStore {
     /// `account` is the keyring account field this store's entry lives
     /// under; `fallback` is the per-account file this store degrades to
     /// when the keyring write fails — never another account's file.
+    ///
+    /// `used` records the backend the most recent successful load/save
+    /// actually touched. [`TokenStore::detect`] only probes `Entry::new`,
+    /// which never contacts the daemon, so the variant is a *preference*:
+    /// on a headless box a keyring-flavoured store still degrades to
+    /// `fallback`, and `backend()` must report that, not the preference.
     Keyring {
         account: String,
         fallback: PathBuf,
+        used: Arc<Mutex<&'static str>>,
     },
     File(PathBuf),
     Memory,
@@ -126,6 +134,7 @@ impl TokenStore {
             Ok(()) => Ok(Self::Keyring {
                 account: keyring_account,
                 fallback,
+                used: Arc::new(Mutex::new("os-keyring")),
             }),
             Err(e) => {
                 debug!("keyring unavailable ({e}); using file token store");
@@ -166,10 +175,14 @@ impl TokenStore {
             .join(format!("token-{account}.json"))
     }
 
-    /// Backend name for logs and `auth login` output.
+    /// Backend name for logs and `auth login` output: the backend the most
+    /// recent successful load/save actually used (the detected preference
+    /// before any operation touches the store).
     pub fn backend(&self) -> &'static str {
         match self {
-            Self::Keyring { .. } => "os-keyring",
+            Self::Keyring { used, .. } => {
+                *used.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+            }
             Self::File(_) => "file",
             Self::Memory => "memory",
         }
@@ -178,7 +191,11 @@ impl TokenStore {
     /// Load the stored token, if any.
     pub async fn load(&self) -> Result<Option<TokenStorage>> {
         match self {
-            Self::Keyring { account, fallback } => {
+            Self::Keyring {
+                account,
+                fallback,
+                used,
+            } => {
                 let probe = account.clone();
                 let res = tokio::task::spawn_blocking(move || {
                     keyring::Entry::new(KEYRING_SERVICE, &probe)
@@ -189,12 +206,14 @@ impl TokenStore {
                 match res {
                     Ok(secret) if !secret.trim().is_empty() => {
                         let storage: TokenStorage = serde_json::from_str(&secret)?;
+                        record_backend(used, "os-keyring");
                         info!("Loaded token from OS keyring");
                         Ok(Some(storage))
                     }
                     Ok(_) => Ok(None),
                     Err(keyring::Error::NoEntry) => {
                         if let Some(storage) = Self::read_fallback_file(fallback).await? {
+                            record_backend(used, "file");
                             info!("Importing token from fallback file into OS keyring");
                             if Self::write_keyring(
                                 account.clone(),
@@ -210,15 +229,15 @@ impl TokenStore {
                     }
                     Err(e) => {
                         warn!("keyring read failed ({e}); falling back to file token");
-                        Self::read_fallback_file(fallback).await
+                        let loaded = Self::read_fallback_file(fallback).await?;
+                        if loaded.is_some() {
+                            record_backend(used, "file");
+                        }
+                        Ok(loaded)
                     }
                 }
             }
-            Self::File(path) => match tokio::fs::read_to_string(path).await {
-                Ok(content) => Ok(Some(serde_json::from_str(&content)?)),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-                Err(e) => Err(e.into()),
-            },
+            Self::File(path) => Self::read_fallback_file(path).await,
             Self::Memory => Ok(None),
         }
     }
@@ -229,10 +248,17 @@ impl TokenStore {
     pub async fn save(&self, storage: &TokenStorage) -> Result<()> {
         let secret = serde_json::to_string(storage)?;
         match self {
-            Self::Keyring { account, fallback } => {
-                if !Self::write_keyring(account.clone(), secret.clone()).await? {
+            Self::Keyring {
+                account,
+                fallback,
+                used,
+            } => {
+                if Self::write_keyring(account.clone(), secret.clone()).await? {
+                    record_backend(used, "os-keyring");
+                } else {
                     warn!("keyring write failed; writing token to fallback file");
                     Self::write_fallback_file(fallback, &secret).await?;
+                    record_backend(used, "file");
                 }
             }
             Self::File(path) => {
@@ -250,7 +276,9 @@ impl TokenStore {
     /// entry and this account's fallback file only).
     pub async fn delete(&self) -> Result<()> {
         match self {
-            Self::Keyring { account, fallback } => {
+            Self::Keyring {
+                account, fallback, ..
+            } => {
                 let account = account.clone();
                 let res = tokio::task::spawn_blocking(move || {
                     keyring::Entry::new(KEYRING_SERVICE, &account)
@@ -316,6 +344,12 @@ impl TokenStore {
     }
 }
 
+/// Record which backend actually served the credential, so `backend()`
+/// reports reality rather than [`TokenStore::detect`]'s preference.
+fn record_backend(used: &Mutex<&'static str>, backend: &'static str) {
+    *used.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = backend;
+}
+
 /// Whether `GRR_TOKEN_STORE` asks for the file store. Split from the env
 /// read so the rule is testable without mutating process-wide state.
 fn is_file_store_requested(value: Option<&str>) -> bool {
@@ -332,6 +366,7 @@ mod tests {
     };
     use crate::core::config::OAuthConfig;
     use std::path::PathBuf;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn default_entry_naming_is_unchanged() {
@@ -466,6 +501,32 @@ mod tests {
         work.revoke().await?;
         assert!(home.store.load().await.is_ok_and(|t| t.is_none()));
         Ok(())
+    }
+
+    /// The keyring store's *variant* is only a preference: `detect` probes
+    /// `Entry::new`, which never touches the daemon, so a headless box gets a
+    /// keyring-flavoured store whose token actually landed in the fallback
+    /// file. `backend()` must report where the credential really went.
+    #[test]
+    fn backend_reports_the_store_that_actually_served_the_token() {
+        // Deterministic variants are always honest.
+        assert_eq!(
+            TokenStore::file(PathBuf::from("/tmp/token.json")).backend(),
+            "file"
+        );
+        assert_eq!(TokenStore::Memory.backend(), "memory");
+
+        let used = Arc::new(Mutex::new("os-keyring"));
+        let store = TokenStore::Keyring {
+            account: KEYRING_ACCOUNT.to_string(),
+            fallback: PathBuf::from("/tmp/token.json"),
+            used: Arc::clone(&used),
+        };
+        // Before any operation it reports the detected preference...
+        assert_eq!(store.backend(), "os-keyring");
+        // ...and once a save degrades to the fallback file, the truth.
+        super::record_backend(&used, "file");
+        assert_eq!(store.backend(), "file");
     }
 
     #[tokio::test]

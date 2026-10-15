@@ -8,6 +8,11 @@ import { fileURLToPath } from 'node:url';
 // of this generator's idle map with the same palette. This is the gate that
 // keeps AGENTS invariant 13 true in both directions; it is wired into CI.
 // --print-idle-map: print the 64×64 idle map as text (for tests and humans).
+//
+// public/og.png (1200×630, 8-bit RGB) is the social card and is NOT written
+// by this script: it is the rasterised rendering of public/og.svg, and no
+// rasteriser lives in this repo. Re-rasterise it out of band whenever
+// ogSvg() changes, or the card the crawlers fetch drifts from the SVG.
 const CHECK = process.argv.includes('--check');
 const PRINT_IDLE_MAP = process.argv.includes('--print-idle-map');
 

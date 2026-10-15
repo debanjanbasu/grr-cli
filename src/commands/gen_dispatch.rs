@@ -68,19 +68,9 @@ pub(crate) fn kebab_case(name: &str) -> String {
     out
 }
 
-/// Entry point for every generated service subcommand under the permissive
-/// safety profile. `matches` is the ROOT `ArgMatches` (the one whose current
-/// subcommand is the service), so the full chain is walkable from here.
-///
-/// Production dispatch goes through [`dispatch_with_profile`] (wired in
-/// `cli.rs`), which applies the global `--readonly`/`--deny-*` flags; this
-/// profile-free wrapper is what the unit tests exercise.
-pub async fn dispatch(matches: &ArgMatches, auth: Option<&GoogleAuth>) -> Result<()> {
-    dispatch_with_profile(matches, auth, &SafetyProfile::PERMISSIVE).await
-}
-
-/// [`dispatch`] with a safety profile — the seam for `cli.rs`. The same
-/// gate the `grr api call` flags and the `grr mcp` server honor.
+/// Dispatch a generated service subcommand with a safety profile — the seam
+/// for `cli.rs` (the only production entry point). The same gate the
+/// `grr api call` flags and the `grr mcp` server honor.
 pub async fn dispatch_with_profile(
     matches: &ArgMatches,
     auth: Option<&GoogleAuth>,
@@ -477,7 +467,7 @@ mod tests {
             ])
             .expect("valid invocation");
         let auth = test_auth().await;
-        let err = dispatch_with_profile(&matches, Some(&auth), &SafetyProfile::readonly())
+        let err = dispatch_with_profile(&matches, Some(&auth), &SafetyProfile::new(true, [], []))
             .await
             .unwrap_err()
             .to_string();
@@ -522,7 +512,7 @@ mod tests {
 
     #[tokio::test]
     async fn plain_dispatch_stays_permissive() {
-        // The unwired default: the same dry-run the tree always returned.
+        // The default profile: the same dry-run the tree always returned.
         let root = crate::cli::root_command();
         let matches = root
             .try_get_matches_from([
@@ -537,7 +527,11 @@ mod tests {
             ])
             .expect("valid invocation");
         let auth = test_auth().await;
-        assert!(dispatch(&matches, Some(&auth)).await.is_ok());
+        assert!(
+            dispatch_with_profile(&matches, Some(&auth), &SafetyProfile::PERMISSIVE)
+                .await
+                .is_ok()
+        );
     }
 
     fn deepest(matches: &ArgMatches) -> &ArgMatches {

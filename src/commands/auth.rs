@@ -178,7 +178,9 @@ fn field(profile: &Value, key: &str) -> Value {
 
 async fn handle_device_login(auth: &GoogleAuth, format: OutputFormat) -> Result<()> {
     let mut challenge = auth.request_device_code().await?;
-    println!(
+    // stderr, not stdout: `--format json` writes its payload to stdout, and a
+    // prose line ahead of it breaks `... -f json | jq`.
+    eprintln!(
         "Visit {} and enter code: {}",
         challenge.verification_url, challenge.user_code
     );

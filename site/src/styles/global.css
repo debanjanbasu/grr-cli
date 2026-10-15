@@ -146,7 +146,7 @@
   html {
     min-width: 320px;
     /* Reserve the scrollbar gutter from the first paint: on long pages (the
-       79-method reference is the extreme) the scrollbar arrives after the
+       largest service reference is the extreme) the scrollbar arrives after the
        first layout, shrinking the viewport and shifting every element —
        the CLS Lighthouse measured on a cold load. */
     scrollbar-gutter: stable;
@@ -1398,7 +1398,7 @@
      font-weight: inherit` on headings, so the resource and method headings
      rendered at body weight, and the seven-column parameter table rendered
      as bare borderless text. Defined here rather than as utility classes in
-     the template because the same shapes repeat 401 times per build. */
+     the template because the same shapes repeat for every method per build. */
 
   .api-resource-head {
     display: flex;

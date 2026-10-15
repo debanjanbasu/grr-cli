@@ -102,7 +102,7 @@ grr auth login
 grr gmail users getProfile --user-id me
 ```
 
-There is nothing to configure first: a release binary already carries an OAuth client, so `grr auth login` opens the browser, you consent, and every service works. Headless machine? `grr auth login --device` prints a URL + code instead of opening a browser — that flow authenticates as a *separate* client of type **TVs and Limited Input devices** (Google's device endpoint rejects the Desktop client with `Invalid client type`), which release binaries also carry; a source build supplies it with `GRR_DEVICE_CLIENT_ID` / `GRR_DEVICE_CLIENT_SECRET`. Google also caps what that flow may ask for: a device login grants **drive.file, calendar, userinfo and openid** and nothing else, so Gmail, Chat, Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and the admin APIs still need the browser flow.
+There is nothing to configure first: a release binary already carries an OAuth client, so `grr auth login` opens the browser, you consent, and every service works. Headless machine? `grr auth login --device` prints a URL + code instead of opening a browser — that flow authenticates as a *separate* client of type **TVs and Limited Input devices** (Google's device endpoint rejects the Desktop client with `Invalid client type`), which release binaries also carry; a source build supplies it with `GRR_DEVICE_CLIENT_ID` / `GRR_DEVICE_CLIENT_SECRET`. Google also caps what that flow may ask for: a device login grants **drive.file, calendar, calendar.readonly, the legacy Calendar/Contacts feeds, userinfo and openid** and nothing else, so Gmail, Chat, Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and the admin APIs still need the browser flow.
 
 Building from source instead of installing a release? Read [Authentication and configuration](#authentication-and-configuration) before your first `grr` invocation.
 
@@ -199,7 +199,7 @@ grr transport
 grr schema
 ```
 
-Every command takes `-f/--format json|jsonl|table|pretty` (default `json`). For `gmail users messages get`, the Gmail MIME parameter named `format` arrives as `--param-format full|metadata|minimal|raw` (see the collision rule below), while `-f/--format` still selects the printed output format. Logs go to stderr, so stdout is always parseable:
+Every command that prints data takes `-f/--format json|jsonl|table|pretty` (default `json`); `grr transport`, `grr completions` and `grr skills install` print plain text instead. For `gmail users messages get`, the Gmail MIME parameter named `format` arrives as `--param-format full|metadata|minimal|raw` (see the collision rule below), while `-f/--format` still selects the printed output format. Logs go to stderr, so stdout is always parseable:
 
 ```sh
 grr gmail users messages list --user-id me --q "in:inbox" --max-results 1 | jq -r '.[0].id'
@@ -213,8 +213,8 @@ The command tree is **generated** from the committed Discovery index by `scripts
 
 | Group | What it covers | Methods |
 | --- | --- | --- |
-| `grr auth` | `login [--device] [--account name]`, `status [--account name]`, `setup [--client-id] [--client-secret] [--print-only] [--force] [--enable-apis]` | — |
-| `grr ask` | `"<request>" [--run] [--service] [--method]` — natural language to a typed method + params via a System One model; prints the plan by default | - |
+| `grr auth` | `login [--device] [--account name] [--service name] [--all-scopes]`, `status [--account name]`, `setup [--client-id] [--client-secret] [--print-only] [--force] [--enable-apis]` — all accept `-f json\|jsonl\|table\|pretty` | — |
+| `grr ask` | `"<request>" [--run] [--dry-run] [--service] [--method]` — natural language to a typed method + params via a System One model; prints the plan by default | - |
 | `grr mcp` | an MCP (JSON-RPC over stdio) server exposing every method as a typed tool; speaks the stateless `2026-07-28` revision only — `server/discover` instead of the `initialize` handshake; `--readonly` for read-only | - |
 | `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 401 |
 | `grr schema` | the whole command tree as JSON | — |
@@ -270,7 +270,7 @@ Consent starts small: `grr auth login` requests Gmail, Drive, Calendar, Tasks, D
 ## Design philosophy
 
 - **Zero-config.** Release binaries carry an OAuth client compiled in by `build.rs`, so a fresh install runs `grr auth login` with nothing to configure. `~/.grr/config.toml` is the override, not the prerequisite, and holds only the OAuth client (ID, optionally a secret) plus — if you point `grr ask` at your own model — its `[systemone]` block (see [`grr ask` and System One](#grr-ask-and-system-one-jev)). Redirect URI, pool sizes, timeouts, and retry policy are compile-time constants tuned for Google's frontends ([src/core/http.rs](src/core/http.rs)), and the consent set is derived from the embedded index rather than a knob. `GRR_CONFIG_PATH` overrides the file location, `RUST_LOG` the log level (`GRR_OAUTH__*` env vars exist for headless overrides) — nothing else is configurable, on purpose.
-- **Generated, namespaced services.** The command tree is compiled from the Discovery index — the same machine-readable description Google publishes — so method additions land as a daily PR instead of a hand-written backlog. Mail is `grr gmail …`; Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, and Slides live alongside it, and account-level concerns stay top-level (`grr auth`, `grr api`, `grr ask`, `grr mcp`, `grr transport`, `grr schema`, `grr skills`). One login covers the default services; `grr auth login --service <name>` widens it to any other.
+- **Generated, namespaced services.** The command tree is compiled from the Discovery index — the same machine-readable description Google publishes — so method additions land as a daily PR instead of a hand-written backlog. Mail is `grr gmail …`; Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, and Slides live alongside it, and account-level concerns stay top-level (`grr auth`, `grr api`, `grr ask`, `grr mcp`, `grr transport`, `grr schema`, `grr completions`, `grr skills`). One login covers the default services; `grr auth login --service <name>` widens it to any other.
 - **Self-migrating installs.** A newer binary brings the agent skills it installed up to date on its own: files you never touched are replaced, files you edited get a 3-way merge against the bytes grr last wrote, and a conflict leaves your file untouched with the incoming version beside it (`.grr-incoming`). Files grr did not install are never touched. The check is lazy — a version compare; nothing is hashed until something actually needs merging.
 - **stdout purity.** Logs go to stderr, results go to stdout, so `| jq` always works. `-f jsonl` streams arrays one object per line.
 - **Keyring-first token storage.** Tokens live in the OS keyring (Windows Credential Manager, macOS Keychain, Linux Secret Service via D-Bus), with automatic fallback to `<cache dir>/grr/token.json` on headless systems. A token found in the fallback file auto-imports into the keyring on first sight. `GRR_TOKEN_STORE=file` skips the keyring entirely — the switch for scripts, agents, and CI, where an OS approval prompt is a hang rather than a question.
@@ -316,7 +316,7 @@ Measured startup, binary size, and request-latency numbers against the other Goo
 │   │                         # config.rs, config_loader.rs, error.rs,
 │   │                         # runtime.rs (the io_uring probe)
 │   ├── commands/             # auth.rs, api.rs, setup.rs, transport.rs,
-│   │                         # skills.rs, mcp.rs, ask.rs, completions.rs,
+│   │                         # skills/, mcp.rs, ask.rs, completions.rs,
 │   │                         # safety.rs (the static
 │   │                         # + generated.rs (GENERATED — the
 │   │                         # whole service tree, ~470 KiB) and gen_dispatch.rs

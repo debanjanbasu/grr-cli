@@ -210,7 +210,7 @@ const schemaBlock = `$ grr schema > tree.json        # ~369 KB, valid JSON, well
 $ grr schema | jq '.subcommands[] | select(.name == "gmail") | .subcommands[].name'
 ["users"]
 $ grr schema | jq '[.. | objects | select(.name? == "gmail.users.messages.list") | .args[].name]'`;
-const skillsBlock = `# The 15 packaged skills -- the core skill plus one per service -- are 16 files
+const skillsBlock = `# The ${1 + discoveryServiceCount} packaged skills -- the core skill plus one per service -- are ${2 + discoveryServiceCount} files
 # with their index, and are compiled into the binary, so install is offline.
 $ grr skills install            # all of them into ~/.agents/skills/ (the cross-client location)
 $ grr skills install --claude   # also mirror into ~/.claude/skills/ (all Claude Code reads)
@@ -351,7 +351,7 @@ grr ask "show my unread messages" --run    # executes the resolved request
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base"><code>grr skills</code></h2>
-              <p class="m-0 text-[13px] text-base-content/70"><code>install</code> writes the packaged skills &mdash; the core skill plus one per service, 16 files with their index &mdash; into <code>~/.agents/skills/</code>, the cross-client user-level location, with no network; <code>--claude</code> mirrors into <code>~/.claude/skills/</code>, which is all Claude Code reads. Identical files are a no-op, a locally edited file is refused without <code>--force</code>. <code>list</code> reports what each target holds.</p>
+              <p class="m-0 text-[13px] text-base-content/70"><code>install</code> writes the packaged skills &mdash; the core skill plus one per service, {2 + discoveryServiceCount} files with their index &mdash; into <code>~/.agents/skills/</code>, the cross-client user-level location, with no network; <code>--claude</code> mirrors into <code>~/.claude/skills/</code>, which is all Claude Code reads. Identical files are a no-op, a locally edited file is refused without <code>--force</code>. <code>list</code> reports what each target holds.</p>
             </div>
           </article>
           <article class="install-card card card-border border-base-300 bg-base-100">

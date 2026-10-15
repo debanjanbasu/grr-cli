@@ -18,10 +18,11 @@
 //! grr gmail users messages list --user-id me      # the same call, generated
 //! ```
 //!
-//! Authorisation is per method: grr asks Google only for the scopes the
-//! method you are calling declares. Requesting every Workspace scope up
-//! front would exceed the ~25-scope ceiling on unverified apps and fail at
-//! consent, so a narrow call stays narrow.
+//! The login, not this command, decides the grant: `grr auth login` requests
+//! a small 11-scope default, `--service <name>` adds one service's scopes and
+//! `--all-scopes` the whole index — the sets and the reasoning behind them
+//! live in `core::auth`. A method outside the current grant answers 403
+//! naming the scope; widen the grant and retry.
 
 use crate::commands::safety::SafetyProfile;
 use crate::core::auth::GoogleAuth;
@@ -533,11 +534,6 @@ pub(crate) async fn call_method(
     // Sending is the first moment a credential exists at all.
     let auth = auth.ok_or_else(|| anyhow::anyhow!("{}", crate::core::config::NO_CLIENT_HELP))?;
 
-    // No per-method consent gate: the login requests every scope the
-    // embedded index names (core::auth::scopes), so any method the index can
-    // express is inside the grant. What can still be stale is the TOKEN — a
-    // grant predates a widened set — and the 403 arm below names the scope
-    // and the remedy for exactly that case.
     let token = auth.get_access_token().await?;
 
     let parsed_url = url::Url::parse(&plan.url).with_context(|| {
@@ -885,7 +881,7 @@ mod tests {
             dry_run: true,
             format: OutputFormat::Json,
         };
-        let err = handle_call(Some(&auth), args, &SafetyProfile::readonly())
+        let err = handle_call(Some(&auth), args, &SafetyProfile::new(true, [], []))
             .await
             .unwrap_err()
             .to_string();
@@ -947,7 +943,7 @@ mod tests {
         };
         // A GET is not a write: the dry-run returns instead of refusing.
         assert!(
-            handle_call(Some(&auth), args, &SafetyProfile::readonly())
+            handle_call(Some(&auth), args, &SafetyProfile::new(true, [], []))
                 .await
                 .is_ok()
         );

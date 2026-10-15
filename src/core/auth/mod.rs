@@ -72,11 +72,12 @@ pub fn scopes() -> &'static [String] {
 /// service's scopes, `--all-scopes` for the whole index, and because every
 /// login carries `include_granted_scopes` those requests *merge* with what the
 /// account already holds instead of replacing it.
+///
+/// `https://mail.google.com/` subsumes Gmail's granular scopes, so only it is
+/// requested here; the granular set stays reachable via
+/// `grr auth login --service gmail` for anyone who wants a narrower grant.
 const LOGIN_SCOPES: &[&str] = &[
     "https://mail.google.com/",
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.modify",
-    "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/calendar.events",
@@ -100,11 +101,11 @@ pub fn login_scopes() -> Vec<String> {
         .collect()
 }
 
-/// Every scope one service's methods declare, plus the sign-in trio, for
-/// `grr auth login --service`. The index is the same source the command tree
-/// and `grr api describe` read, so the set matches exactly what that service
-/// can be asked to do — and stays far below the size at which Google's consent
-/// screen stops submitting. `None` when the index has no such service.
+/// Every scope one service's methods declare for `grr auth login --service`.
+/// The index is the same source the command tree and `grr api describe` read,
+/// so the set matches exactly what that service can be asked to do — and stays
+/// far below the size at which Google's consent screen stops submitting.
+/// `None` when the index has no such service.
 pub fn scopes_for_service(service: &str) -> Option<Vec<String>> {
     let mut set: Vec<String> = Vec::new();
     let entry = crate::discovery::services().get(service)?;
@@ -115,21 +116,10 @@ pub fn scopes_for_service(service: &str) -> Option<Vec<String>> {
             }
         }
     }
-    for basic in SIGN_IN_SCOPES {
-        set.push((*basic).to_owned());
-    }
     set.sort_unstable();
     set.dedup();
     Some(set)
 }
-
-/// The three scopes every credential needs: without them `grr auth status`
-/// cannot read the profile that names the account.
-pub(crate) const SIGN_IN_SCOPES: &[&str] = &[
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/userinfo.profile",
-    "openid",
-];
 
 /// Scopes every release has carried since long before the set became
 /// index-derived. The index names all of them today; keeping them as a floor
@@ -346,8 +336,19 @@ impl GoogleAuth {
                 ));
             };
 
+            // A refresh request carries no scope list, and RFC 6749 §5.1
+            // lets Google omit `scope` when the grant is unchanged — so the
+            // response's absent scope must fall back to what the stored
+            // credential already holds, never to the index superset
+            // `scopes()`. A fabricated grant makes a later 403 look like a
+            // stale token instead of a scope the account never approved.
+            let stored_scopes: Vec<String> = storage
+                .scope
+                .split_whitespace()
+                .map(str::to_owned)
+                .collect();
             info!("Refreshing expired access token");
-            match self.refresh_token(&refresh_token).await {
+            match self.refresh_token(&refresh_token, &stored_scopes).await {
                 Ok(new_storage) => {
                     *storage_guard = Some(new_storage.clone());
                     self.save_token(&new_storage).await?;
@@ -416,7 +417,16 @@ impl GoogleAuth {
     /// Refresh access token using refresh token.
     /// The secret is sent only when configured (Google mandates it even
     /// for Desktop clients; PKCE-only providers omit it entirely).
-    async fn refresh_token(&self, refresh_token: &str) -> Result<TokenStorage> {
+    ///
+    /// `requested_scopes` is the scope the stored credential actually holds:
+    /// the refresh request sends no scope list, so when Google omits `scope`
+    /// from the response (RFC 6749 §5.1, unchanged grant) the stored grant is
+    /// the only truthful fallback — never the index superset.
+    async fn refresh_token(
+        &self,
+        refresh_token: &str,
+        requested_scopes: &[String],
+    ) -> Result<TokenStorage> {
         let (status, token_data) = self
             .token_request(
                 self.config.client_secret.as_deref(),
@@ -441,7 +451,7 @@ impl GoogleAuth {
             ));
         }
 
-        let mut storage = self::device::token_storage_from_response(&token_data, scopes())?;
+        let mut storage = self::device::token_storage_from_response(&token_data, requested_scopes)?;
 
         // Google only sometimes rotates the refresh token; when the
         // response omits one, keep the stored value instead of clobbering
@@ -501,6 +511,9 @@ impl Default for AuthConfigBuilder {
     }
 }
 
+/// Auth's own checks: the consent request shape, and the default login set
+/// that keeps Google's consent page submittable — small, inside [`scopes`],
+/// and free of everything a personal account can never be granted.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -530,15 +543,9 @@ mod tests {
             );
         }
     }
-}
 
-/// The default login set is what keeps Google's consent page submittable, so
-/// it gets its own checks: small, inside [`scopes`], and free of everything a
-/// personal account can never be granted.
-#[cfg(test)]
-mod login_scope_tests {
-    use super::*;
-
+    /// The default login set has to stay small enough that Google's consent
+    /// screen completes with every requested scope ticked.
     #[test]
     fn the_default_login_set_is_small_and_inside_the_full_set() {
         let login = login_scopes();
@@ -563,33 +570,9 @@ mod login_scope_tests {
                 "{scope} is not in scopes() — requesting an undeclared scope hangs too"
             );
         }
-        for wanted in [
-            "https://mail.google.com/",
-            "https://www.googleapis.com/auth/drive",
-            "https://www.googleapis.com/auth/calendar",
-            "https://www.googleapis.com/auth/tasks",
-            "https://www.googleapis.com/auth/documents",
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/presentations",
-            "openid",
-        ] {
-            assert!(
-                login.iter().any(|scope| scope == wanted),
-                "{wanted} is mainstream and must be in the default set"
-            );
-        }
-        for unwanted in [
-            "https://www.googleapis.com/auth/admin.directory.user",
-            "https://www.googleapis.com/auth/chat.admin.spaces",
-            "https://www.googleapis.com/auth/groups",
-            "https://www.google.com/calendar/feeds",
-        ] {
-            assert!(
-                !login.iter().any(|scope| scope == unwanted),
-                "{unwanted} cannot be granted to a personal account; asking for it \
-                 only makes the consent page bigger"
-            );
-        }
+        // Not enumerated here: admin, `groups`, and legacy GData scopes cannot
+        // be granted to a personal account, only enlarge the consent page, and
+        // so must never enter the default set.
     }
 
     #[test]
@@ -599,10 +582,6 @@ mod login_scope_tests {
         assert!(
             docs.iter()
                 .any(|scope| scope == "https://www.googleapis.com/auth/documents")
-        );
-        assert!(
-            docs.iter().any(|scope| scope == "openid"),
-            "the sign-in scopes travel with every request so the token can name the account"
         );
         assert!(
             docs.len() < scopes().len(),

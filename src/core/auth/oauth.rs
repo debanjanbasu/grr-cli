@@ -86,6 +86,6 @@ impl super::GoogleAuth {
             ));
         }
 
-        super::device::token_storage_from_response(&token_data, super::scopes())
+        super::device::token_storage_from_response(&token_data, scopes)
     }
 }

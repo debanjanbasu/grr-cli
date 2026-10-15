@@ -98,14 +98,15 @@ ${tasksMethodCount} methods
 
 $ grr api describe tasks.tasks.list
 # leastPrivilegeScope: https://www.googleapis.com/auth/tasks.readonly
-#   -> inside the grant: login requests every scope the index names
+#   -> in the default grant: Tasks is one of the services login covers
 
 $ grr tasks tasks list --tasklist @default
 GET https://tasks.googleapis.com/tasks/v1/users/@me/lists -> HTTP 403: this
 method needs the \`https://www.googleapis.com/auth/tasks.readonly\` scope.
-This build asks for a small default scope set, so the likely cause is a
-service outside it: re-run \`grr auth login --service <service>\` to widen the
-grant (and check the API is enabled on the Cloud project).`;
+Tasks is inside the default grant this build asks for, so a 403 here means the
+API is not enabled on the Cloud project, or the grant was narrowed. Services
+outside the default set (chat, forms, searchconsole) need
+\`grr auth login --service <service>\` to widen it.`;
 const idForms = `# Canonical: <service>.<resource>.<method>
 $ grr api call drive.files.list
 

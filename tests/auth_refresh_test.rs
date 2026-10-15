@@ -180,3 +180,55 @@ async fn successful_refresh_still_updates_the_access_token() {
         .unwrap();
     assert_eq!(token, "fresh-access-token");
 }
+
+#[tokio::test]
+async fn refresh_without_a_scope_field_keeps_the_stored_grant_not_the_index_superset() {
+    // RFC 6749 §5.1 lets Google omit `scope` when the grant is unchanged, and
+    // a refresh request carries no scope list at all — so the only truthful
+    // fallback is the stored credential's own scope. The old code fell back
+    // to `core::auth::scopes()`, the ~110-scope index superset, recording a
+    // fabricated grant on every refresh.
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "access_token": "fresh-access-token",
+            "expires_in": 3600,
+            "token_type": "Bearer"
+        })))
+        .mount(&server)
+        .await;
+
+    let stored_scope = "openid https://www.googleapis.com/auth/calendar";
+    let storage = TokenStorage {
+        access_token: "stale-access-token".into(),
+        refresh_token: Some("stale-refresh-token".into()),
+        expires_at: 1,
+        token_type: "Bearer".into(),
+        scope: stored_scope.into(),
+    };
+
+    let config = GrrConfig::default();
+    let dir = tempfile::tempdir().unwrap();
+    let token_path = dir.path().join("token.json");
+    let auth = GoogleAuth::with_token(config.oauth.clone(), storage)
+        .await
+        .unwrap()
+        .with_token_endpoint(format!("{}/token", server.uri()))
+        .with_token_path(token_path.clone());
+
+    tokio::time::timeout(Duration::from_secs(5), auth.get_access_token())
+        .await
+        .expect("refresh must complete promptly")
+        .unwrap();
+
+    let persisted: TokenStorage =
+        serde_json::from_str(&tokio::fs::read_to_string(&token_path).await.unwrap()).unwrap();
+    assert_eq!(persisted.scope, stored_scope);
+    assert_ne!(persisted.scope, grr_cli::core::auth::scopes().join(" "));
+    assert!(
+        !persisted.scope.contains("gmail.readonly"),
+        "the index superset leaked into the refreshed grant: {}",
+        persisted.scope
+    );
+}

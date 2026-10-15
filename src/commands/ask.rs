@@ -1101,10 +1101,15 @@ mod tests {
         args.run = true;
         args.method = Some("gmail.users.messages.send".into());
         let auth = test_auth().await;
-        let err = handle_ask(&config, Some(&auth), args, &SafetyProfile::readonly())
-            .await
-            .unwrap_err()
-            .to_string();
+        let err = handle_ask(
+            &config,
+            Some(&auth),
+            args,
+            &SafetyProfile::new(true, [], []),
+        )
+        .await
+        .unwrap_err()
+        .to_string();
         assert!(err.contains("POST"), "{err}");
     }
 

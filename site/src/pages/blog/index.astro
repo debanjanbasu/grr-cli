@@ -9,6 +9,14 @@ import { discoveryMethodTotal, discoveryServiceCount } from '../../data/discover
 const base = import.meta.env.BASE_URL;
 const repoUrl = 'https://github.com/debanjanbasu/grr-cli';
 
+// Absolute URLs for the JSON-LD below, built the same way BaseLayout builds
+// its canonical/og:url, so a change of `base` or origin carries through
+// instead of silently pointing at the production host.
+const site = Astro.site ?? new URL('https://grr-cli.pages.dev');
+const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+const blogUrl = new URL(`${normalizedBase}blog/`, site).toString();
+const socialImage = new URL(`${normalizedBase}og.png`, site).toString();
+
 // Code samples are the exact commands/outputs quoted in the repo and the
 // release workflows; the essay narrates them rather than paraphrasing them.
 const namingRule = `gmail.users.messages.list        ->  grr gmail users messages list
@@ -43,8 +51,8 @@ const surfaces = [
 ---
 
 <BaseLayout
-  title="Why grr exists: 9,193 unread emails and a generated command tree"
-  description="The origin of grr and the engineering bets behind it: a 401-method command tree generated from Google's Discovery index, zero-config OAuth, honest HTTP/3, a repository that releases itself, and two real release-war stories."
+  title={`Why grr exists: a ${discoveryMethodTotal}-method command tree`}
+  description={`The origin of grr and the engineering bets behind it: a ${discoveryMethodTotal}-method command tree generated from Google's Discovery index, zero-config OAuth, honest HTTP/3, a repository that releases itself, and two real release-war stories.`}
 >
   {/* Article structured data. The essay is a dated, authored post, and
       search engines only treat it as one with this; BaseLayout's schema
@@ -57,12 +65,12 @@ const surfaces = [
       '@type': 'BlogPosting',
       headline: 'Why grr exists: 9,193 unread emails and a generated command tree',
       description:
-        "The origin of grr and the engineering bets behind it: a 401-method command tree generated from Google's Discovery index, zero-config OAuth, honest HTTP/3, a repository that releases itself, and two real release-war stories.",
+        `The origin of grr and the engineering bets behind it: a ${discoveryMethodTotal}-method command tree generated from Google's Discovery index, zero-config OAuth, honest HTTP/3, a repository that releases itself, and two real release-war stories.`,
       datePublished: '2026-10-04',
       dateModified: '2026-10-04',
       inLanguage: 'en',
-      mainEntityOfPage: 'https://grr-cli.pages.dev/blog/',
-      image: 'https://grr-cli.pages.dev/og.png',
+      mainEntityOfPage: blogUrl,
+      image: socialImage,
       author: { '@type': 'Person', name: 'Debanjan Basu', url: 'https://github.com/debanjanbasu' },
       publisher: { '@type': 'Organization', name: 'grr project', url: repoUrl },
     })}
