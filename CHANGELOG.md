@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Internal
+
+- 1 internal commit (chore 1)
+
 ### Other
 
 - **compare:** refresh daily benchmark snapshot
