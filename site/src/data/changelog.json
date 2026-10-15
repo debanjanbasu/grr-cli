@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T02:41:11.072Z",
+  "generatedAt": "2026-10-15T05:33:51.745Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -7,6 +7,30 @@
       "date": null,
       "unreleased": true,
       "sections": [
+        {
+          "key": "breaking",
+          "heading": "Breaking changes",
+          "items": [
+            {
+              "description": "request a small default scope set, widened per service",
+              "scope": "auth",
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "satisfy clippy::panic and expect\\_used in the scope tests",
+              "scope": "tests",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
         {
           "key": "documentation",
           "heading": "Documentation",

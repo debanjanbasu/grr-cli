@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
+- **auth:** request a small default scope set, widened per service
+
+### Fixed
+
+- **tests:** satisfy clippy::panic and expect\_used in the scope tests
+
 ### Documentation
 
 - **auth:** a scope declaration takes minutes to apply, and the consent needs ticking
