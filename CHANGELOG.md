@@ -25,10 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - **auth:** a scope declaration takes minutes to apply, and the consent needs ticking
+- **auth:** correct the multi-account claim, cover a fresh account first grant
 
 ### Internal
 
-- 2 internal commits (chore 2)
+- 4 internal commits (chore 4)
 
 ### Other
 
