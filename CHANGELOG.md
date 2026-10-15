@@ -22,6 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Other
+
+- **compare:** refresh daily benchmark snapshot
+
+## [2.0.0] - 2026-10-15
+
 ### Breaking changes
 
 - **auth:** request a small default scope set, widened per service
@@ -37,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- 4 internal commits (chore 4)
+- 6 internal commits (chore 6)
 
 ### Other
 
@@ -571,7 +577,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v1.0.1...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/debanjanbasu/grr-cli/compare/v1.0.1...v2.0.0
 [1.0.1]: https://github.com/debanjanbasu/grr-cli/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.15.0...v1.0.0
 [0.15.0]: https://github.com/debanjanbasu/grr-cli/compare/v0.14.0...v0.15.0
