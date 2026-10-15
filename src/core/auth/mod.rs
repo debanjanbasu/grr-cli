@@ -594,7 +594,8 @@ mod login_scope_tests {
 
     #[test]
     fn service_scopes_come_from_the_index_and_stay_narrow() {
-        let docs = scopes_for_service("docs").expect("docs is one of the 14 services");
+        let docs = scopes_for_service("docs").unwrap_or_default();
+        assert!(!docs.is_empty(), "docs is one of the 14 services");
         assert!(
             docs.iter()
                 .any(|scope| scope == "https://www.googleapis.com/auth/documents")
