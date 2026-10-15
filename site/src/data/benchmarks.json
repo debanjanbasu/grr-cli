@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T07:38:54.592Z",
+  "generatedAt": "2026-10-15T07:53:45.966Z",
   "environment": {
     "platform": "linux",
     "arch": "arm64",
@@ -11,7 +11,7 @@
   "versions": {
     "grr": {
       "local": "grr 2.0.0",
-      "latestTag": "v1.0.1"
+      "latestTag": "v2.0.0"
     },
     "gog": {
       "local": "v0.44.0 (cf42bb7c 2026-10-11T18:10:58Z)",
@@ -33,25 +33,25 @@
   "grr": {
     "startup": {
       "available": true,
-      "medianMs": 5,
-      "p95Ms": 5.2,
-      "minMs": 4.6
+      "medianMs": 4.5,
+      "p95Ms": 9,
+      "minMs": 4
     },
     "schemaDump": {
       "available": true,
-      "medianMs": 19,
-      "p95Ms": 19.8,
-      "minMs": 18.4
+      "medianMs": 18.3,
+      "p95Ms": 18.7,
+      "minMs": 17.9
     },
     "apiList": {
       "available": true,
-      "medianMs": 6,
-      "p95Ms": 6.3,
-      "minMs": 5.6
+      "medianMs": 5.6,
+      "p95Ms": 5.9,
+      "minMs": 5
     },
     "memory": {
       "available": true,
-      "maxRssKb": 27124,
+      "maxRssKb": 26908,
       "runs": 15,
       "command": "grr schema"
     },
@@ -60,12 +60,12 @@
       "source": "target/release/grr",
       "form": "binary",
       "shipped": {
-        "bytes": 3167012,
+        "bytes": 3172020,
         "source": "release archive (UPX-packed)",
         "form": "binary",
         "packed": true,
-        "releaseTag": "v1.0.1",
-        "asset": "grr-v1.0.1-linux-aarch64.tar.zst"
+        "releaseTag": "v2.0.0",
+        "asset": "grr-v2.0.0-linux-aarch64.tar.zst"
       }
     }
   },
@@ -79,15 +79,15 @@
       "version": "v0.44.0 (cf42bb7c 2026-10-11T18:10:58Z)",
       "startup": {
         "available": true,
-        "medianMs": 75.5,
-        "p95Ms": 76.6,
-        "minMs": 74.7
+        "medianMs": 71.7,
+        "p95Ms": 73.2,
+        "minMs": 70.3
       },
       "schemaDump": {
         "available": true,
-        "medianMs": 166.8,
-        "p95Ms": 177.7,
-        "minMs": 159.7
+        "medianMs": 157.6,
+        "p95Ms": 160.7,
+        "minMs": 153.7
       },
       "apiList": {
         "available": false,
@@ -95,7 +95,7 @@
       },
       "memory": {
         "available": true,
-        "maxRssKb": 101428,
+        "maxRssKb": 100936,
         "runs": 15,
         "command": "gog schema"
       },
@@ -114,15 +114,15 @@
       "version": "gws 0.22.5",
       "startup": {
         "available": true,
-        "medianMs": 33.4,
-        "p95Ms": 34.7,
-        "minMs": 31.9
+        "medianMs": 30.5,
+        "p95Ms": 32.9,
+        "minMs": 28.7
       },
       "schemaDump": {
         "available": true,
-        "medianMs": 34.6,
-        "p95Ms": 35.9,
-        "minMs": 33.3
+        "medianMs": 30.9,
+        "p95Ms": 32.6,
+        "minMs": 29.6
       },
       "apiList": {
         "available": false,
@@ -130,7 +130,7 @@
       },
       "memory": {
         "available": true,
-        "maxRssKb": 59972,
+        "maxRssKb": 60224,
         "runs": 15,
         "command": "gws schema drive.files.list --resolve-refs"
       },
