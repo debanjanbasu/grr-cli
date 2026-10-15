@@ -1,17 +1,17 @@
 {
-  "version": "1.0.1",
-  "crateDownloads": 262,
-  "crateDownloads30d": 262,
-  "githubDownloads": 245,
-  "latestRelease": "v1.0.1",
-  "latestReleaseDate": "2026-10-14T06:16:59Z",
+  "version": "2.0.0",
+  "crateDownloads": 276,
+  "crateDownloads30d": 276,
+  "githubDownloads": 252,
+  "latestRelease": "v2.0.0",
+  "latestReleaseDate": "2026-10-15T07:49:23Z",
   "binarySizes": {
-    "linux-aarch64": 3166928,
-    "linux-x86_64": 3681467,
-    "macos-aarch64": 2983729,
-    "windows-aarch64": 3530532,
-    "windows-x86_64": 3077396,
-    "winget-manifests": 897
+    "linux-aarch64": 3171938,
+    "linux-x86_64": 3687032,
+    "macos-aarch64": 2989192,
+    "windows-aarch64": 3537454,
+    "windows-x86_64": 3243016,
+    "winget-manifests": 901
   },
-  "updatedAt": "2026-10-14T10:03:21.894Z"
+  "updatedAt": "2026-10-15T07:49:51.385Z"
 }
