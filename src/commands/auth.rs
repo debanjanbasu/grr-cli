@@ -39,6 +39,20 @@ pub struct LoginArgs {
     #[arg(long)]
     pub account: Option<String>,
 
+    /// Ask for one service's scopes in addition to the default set (e.g.
+    /// docs, chat, searchconsole). Every login merges with what the account
+    /// already granted, so widening in steps keeps each consent page small
+    /// enough for Google to finish.
+    #[arg(long, conflicts_with = "all_scopes")]
+    pub service: Option<String>,
+
+    /// Ask for every scope the embedded index can express. One big consent
+    /// page: on an unverified project Google's screen stops submitting past
+    /// roughly 27 ticked boxes, so prefer `--service` unless you know the
+    /// project is verified.
+    #[arg(long)]
+    pub all_scopes: bool,
+
     /// Output format
     #[arg(short, long, value_enum, default_value = "json")]
     pub format: OutputFormat,
@@ -59,6 +73,32 @@ fn token_preview(token: &str) -> String {
     format!("{}...", &token[..std::cmp::min(20, token.len())])
 }
 
+/// The scope set `auth login` should ask for, from the flags.
+///
+/// Default: [`crate::core::auth::login_scopes`], the small set that keeps the
+/// consent page submittable. `--service X` adds that service's scopes (the
+/// index decides them — the same source `grr api describe` reads), while
+/// `--all-scopes` asks for the whole index. Every login sends
+/// `include_granted_scopes`, so each of these merges with the account's
+/// existing grants rather than replacing them.
+fn requested_login_scopes(login: &LoginArgs) -> Result<Vec<String>> {
+    if login.all_scopes {
+        return Ok(crate::core::auth::scopes().to_vec());
+    }
+    let mut set = crate::core::auth::login_scopes();
+    if let Some(service) = &login.service {
+        let scopes = crate::core::auth::scopes_for_service(service).ok_or_else(|| {
+            crate::core::error::GrrError::Config(format!(
+                "unknown service `{service}`: `grr api list` shows the ids the index knows"
+            ))
+        })?;
+        set.extend(scopes);
+        set.sort_unstable();
+        set.dedup();
+    }
+    Ok(set)
+}
+
 pub async fn handle_auth_cmd(auth: &GoogleAuth, cmd: AuthCommands) -> Result<()> {
     match cmd {
         // Handled before client construction in cli.rs; this arm is only a
@@ -76,12 +116,14 @@ pub async fn handle_auth_cmd(auth: &GoogleAuth, cmd: AuthCommands) -> Result<()>
             if login.device {
                 return handle_device_login(&auth, login.format).await;
             }
-            let storage = auth.login().await?;
+            let scopes = requested_login_scopes(&login)?;
+            let storage = auth.login(&scopes).await?;
             print_output(
                 &json!({
                     "authenticated": true,
                     "account": login.account,
                     "token_backend": auth.token_backend(),
+                    "scopes_requested": scopes.len(),
                     "token_preview": token_preview(&storage.access_token)
                 }),
                 login.format,

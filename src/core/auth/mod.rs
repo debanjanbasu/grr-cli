@@ -34,13 +34,14 @@ const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
 /// Loopback redirect for the native-app flow (RFC 8252 §7.3).
 pub(crate) const REDIRECT_URI: &str = "http://localhost:3434/oauth/callback";
 
-/// The consent set: every scope the embedded index names, minus the ones
-/// Google will not show a user (see [`APP_AUTH_SCOPES`]), plus a curated
-/// floor for scopes no method declares. Requested in full at login —
-/// per-call escalation is deliberately not implemented, so "which scopes do
-/// I hold" is never a question: one credential, everything the index can
-/// express, nothing to configure. A token keeps whatever it was granted, so
-/// a build that widens this list needs one `grr auth login` to take effect.
+/// Every scope the embedded index names, minus the ones Google will not show
+/// a user (see [`APP_AUTH_SCOPES`]), plus a curated floor for scopes no
+/// method declares. This is the *superset* a credential may hold — what
+/// `grr auth login --all-scopes` asks for, and what `grr api describe` counts
+/// against — but deliberately not what a login requests by default: see
+/// [`login_scopes`] for why the default is small. A token keeps whatever it
+/// was granted, so a build that widens this list needs one `grr auth login`
+/// to take effect.
 pub fn scopes() -> &'static [String] {
     static SCOPES: LazyLock<Vec<String>> = LazyLock::new(|| {
         let mut set: Vec<String> = CURATED_SCOPES.iter().map(|s| (*s).to_owned()).collect();
@@ -53,16 +54,95 @@ pub fn scopes() -> &'static [String] {
     &SCOPES
 }
 
-/// Space-separated consent string, per RFC 6749 §3.3.
-pub(crate) fn scopes_joined() -> String {
-    scopes().join(" ")
+/// What `grr auth login` asks for when no flag says otherwise: the services
+/// every grr user touches, small enough that Google's consent screen
+/// completes with them ticked.
+///
+/// The size is the point. Google's granular-permission screen puts one
+/// checkbox per requested scope, and on an unverified project its submit
+/// stops completing somewhere between the 27 boxes that go through in a
+/// second and the 74 that never do — no error, no redirect, just a spinner
+/// until the callback times out. The whole index is ~112 scopes, so
+/// requesting all of it means a first-time user cannot finish a login at all.
+/// Google's own guidance for that screen says the same thing in policy terms:
+/// avoid bundling scopes at sign-in, and grow the grant with incremental
+/// authorization.
+///
+/// Everything else stays reachable: `grr auth login --service X` asks for one
+/// service's scopes, `--all-scopes` for the whole index, and because every
+/// login carries `include_granted_scopes` those requests *merge* with what the
+/// account already holds instead of replacing it.
+const LOGIN_SCOPES: &[&str] = &[
+    "https://mail.google.com/",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/tasks",
+    "https://www.googleapis.com/auth/documents",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/presentations",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+    "openid",
+];
+
+/// [`LOGIN_SCOPES`], filtered to scopes the embedded index actually declares —
+/// requesting one no build can declare is a consent hang of its own.
+pub fn login_scopes() -> Vec<String> {
+    let available = scopes();
+    LOGIN_SCOPES
+        .iter()
+        .filter(|scope| available.iter().any(|known| known.as_str() == **scope))
+        .map(|scope| (*scope).to_owned())
+        .collect()
 }
+
+/// Every scope one service's methods declare, plus the sign-in trio, for
+/// `grr auth login --service`. The index is the same source the command tree
+/// and `grr api describe` read, so the set matches exactly what that service
+/// can be asked to do — and stays far below the size at which Google's consent
+/// screen stops submitting. `None` when the index has no such service.
+pub fn scopes_for_service(service: &str) -> Option<Vec<String>> {
+    let mut set: Vec<String> = Vec::new();
+    let entry = crate::discovery::services().get(service)?;
+    for method in &entry.methods {
+        for scope in &method.scopes {
+            if !APP_AUTH_SCOPES.contains(&scope.as_str()) {
+                set.push(scope.clone());
+            }
+        }
+    }
+    for basic in SIGN_IN_SCOPES {
+        set.push((*basic).to_owned());
+    }
+    set.sort_unstable();
+    set.dedup();
+    Some(set)
+}
+
+/// The three scopes every credential needs: without them `grr auth status`
+/// cannot read the profile that names the account.
+pub(crate) const SIGN_IN_SCOPES: &[&str] = &[
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+    "openid",
+];
 
 /// Scopes every release has carried since long before the set became
 /// index-derived. The index names all of them today; keeping them as a floor
 /// means a discovery regression cannot silently drop a scope that an
 /// existing credential and an existing user rely on.
 const CURATED_SCOPES: &[&str] = &[
+    // Sign-in. No method in the index declares these, but every credential
+    // needs them to name the account: without `openid`/`userinfo.*` the token
+    // cannot answer `grr auth status`, and a login that omits them looks
+    // healthy while every profile call 403s.
+    "openid",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
     // Gmail
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.compose",
@@ -284,9 +364,11 @@ impl GoogleAuth {
             }
         }
 
-        // Fresh install / explicit login path: no stored token at all.
+        // Fresh install / implicit install path: no stored token at all. The
+        // default set keeps the consent page small; widening is an explicit
+        // `grr auth login --service …` / `--all-scopes` after this.
         info!("No valid token, starting OAuth flow");
-        let storage = self.run_oauth_flow().await?;
+        let storage = self.run_oauth_flow(&login_scopes()).await?;
         *storage_guard = Some(storage.clone());
         self.save_token(&storage).await?;
         Ok(storage.access_token)
@@ -447,5 +529,90 @@ mod tests {
                 "{scope} is a user-consent scope and must stay in the request"
             );
         }
+    }
+}
+
+/// The default login set is what keeps Google's consent page submittable, so
+/// it gets its own checks: small, inside [`scopes`], and free of everything a
+/// personal account can never be granted.
+#[cfg(test)]
+mod login_scope_tests {
+    use super::*;
+
+    #[test]
+    fn the_default_login_set_is_small_and_inside_the_full_set() {
+        let login = login_scopes();
+        let full = scopes();
+
+        // Past roughly 27 ticked boxes an unverified project's consent screen
+        // stops submitting with no error at all, so the default has to stay
+        // well below that — the number is the insurance policy.
+        assert!(
+            login.len() <= 20,
+            "the default login set is {} scopes: Google's consent screen stops \
+             submitting past ~27 ticked boxes, so this is a regression",
+            login.len()
+        );
+        assert!(
+            login.len() >= 10,
+            "the default set lost its core services: {login:?}"
+        );
+        for scope in &login {
+            assert!(
+                full.iter().any(|known| known == scope),
+                "{scope} is not in scopes() — requesting an undeclared scope hangs too"
+            );
+        }
+        for wanted in [
+            "https://mail.google.com/",
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/tasks",
+            "https://www.googleapis.com/auth/documents",
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/presentations",
+            "openid",
+        ] {
+            assert!(
+                login.iter().any(|scope| scope == wanted),
+                "{wanted} is mainstream and must be in the default set"
+            );
+        }
+        for unwanted in [
+            "https://www.googleapis.com/auth/admin.directory.user",
+            "https://www.googleapis.com/auth/chat.admin.spaces",
+            "https://www.googleapis.com/auth/groups",
+            "https://www.google.com/calendar/feeds",
+        ] {
+            assert!(
+                !login.iter().any(|scope| scope == unwanted),
+                "{unwanted} cannot be granted to a personal account; asking for it \
+                 only makes the consent page bigger"
+            );
+        }
+    }
+
+    #[test]
+    fn service_scopes_come_from_the_index_and_stay_narrow() {
+        let docs = scopes_for_service("docs").expect("docs is one of the 14 services");
+        assert!(
+            docs.iter()
+                .any(|scope| scope == "https://www.googleapis.com/auth/documents")
+        );
+        assert!(
+            docs.iter().any(|scope| scope == "openid"),
+            "the sign-in scopes travel with every request so the token can name the account"
+        );
+        assert!(
+            docs.len() < scopes().len(),
+            "one service's scopes must stay far below the whole index"
+        );
+        for scope in &docs {
+            assert!(
+                scopes().iter().any(|known| known == scope),
+                "{scope} is not in scopes()"
+            );
+        }
+        assert!(scopes_for_service("not-a-service").is_none());
     }
 }

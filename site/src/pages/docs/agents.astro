@@ -189,10 +189,10 @@ $ grr gmail users messages list --user-id me --q "from:newsletter.example" \\
           id="scope-title"
           eyebrow="rule four"
           title="Know which scopes you actually hold."
-          copy="grr consents to every scope the embedded index names. The narrowest scope each method accepts is reported per method, but consent itself is not per-method: the grant already covers the whole index."
+          copy="grr requests a small default scope set at login — Gmail, Drive, Calendar, Tasks, Docs, Sheets, Slides, sign-in — and widens it per service on request. The narrowest scope each method accepts is reported per method; consent is still not per-method, so widening is a `grr auth login --service <name>` away rather than a runtime knob."
         />
         <div class="container prose reveal max-w-[68ch]">
-          <p class="lead">OAuth consent is granted once, at <code>grr auth login</code>, and it covers every scope the embedded index names &mdash; the union of every method&rsquo;s scopes, plus a small curated floor. You cannot change it from inside an agent run &mdash; a new consent needs a human &mdash; but there is nothing left outside the grant to ask for. So scope is a design constraint, not a runtime knob, and the per-method scope grr reports is a heads-up, not a request it can grant.</p>
+          <p class="lead">OAuth consent is granted at <code>grr auth login</code> for a small default set &mdash; Gmail, Drive, Calendar, Tasks, Docs, Sheets, Slides and the sign-in scopes &mdash; and widened with <code>grr auth login --service &lt;name&gt;</code> when a task needs more; <code>--all-scopes</code> asks for the whole index. You cannot change it from inside an agent run &mdash; a new consent needs a human &mdash; but the widening command is one line, and every login merges with the account&rsquo;s existing grant. So scope is a design constraint, not a runtime knob, and the per-method scope grr reports is the thing to name when a call 403s.</p>
           <p>Because every command resolves its method against the index, scope reporting is the same on both routes: read <code>leastPrivilegeScope</code> from <code>grr api describe</code> to see what a call touches, though nothing gates on it.</p>
           <p>That leaves one failure mode to expect, and it is worth not misdiagnosing:</p>
           <ul>

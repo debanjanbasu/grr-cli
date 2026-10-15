@@ -260,12 +260,14 @@ impl super::GoogleAuth {
         Ok(Some(storage))
     }
 
-    /// Fresh interactive login: drops any stored (possibly dead) token,
-    /// runs the PKCE browser flow, saves and returns the new token.
-    pub async fn login(&self) -> Result<TokenStorage> {
+    /// Fresh interactive login: drops any stored (possibly dead) token, runs
+    /// the PKCE browser flow with exactly `scopes`, saves and returns the new
+    /// token. The caller decides the set — see [`super::login_scopes`],
+    /// [`super::scopes_for_service`] and [`super::scopes`].
+    pub async fn login(&self, scopes: &[String]) -> Result<TokenStorage> {
         // Best effort: a dead on-disk token must never block fresh consent.
         let _ = self.revoke().await;
-        let storage = self.run_oauth_flow().await?;
+        let storage = self.run_oauth_flow(scopes).await?;
         *self.token_storage.write().await = Some(storage.clone());
         self.save_token(&storage).await?;
         Ok(storage)

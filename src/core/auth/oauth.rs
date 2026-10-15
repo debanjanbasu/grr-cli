@@ -11,8 +11,16 @@ use crate::core::error::{GrrError, Result};
 use super::{REDIRECT_URI, TokenStorage};
 
 impl super::GoogleAuth {
-    /// Run full OAuth2 flow with PKCE
-    pub(crate) async fn run_oauth_flow(&self) -> Result<TokenStorage> {
+    /// Run the full OAuth2 flow with PKCE, asking for exactly `scopes`.
+    ///
+    /// The caller picks the set — [`super::login_scopes`] by default,
+    /// [`super::scopes_for_service`] or [`super::scopes`] when a flag widens
+    /// it. `include_granted_scopes` makes the request *merge* with what the
+    /// account already granted, so a later, narrower login never drops access
+    /// an earlier one obtained: the incremental-authorization half of
+    /// Google's guidance, and what keeps every consent page small enough to
+    /// submit.
+    pub(crate) async fn run_oauth_flow(&self, scopes: &[String]) -> Result<TokenStorage> {
         let mut verifier_bytes = [0u8; 32];
         rand::rng().fill_bytes(&mut verifier_bytes);
         let verifier = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(verifier_bytes);
@@ -29,7 +37,8 @@ impl super::GoogleAuth {
             .append_pair("response_type", "code")
             .append_pair("client_id", &self.config.client_id)
             .append_pair("redirect_uri", REDIRECT_URI)
-            .append_pair("scope", &super::scopes_joined())
+            .append_pair("scope", &scopes.join(" "))
+            .append_pair("include_granted_scopes", "true")
             .append_pair("access_type", "offline")
             .append_pair("prompt", "consent")
             .append_pair("code_challenge", &challenge)
