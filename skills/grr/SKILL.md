@@ -97,7 +97,7 @@ An agent driving grr for a user should pass `--readonly` unless the user asked f
 
 ## Multi-account
 
-`grr auth login --account work` and `grr auth status --account work`: each named account keeps its own token in the OS keyring (the default account's naming is untouched). Names are validated: trimmed, lowercased, no spaces/colons/slashes. Pass `--account` whenever the user has more than one Google account and named which one.
+`grr auth login --account work` and `grr auth status --account work`: each named account keeps its own token in the OS keyring (the default account's naming is untouched). Names are validated: trimmed, lowercased, no spaces/colons/slashes. `--account` is accepted by `auth login` and `auth status` **only** — every service command authenticates as the *default* account, so never tell a user to pass `--account` to a service call (clap rejects it). To work as a named account, log it in without `--account` so it becomes the default (that replaces whichever token was there), or reach for `grr api` after switching.
 
 Scripts, agents, and CI: set `GRR_TOKEN_STORE=file` before anything else. It keeps grr away from the OS keyring — where an approval prompt on an unsigned binary parks the command until a human clicks, which is a hang from an agent's point of view — and stores the token in `<cache dir>/grr/token.json` instead (one file per named account). Any other value, or none, keeps keyring-first auto-detection.
 

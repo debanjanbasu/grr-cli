@@ -109,6 +109,8 @@ Declare the whole list, and expect to do it in **batches**: the console's *Manua
 
 Two more things bite in practice. **A save takes minutes to take effect**: a `grr auth login` started right after it can still hang exactly as before. Reload the page, confirm the new rows are listed, then retry. And **tick the scopes on the consent screen**: a submit with everything unticked still succeeds, but grants only the scopes the account already held — the token comes back missing the families you just declared. `Select all` first, then Continue.
 
+**A second account starts from nothing.** `grr auth login --account work` keeps its own token, but that account has never granted anything, so its consent page shows every declared scope unticked — and ticking all of them is the hang above. Grant a practical set first by narrowing the login request (the request decides what the page offers at all), then widen in stages: scopes already granted come pre-ticked, so a follow-up login only asks for the new ones.
+
 1. Open **Google Auth Platform → Data access → Add or remove scopes**.
 2. Paste the scope list into **Manually add scopes** (one per line), click **Add to table**, then **Update**.
 3. Re-run `grr auth login`.
