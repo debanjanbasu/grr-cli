@@ -22,8 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **auth:** trim the login set, keep the stored grant on refresh
+
+### Internal
+
+- 4 internal commits (chore 4)
+
 ### Other
 
+- **compare:** refresh daily benchmark snapshot
 - **compare:** refresh daily benchmark snapshot
 
 ## [2.0.0] - 2026-10-15
