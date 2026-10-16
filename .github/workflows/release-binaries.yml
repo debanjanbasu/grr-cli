@@ -320,6 +320,11 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The winget-publishing environment is the only place the submission
+    # credential lives: not visible to any other job, workflow, or
+    # environment. Job-level, not step-level — GitHub rejects
+    # `environment` on a step.
+    environment: winget-publishing
     permissions:
       contents: write  # gh release upload
     steps:
@@ -356,9 +361,6 @@ jobs:
       # repo-metadata.yml: unset secret → notice + green (no token must not
       # turn the release red); set but refused → fail loudly.
       - name: Submit the manifests to winget-pkgs
-        # The winget-publishing environment is the only place this credential
-        # lives: it is not visible to any other job, workflow, or environment.
-        environment: winget-publishing
         timeout-minutes: 8
         env:
           WINGET_TOKEN: ${{ secrets.REPO_WINGET_TOKEN }}
