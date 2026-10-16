@@ -392,7 +392,11 @@ jobs:
           curl -sSLo SHA256SUMS "https://github.com/russellbanks/Komac/releases/download/v${KOMAC_VERSION}/SHA256SUMS"
           # without pipefail a checksum mismatch would only print and still submit
           set -euo pipefail
+          # checksums.txt lists `hash *<original name>`, and `sha256sum -c -`
+          # looks the name up on disk — so the tarball must carry the name the
+          # list expects, not our `komac.tar.gz` shorthand.
+          mv komac.tar.gz "komac-${KOMAC_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
           grep "komac-${KOMAC_VERSION}-x86_64-unknown-linux-gnu.tar.gz" SHA256SUMS | sha256sum -c -
-          tar -xzf komac.tar.gz komac
+          tar -xzf "komac-${KOMAC_VERSION}-x86_64-unknown-linux-gnu.tar.gz" komac
           export GITHUB_TOKEN="$WINGET_TOKEN"  # env, not argv, so the token never lands in the process list
           ./komac submit winget-manifests --yes
