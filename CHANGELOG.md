@@ -22,12 +22,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [2.1.1] - 2026-10-16
+
+### Fixed
+
+- **winget:** feed the komac checksum the real filename
+- **winget:** name the komac tarball what checksums.txt expects
+
 ### Internal
 
-- 1 internal commit (chore 1)
+- 7 internal commits (chore 5, ci 2)
 
 ### Other
 
+- **compare:** refresh daily benchmark snapshot
+
+## [2.1.0] - 2026-10-16
+
+### Added
+
+- **http:** route the data plane through the probed engine, publish winget manifests
+
+### Internal
+
+- 6 internal commits (chore 5, ci 1)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 - **compare:** refresh daily benchmark snapshot
 
 ## [2.0.1] - 2026-10-15
@@ -596,7 +620,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v2.0.1...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/debanjanbasu/grr-cli/compare/v2.1.0...v2.1.1
+[2.1.0]: https://github.com/debanjanbasu/grr-cli/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/debanjanbasu/grr-cli/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/debanjanbasu/grr-cli/compare/v1.0.1...v2.0.0
 [1.0.1]: https://github.com/debanjanbasu/grr-cli/compare/v1.0.0...v1.0.1
