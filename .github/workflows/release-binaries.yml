@@ -5,8 +5,15 @@ on:
     tags: ["v*"]
   # Dispatched by tag-release.yml, which pushes the tag with GITHUB_TOKEN —
   # a token-authored push starts no workflows, so the native tag trigger
-  # never fires for the automated path. workflow_dispatch is the exception.
+  # never fires for the automated path. workflow_dispatch is the exception;
+  # its tag input names the release the run should serve (defaulting to the
+  # workflow ref, which for a `v*` ref is that tag).
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag this run serves (defaults to the workflow ref)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -227,9 +234,11 @@ jobs:
 
       - name: Build archives
         timeout-minutes: 10
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
-          ref="${{ github.ref_name }}"
+          ref="$TAG"
           # zstd -22 is the maximum level; -T0 uses all cores. Decompression
           # stays fast, which matters more than the last few percent.
           for name in linux-x86_64 linux-aarch64 macos-aarch64; do
@@ -249,8 +258,8 @@ jobs:
         with:
           name: release-assets
           path: |
-            grr-${{ github.ref_name }}-*.tar.zst
-            grr-${{ github.ref_name }}-*.zip
+            grr-${{ inputs.tag || github.ref_name }}-*.tar.zst
+            grr-${{ inputs.tag || github.ref_name }}-*.zip
             SHA256SUMS
 
   release:
@@ -262,6 +271,8 @@ jobs:
       contents: write
       # gh workflow run below — dispatching the release watchers.
       actions: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/download-artifact@v8
         timeout-minutes: 5
@@ -272,13 +283,14 @@ jobs:
         uses: softprops/action-gh-release@v3
         timeout-minutes: 10
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
           generate_release_notes: true
           files: |
-            assets/grr-${{ github.ref_name }}-windows-x86_64.zip
-            assets/grr-${{ github.ref_name }}-windows-aarch64.zip
-            assets/grr-${{ github.ref_name }}-linux-x86_64.tar.zst
-            assets/grr-${{ github.ref_name }}-linux-aarch64.tar.zst
-            assets/grr-${{ github.ref_name }}-macos-aarch64.tar.zst
+            assets/grr-${{ inputs.tag || github.ref_name }}-windows-x86_64.zip
+            assets/grr-${{ inputs.tag || github.ref_name }}-windows-aarch64.zip
+            assets/grr-${{ inputs.tag || github.ref_name }}-linux-x86_64.tar.zst
+            assets/grr-${{ inputs.tag || github.ref_name }}-linux-aarch64.tar.zst
+            assets/grr-${{ inputs.tag || github.ref_name }}-macos-aarch64.tar.zst
             assets/SHA256SUMS
 
       - name: Dispatch the release watchers
@@ -295,7 +307,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.tag || github.ref_name }}
         timeout-minutes: 5
         run: |
           for wf in demo.yml benchmark.yml stats.yml verify-delivery.yml; do
@@ -327,6 +339,8 @@ jobs:
     environment: winget-publishing
     permissions:
       contents: write  # gh release upload
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
         timeout-minutes: 2
@@ -348,11 +362,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          node scripts/generate-winget.ts "${{ github.ref_name }}" --out winget-manifests
-          tar -czf "grr-${{ github.ref_name }}-winget-manifests.tar.gz" -C winget-manifests .
-          gh release upload "${{ github.ref_name }}" \
-            "grr-${{ github.ref_name }}-winget-manifests.tar.gz" --clobber
-          echo "attached grr-${{ github.ref_name }}-winget-manifests.tar.gz"
+          node scripts/generate-winget.ts "$TAG" --out winget-manifests
+          tar -czf "grr-$TAG-winget-manifests.tar.gz" -C winget-manifests .
+          gh release upload "$TAG" "grr-$TAG-winget-manifests.tar.gz" --clobber
+          echo "attached grr-$TAG-winget-manifests.tar.gz"
 
       # Submission needs a classic PAT with public_repo scope on the account
       # that owns the winget-pkgs fork — the workflow token cannot open PRs
@@ -366,7 +379,7 @@ jobs:
           WINGET_TOKEN: ${{ secrets.REPO_WINGET_TOKEN }}
         run: |
           if [ -z "$WINGET_TOKEN" ]; then
-            echo "::notice::winget submission skipped: REPO_WINGET_TOKEN is unset. To publish, create a classic PAT with the public_repo scope, add it as the REPO_WINGET_TOKEN secret, and re-run this workflow. The bundle is attached to the release as grr-${{ github.ref_name }}-winget-manifests.tar.gz; the manual path is: unpack it, then run komac submit <dir> --yes --token <PAT> (https://github.com/russellbanks/Komac)."
+            echo "::notice::winget submission skipped: REPO_WINGET_TOKEN is unset. To publish, create a classic PAT with the public_repo scope, add it as the REPO_WINGET_TOKEN secret, and re-run this workflow. The bundle is attached to the release as grr-$TAG-winget-manifests.tar.gz; the manual path is: unpack it, then run komac submit <dir> --yes --token <PAT> (https://github.com/russellbanks/Komac)."
             exit 0
           fi
           KOMAC_VERSION=2.17.1
