@@ -24,8 +24,12 @@
 //! live in `core::auth`. A method outside the current grant answers 403
 //! naming the scope; widen the grant and retry.
 
+use std::collections::BTreeMap;
+use std::sync::{Mutex, MutexGuard};
+
 use crate::commands::safety::SafetyProfile;
 use crate::core::auth::GoogleAuth;
+use crate::core::http::HttpCore;
 use crate::discovery::{self, Method, Service};
 use crate::output::{OutputFormat, print_output};
 use anyhow::{Context, Result, bail};
@@ -499,6 +503,66 @@ async fn read_body_source(source: &str) -> Result<String> {
     }
 }
 
+/// One request engine per service base URL, for the process lifetime.
+///
+/// [`HttpCore::connect`] probes the transport with an authenticated round
+/// trip, so the probe is paid once per host per process rather than once per
+/// call: `grr ask --run` and the `grr mcp` server issue many calls in one
+/// process. `--dry-run` returns before this is ever touched, so planning
+/// stays network-free. The cache is a const-constructible
+/// `Mutex<BTreeMap>`, and a process carries one credential handle (the
+/// `--account` rebind happens before any call), so keying on the base URL
+/// alone cannot mix accounts. The index covers 14 services, so a handful of
+/// origins is the whole population — [`MAX_ENGINES`] only closes the
+/// theoretical hole of caller-supplied hosts.
+static CORES: Mutex<BTreeMap<String, HttpCore>> = Mutex::new(BTreeMap::new());
+
+/// Bound on the engine cache. Real usage is a handful of Google origins;
+/// evicting the oldest (BTreeMap order = lexicographic) keeps a hypothetical
+/// caller-driven host explosion from pinning clients forever.
+const MAX_ENGINES: usize = 32;
+
+/// Probe path for the data plane: the service root. Any HTTP response — even
+/// a 404 — proves the transport negotiated, and no cheaper path is shared by
+/// every API in the index.
+const PROBE_PATH: &str = "";
+
+/// The engine for one service origin, probed on first use, reused after.
+///
+/// Two concurrent misses probe twice and the last one wins: both probes are
+/// one extra GET to the same host, which beats serialising every call of a
+/// burst behind this lock. A failed connect evicts any cached engine for
+/// that origin first, so a transport change (network switch, QUIC blocked
+/// mid-session) rebuilds instead of pinning the dead engine forever.
+async fn engine_for(auth: &GoogleAuth, base: &url::Url) -> Result<HttpCore> {
+    let key = base.as_str().to_owned();
+    if let Some(engine) = cores().get(&key) {
+        return Ok(engine.clone());
+    }
+    match HttpCore::connect(auth.clone(), base, PROBE_PATH).await {
+        Ok(engine) => {
+            let mut cores = cores();
+            while cores.len() >= MAX_ENGINES {
+                cores.pop_first();
+            }
+            cores.insert(key, engine.clone());
+            Ok(engine)
+        }
+        Err(error) => {
+            cores().remove(&key);
+            Err(error.into())
+        }
+    }
+}
+
+/// The engine cache. Poisoning is ignored on purpose: an engine that
+/// panicked mid-request must not wedge every later call in the process.
+fn cores() -> MutexGuard<'static, BTreeMap<String, HttpCore>> {
+    CORES
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 /// THE shared call path: `grr api call`, the generated service tree and
 /// `grr auth status` all issue Discovery methods through this function.
 ///
@@ -534,8 +598,6 @@ pub(crate) async fn call_method(
     // Sending is the first moment a credential exists at all.
     let auth = auth.ok_or_else(|| anyhow::anyhow!("{}", crate::core::config::NO_CLIENT_HELP))?;
 
-    let token = auth.get_access_token().await?;
-
     let parsed_url = url::Url::parse(&plan.url).with_context(|| {
         format!(
             "`{}` is not a valid URL (Discovery path + parameters)",
@@ -543,59 +605,78 @@ pub(crate) async fn call_method(
         )
     })?;
 
-    let mut request = auth.http().request(
+    // The data plane rides `HttpCore`, the engine `grr transport` reports on:
+    // bearer auth, the HTTP/3 transport (HTTP/2 prior knowledge on the
+    // fallback path), the in-flight valve and the retry policy — 429 with
+    // `Retry-After`, 401 with the `grr auth login` hint. The engine is probed
+    // once per origin and cached for the rest of the process.
+    let engine = engine_for(auth, &parsed_url.join("/")?).await?;
+
+    let mut request = engine.http_client().request(
         reqwest::Method::from_bytes(plan.verb.as_bytes()).unwrap_or(reqwest::Method::GET),
         parsed_url,
     );
     if let Some(payload) = &plan.body {
         request = request.json(payload);
     }
-    let response = request
-        .bearer_auth(token)
-        .send()
-        .await
-        .map_err(|e| anyhow::anyhow!("{} {} failed: {e}", plan.verb, plan.url))?;
+    let response = engine.execute(request).await?;
 
     let status = response.status();
     let text = response.text().await.unwrap_or_default();
     let parsed: Value = serde_json::from_str(&text).unwrap_or_else(|_| Value::String(text.clone()));
 
     if !status.is_success() {
-        // 403 with insufficient_scope is the common case when a method
-        // needs a scope this build did not request; name it. Google's own
-        // message tells the three real causes apart ("Request had
-        // insufficient authentication scopes" vs "… API has not been used in
-        // project … or it is disabled"), so quote it rather than replace it.
-        if status.as_u16() == 403
-            && let Some(scope) = method.least_privilege_scope()
-        {
-            let detail = parsed["error"]["message"].as_str().unwrap_or("");
-            let google_said = if detail.is_empty() {
-                String::new()
-            } else {
-                format!("\nGoogle said: {detail}")
-            };
-            bail!(
-                "{} {} -> HTTP 403: this method needs the `{scope}` scope.\n\
-                 This build requests every scope the embedded index names, so the grant is what \
-                 to check: a token that predates the current set (re-run `grr auth login`), a \
-                 scope the project's consent screen never declared (Google Auth Platform → Data \
-                 access — undeclared scopes are dropped silently at consent), or an API that is \
-                 disabled on the Cloud project.{google_said}",
-                plan.verb,
-                plan.url
-            );
-        }
         bail!(
-            "{} {} -> HTTP {}\n{}",
-            plan.verb,
-            plan.url,
-            status.as_u16(),
-            serde_json::to_string_pretty(&parsed).unwrap_or(text)
+            "{}",
+            api_failure_message(&plan, status.as_u16(), &parsed, &text, method)
         );
     }
 
     Ok(parsed)
+}
+
+/// The error message for a non-success response on the shared call path.
+///
+/// 403 with insufficient_scope is the common case when a method needs a
+/// scope this build did not request, so it names the scope; Google's own
+/// message tells the three real causes apart ("Request had insufficient
+/// authentication scopes" vs "… API has not been used in project … or it is
+/// disabled"), so it is quoted rather than replaced. Everything else keeps
+/// the long-standing `VERB url -> HTTP <status>` shape with Google's body
+/// pretty-printed — scripts grep for it.
+pub(crate) fn api_failure_message(
+    plan: &RequestPlan,
+    status: u16,
+    parsed: &Value,
+    text: &str,
+    method: &Method,
+) -> String {
+    if status == 403
+        && let Some(scope) = method.least_privilege_scope()
+    {
+        let detail = parsed["error"]["message"].as_str().unwrap_or("");
+        let google_said = if detail.is_empty() {
+            String::new()
+        } else {
+            format!("\nGoogle said: {detail}")
+        };
+        return format!(
+            "{} {} -> HTTP 403: this method needs the `{scope}` scope.\n\
+             This build requests every scope the embedded index names, so the grant is what \
+             to check: a token that predates the current set (re-run `grr auth login`), a \
+             scope the project's consent screen never declared (Google Auth Platform → Data \
+             access — undeclared scopes are dropped silently at consent), or an API that is \
+             disabled on the Cloud project.{google_said}",
+            plan.verb, plan.url
+        );
+    }
+    format!(
+        "{} {} -> HTTP {}\n{}",
+        plan.verb,
+        plan.url,
+        status,
+        serde_json::to_string_pretty(parsed).unwrap_or_else(|_| text.to_owned())
+    )
 }
 
 fn service_hint(method_id: &str) -> &str {
@@ -847,6 +928,60 @@ mod tests {
                 .as_str()
                 .unwrap()
                 .ends_with("gmail.readonly")
+        );
+    }
+
+    fn a_get_plan() -> super::RequestPlan {
+        super::RequestPlan {
+            verb: "GET".into(),
+            url: "https://gmail.googleapis.com/gmail/v1/users/me/messages".into(),
+            body: None,
+        }
+    }
+
+    #[test]
+    fn a_403_names_the_missing_scope_and_keeps_googles_message() {
+        // The scope guidance is the whole point of the 403 branch: without
+        // it a user sees only "HTTP 403" and starts re-running commands
+        // instead of re-running `grr auth login`.
+        let (_, method) = crate::discovery::resolve("gmail.users.messages.list").unwrap();
+        let parsed = json!({
+            "error": {"code": 403, "message": "Request had insufficient authentication scopes."}
+        });
+        let message = super::api_failure_message(&a_get_plan(), 403, &parsed, "", method);
+        assert!(message.contains("HTTP 403"), "{message}");
+        assert!(
+            message.contains("gmail.readonly"),
+            "the method's least-privilege scope must be named: {message}"
+        );
+        assert!(
+            message.contains("re-run `grr auth login`"),
+            "the remediation must be named: {message}"
+        );
+        assert!(
+            message.contains("insufficient authentication scopes"),
+            "Google's own message must be quoted, not replaced: {message}"
+        );
+    }
+
+    #[test]
+    fn other_statuses_keep_the_verb_url_body_shape() {
+        // The long-standing `VERB url -> HTTP <status>` shape with the
+        // pretty-printed body is an output contract: scripts grep for it.
+        // It also covers the 403-with-no-scope case (API disabled): the
+        // generic body quote is the fallback, never a scope name.
+        let (_, method) = crate::discovery::resolve("gmail.users.messages.list").unwrap();
+        let parsed = json!({"error": {"code": 404, "message": "Requested entity was not found."}});
+        let message = super::api_failure_message(&a_get_plan(), 404, &parsed, "", method);
+        assert!(
+            message.contains(
+                "GET https://gmail.googleapis.com/gmail/v1/users/me/messages -> HTTP 404"
+            ),
+            "{message}"
+        );
+        assert!(
+            message.contains("Requested entity was not found."),
+            "{message}"
         );
     }
 

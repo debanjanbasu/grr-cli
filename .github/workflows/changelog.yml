@@ -57,7 +57,7 @@ concurrency:
 jobs:
   regenerate:
     name: regenerate changelog
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
       # Push the regeneration branch; never main.
@@ -224,7 +224,7 @@ jobs:
     # verify-delivery check (scripts/verify-delivery.ts), which fails once the
     # release leaves the window with the section still missing.
     if: (github.event_name == 'release' && github.event.action == 'published') || inputs.verify == true
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
       # Read-only: this job verifies, it never writes.

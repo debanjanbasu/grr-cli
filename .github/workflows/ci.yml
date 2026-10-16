@@ -61,7 +61,7 @@ jobs:
   clippy:
     if: github.event_name != 'schedule'
     name: clippy
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -88,7 +88,7 @@ jobs:
   fmt:
     if: github.event_name != 'schedule'
     name: fmt
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -105,7 +105,7 @@ jobs:
   scripts:
     if: github.event_name != 'schedule'
     name: scripts typecheck
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -138,7 +138,7 @@ jobs:
     # this job exists.
     if: github.event_name != 'schedule'
     name: site (build + check)
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -173,7 +173,7 @@ jobs:
     # the curated clients, which are not part of this subset.
     if: github.event_name != 'schedule'
     name: feature-subset (cli)
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -193,12 +193,14 @@ jobs:
 
   security:
     name: security audit
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     # An advisory must not block unrelated PRs: the audit still reports in the
     # job log and summary, but a new RUSTSEC advisory against a transitive
-    # dependency is not a reason to red a docs or feature PR.
-    continue-on-error: true
+    # dependency is not a reason to red a docs or feature PR. On the weekly
+    # schedule there is no unrelated PR, so there the audit is a real gate —
+    # advisory-only everywhere would mean it can never red anything at all.
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
     permissions:
       contents: read
       issues: write

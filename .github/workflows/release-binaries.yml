@@ -48,14 +48,14 @@ jobs:
             artifact: grr.exe
             triple: aarch64-pc-windows-msvc
           - name: linux-x86_64
-            os: ubuntu-26.04
+            os: ubuntu-24.04
             artifact: grr
             triple: x86_64-unknown-linux-gnu
           - name: linux-aarch64
             # Native ARM runner (GA): no cross toolchain needed, so the
             # aarch64 binary cannot silently come out x86_64. Same safety
             # property as the Windows-ARM target above.
-            os: ubuntu-26.04-arm
+            os: ubuntu-24.04-arm
             artifact: grr
             triple: aarch64-unknown-linux-gnu
           - name: macos-aarch64
@@ -295,15 +295,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
         timeout-minutes: 5
         run: |
           for wf in demo.yml benchmark.yml stats.yml verify-delivery.yml; do
             echo "dispatching $wf"
-            gh workflow run "$wf" --ref main || echo "::warning::$wf dispatch failed"
+            # A swallowed failure would leave this release unverified and
+            # unmeasured — tag-release.yml's own dispatches fail loud for the
+            # same reason. Fail here too.
+            if [ "$wf" = demo.yml ]; then
+              gh workflow run "$wf" --ref main -f tag="$TAG"
+            else
+              gh workflow run "$wf" --ref main
+            fi
           done
           echo "dispatching changelog.yml (verify=true)"
-          gh workflow run changelog.yml --ref main -f verify=true \
-            || echo "::warning::changelog.yml dispatch failed"
+          gh workflow run changelog.yml --ref main -f verify=true
 
   winget:
     name: generate the winget manifests
@@ -341,3 +348,28 @@ jobs:
           gh release upload "${{ github.ref_name }}" \
             "grr-${{ github.ref_name }}-winget-manifests.tar.gz" --clobber
           echo "attached grr-${{ github.ref_name }}-winget-manifests.tar.gz"
+
+      # Submission needs a classic PAT with public_repo scope on the account
+      # that owns the winget-pkgs fork — the workflow token cannot open PRs
+      # against microsoft/winget-pkgs, and fine-grained tokens cannot either
+      # (https://github.com/russellbanks/Komac/issues/310). Same contract as
+      # repo-metadata.yml: unset secret → notice + green (no token must not
+      # turn the release red); set but refused → fail loudly.
+      - name: Submit the manifests to winget-pkgs
+        timeout-minutes: 8
+        env:
+          WINGET_TOKEN: ${{ secrets.REPO_WINGET_TOKEN }}
+        run: |
+          if [ -z "$WINGET_TOKEN" ]; then
+            echo "::notice::winget submission skipped: REPO_WINGET_TOKEN is unset. To publish, create a classic PAT with the public_repo scope, add it as the REPO_WINGET_TOKEN secret, and re-run this workflow. The bundle is attached to the release as grr-${{ github.ref_name }}-winget-manifests.tar.gz; the manual path is: unpack it, then run komac submit <dir> --yes --token <PAT> (https://github.com/russellbanks/Komac)."
+            exit 0
+          fi
+          KOMAC_VERSION=2.17.1
+          curl -sSLo komac.tar.gz "https://github.com/russellbanks/Komac/releases/download/v${KOMAC_VERSION}/komac-${KOMAC_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -sSLo komac-sha256sums "https://github.com/russellbanks/Komac/releases/download/v${KOMAC_VERSION}/SHA256SUMS"
+          # without pipefail a checksum mismatch would only print and still submit
+          set -euo pipefail
+          grep "komac-${KOMAC_VERSION}-x86_64-unknown-linux-gnu.tar.gz" komac-sha256sums | sha256sum -c -
+          tar -xzf komac.tar.gz komac
+          export GITHUB_TOKEN="$WINGET_TOKEN"  # env, not argv, so the token never lands in the process list
+          ./komac submit winget-manifests --yes

@@ -9,10 +9,11 @@ import { fileURLToPath } from 'node:url';
 // keeps AGENTS invariant 13 true in both directions; it is wired into CI.
 // --print-idle-map: print the 64×64 idle map as text (for tests and humans).
 //
-// public/og.png (1200×630, 8-bit RGB) is the social card and is NOT written
-// by this script: it is the rasterised rendering of public/og.svg, and no
-// rasteriser lives in this repo. Re-rasterise it out of band whenever
-// ogSvg() changes, or the card the crawlers fetch drifts from the SVG.
+// public/og.png (1200×630, 8-bit) is the social card: the rasterised
+// rendering of public/og.svg through @resvg/resvg-js, a site-only
+// devDependency, so it can never drift from the SVG the way a hand-rendered
+// copy did. --check only asserts it exists at the right dimensions, never
+// byte equality, so a rasteriser upgrade is not reported as drift.
 const CHECK = process.argv.includes('--check');
 const PRINT_IDLE_MAP = process.argv.includes('--print-idle-map');
 
@@ -1187,6 +1188,27 @@ const ogSvg = () => {
   return svgDocument({ width: 1200, height: 630, viewBox: '0 0 1200 630', title: 'grr — Google tools from the terminal', description: 'A warm paper product card with the dimensional grr crab, wordmark, tagline, and a small terminal slab.', body });
 };
 
+const OG_PNG = resolve(publicDirectory, 'og.png');
+const OG_PNG_SIZE = Object.freeze({ width: 1200, height: 630 });
+
+// Loaded only on the write path, so --check (and --print-idle-map) stay
+// dependency-free: the check reads the PNG header, it never renders.
+const rasteriseOgPng = async (svg) => {
+  const { Resvg } = await import('@resvg/resvg-js').catch(() => {
+    throw new Error('og.png needs the @resvg/resvg-js devDependency — run `npm install` in site/');
+  });
+  // og.svg carries width/height, and RGBA is resvg's only 8-bit output, so
+  // the defaults already give a 1200x630 8-bit PNG.
+  return new Resvg(svg).render().asPng();
+};
+
+/** IHDR only — signature plus the big-endian width/height at bytes 16..24. */
+const pngSize = (path) => {
+  const header = readFileSync(path).subarray(0, 24);
+  if (header.length < 24 || header.toString('latin1', 1, 4) !== 'PNG') return null;
+  return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
+};
+
 const ASCII_SOURCES = Object.freeze({
   idle: buildIdleMap().map((row) => row.join('')).join('\n'),
   wave: buildWaveMap().map((row) => row.join('')).join('\n'),
@@ -1197,6 +1219,10 @@ const ASCII_SOURCES = Object.freeze({
 const ASCII_MAPS = Object.freeze(Object.fromEntries(
   Object.entries(ASCII_SOURCES).map(([name, source]) => [name, parseAscii(name, source)])
 ));
+
+// Built once: the SVG is tracked and the PNG is its render, so both must come
+// from the same string.
+const ogMarkup = ogSvg();
 
 const files = new Map([
   [resolve(assetDirectory, 'mascot-idle.svg'), mascotSvg('idle')],
@@ -1221,7 +1247,7 @@ const files = new Map([
   [resolve(publicDirectory, 'favicon-32.svg'), faviconSvg(32)],
   [resolve(publicDirectory, 'logo.svg'), logoSvg()],
   [resolve(publicDirectory, 'logo-wordmark.svg'), logoWordmarkSvg()],
-  [resolve(publicDirectory, 'og.svg'), ogSvg()]
+  [resolve(publicDirectory, 'og.svg'), ogMarkup]
 ]);
 
 const rejected = [
@@ -1247,6 +1273,19 @@ if (CHECK) {
   }
   for (const path of rejected) {
     if (existsSync(path)) problems.push(`should not exist: ${path}`);
+  }
+
+  // Dimensions, not bytes: the card has to match the layout's declared size,
+  // but a rasteriser bump may legitimately change every pixel.
+  if (!existsSync(OG_PNG)) {
+    problems.push(`missing: ${OG_PNG}`);
+  } else {
+    const size = pngSize(OG_PNG);
+    if (size === null) {
+      problems.push(`not a PNG: ${OG_PNG}`);
+    } else if (size.width !== OG_PNG_SIZE.width || size.height !== OG_PNG_SIZE.height) {
+      problems.push(`og.png is ${size.width}x${size.height}, expected ${OG_PNG_SIZE.width}x${OG_PNG_SIZE.height}`);
+    }
   }
 
   // CLI banner parity (AGENTS invariant 13): the Rust banner and the site
@@ -1290,7 +1329,7 @@ if (CHECK) {
     console.error(`mascot check failed: ${problems.length} problem(s)`);
     process.exit(1);
   }
-  console.log(`mascot assets current: ${files.size} files, banner parity holds`);
+  console.log(`mascot assets current: ${files.size} files, og.png ${OG_PNG_SIZE.width}x${OG_PNG_SIZE.height}, banner parity holds`);
   process.exit(0);
 }
 
@@ -1305,4 +1344,6 @@ for (const path of rejected) {
   if (existsSync(path)) rmSync(path);
 }
 
-console.log(`Generated ${files.size} SVG assets with 64x64 mascot pixel maps.`);
+writeFileSync(OG_PNG, await rasteriseOgPng(ogMarkup));
+
+console.log(`Generated ${files.size} SVG assets with 64x64 mascot pixel maps, plus the og social card PNG.`);

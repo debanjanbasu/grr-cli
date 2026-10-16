@@ -10,7 +10,9 @@
     "linux-x86_64": 3688067,
     "macos-aarch64": 2989900,
     "windows-aarch64": 3537989,
-    "windows-x86_64": 3242261,
+    "windows-x86_64": 3242261
+  },
+  "nonPlatformAssets": {
     "winget-manifests": 900
   },
   "updatedAt": "2026-10-15T22:43:35.123Z"

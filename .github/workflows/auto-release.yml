@@ -45,7 +45,7 @@ concurrency:
 jobs:
   bump:
     name: open the version-bump PR
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write
@@ -99,6 +99,13 @@ jobs:
         env:
           NEXT: ${{ steps.version.outputs.next }}
         run: |
+          # A deliberate re-check (force=true) of an up-to-date version has
+          # nothing to change; without this the identical sed and the empty
+          # commit red the run below.
+          if [ "$NEXT" = "v$(grep -m1 '^version' Cargo.toml | sed 's/^version = "//;s/"$//')" ]; then
+            echo "::notice::version $NEXT is already current; nothing to bump (forced re-check)"
+            exit 0
+          fi
           # NEXT arrives with a leading "v" (v0.7.0) because that is how the
           # generator names a version. Cargo wants a bare semver: `version =
           # "v0.7.0"` is a hard parse error, and it is precisely what produced

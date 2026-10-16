@@ -47,7 +47,10 @@ interface SiteStats {
   githubDownloads: number;
   latestRelease: string;
   latestReleaseDate: string;
+  /** One key per shipped platform archive, keyed `<os family>-<arch>`. */
   binarySizes: Record<string, number> | null;
+  /** Release bundles that are not platform builds, e.g. `winget-manifests`. */
+  nonPlatformAssets: Record<string, number> | null;
   updatedAt: string;
 }
 
@@ -96,16 +99,30 @@ const asCount = (value: unknown): number => {
 const archiveExtensions = ['tar\\.zst', 'tar\\.gz', 'tar\\.xz', 'tar\\.bz2', 'tar', 'tgz', 'zip', 'gz', 'xz', 'bz2', '7z', 'exe', 'msi', 'pkg', 'dmg'];
 const assetPattern = new RegExp(`^grr-v\\d+(?:\\.\\d+)*-(?<platform>[a-z0-9_]+(?:-[a-z0-9_]+)*)\\.(${archiveExtensions.join('|')})$`, 'i');
 
-const readBinarySizes = (release: GithubRelease | undefined): Record<string, number> | null => {
-  const sizes: Record<string, number> = {};
+// A platform build is `<os family>-<arch>`. The release also attaches bundles
+// that match the same file-name pattern (`grr-v2.0.0-winget-manifests.tar.gz`),
+// and counting those as platforms is what made the site claim six platforms
+// while five exist — so anything whose first segment is not a known family is
+// recorded as a bundle instead. A new OS family, or a bundle named like one
+// (`linux-...`), needs a line here.
+const platformFamilies: Record<string, true> = { macos: true, linux: true, windows: true };
+
+const readReleaseSizes = (release: GithubRelease | undefined): Pick<SiteStats, 'binarySizes' | 'nonPlatformAssets'> => {
+  const platforms: Record<string, number> = {};
+  const nonPlatformAssets: Record<string, number> = {};
   const assets = release && Array.isArray(release.assets) ? release.assets : [];
   for (const asset of assets) {
-    const platform = asset?.name?.match(assetPattern)?.groups?.platform?.toLowerCase();
-    if (!platform || platform === 'source') continue;
+    const name = asset?.name?.match(assetPattern)?.groups?.platform?.toLowerCase();
+    if (!name || name === 'source') continue;
     const bytes = asCount(asset?.size);
-    if (bytes > 0) sizes[platform] = bytes;
+    if (bytes <= 0) continue;
+    if (platformFamilies[name.split('-')[0]]) platforms[name] = bytes;
+    else nonPlatformAssets[name] = bytes;
   }
-  return Object.keys(sizes).length > 0 ? sizes : null;
+  return {
+    binarySizes: Object.keys(platforms).length > 0 ? platforms : null,
+    nonPlatformAssets: Object.keys(nonPlatformAssets).length > 0 ? nonPlatformAssets : null,
+  };
 };
 
 try {
@@ -144,7 +161,7 @@ try {
     githubDownloads,
     latestRelease: latestRelease?.tag_name ?? '',
     latestReleaseDate: latestRelease?.published_at ?? latestRelease?.created_at ?? '',
-    binarySizes: readBinarySizes(latestRelease),
+    ...readReleaseSizes(latestRelease),
     updatedAt: new Date().toISOString(),
   };
 
@@ -152,8 +169,8 @@ try {
   // alone is not a change. Without this the file would differ on every run
   // and the scheduled refresh would open a pull request a day saying
   // "nothing moved". Compared field by field rather than through a sorted
-  // JSON.stringify replacer, which would also filter the nested
-  // `binarySizes` keys out of the comparison.
+  // JSON.stringify replacer, which would also filter the nested `binarySizes`
+  // and `nonPlatformAssets` keys out of the comparison.
   const unchanged = (a: SiteStats, b: SiteStats): boolean =>
     a.version === b.version &&
     a.crateDownloads === b.crateDownloads &&
@@ -161,7 +178,8 @@ try {
     a.githubDownloads === b.githubDownloads &&
     a.latestRelease === b.latestRelease &&
     a.latestReleaseDate === b.latestReleaseDate &&
-    JSON.stringify(a.binarySizes) === JSON.stringify(b.binarySizes);
+    JSON.stringify(a.binarySizes) === JSON.stringify(b.binarySizes) &&
+    JSON.stringify(a.nonPlatformAssets) === JSON.stringify(b.nonPlatformAssets);
 
   const previous = await readFile(statsPath, 'utf8').then((text) => JSON.parse(text) as SiteStats).catch(() => null);
   if (previous && unchanged(previous, stats)) {
@@ -175,7 +193,8 @@ try {
         .map(([platform, bytes]) => `${platform}=${(bytes / 1024 / 1024).toFixed(1)}MB`)
         .join(' ')
     : 'no platform assets found';
-  console.log(`Updated ${statsPath}: ${stats.crateDownloads} crates.io downloads, ${stats.githubDownloads} GitHub asset downloads, ${sizeSummary}`);
+  const bundleSummary = stats.nonPlatformAssets ? ` (bundles, not platforms: ${Object.keys(stats.nonPlatformAssets).join(' ')})` : '';
+  console.log(`Updated ${statsPath}: ${stats.crateDownloads} crates.io downloads, ${stats.githubDownloads} GitHub asset downloads, ${sizeSummary}${bundleSummary}`);
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   // A skipped refresh used to exit 0 — a broken fetch left the workflow green

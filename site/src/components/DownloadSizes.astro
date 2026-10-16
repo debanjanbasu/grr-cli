@@ -11,7 +11,10 @@ const { note = 'Compressed release archives, straight from the GitHub release.' 
 // The rendered platforms ARE stats.json's `binarySizes` keys, mapped 1:1, so a
 // shipped target can never be silently dropped the way linux-aarch64 was — the
 // row used to hard-code four targets and omit it. Add a target to the snapshot
-// and it appears here; the count always equals the key count.
+// and it appears here; the count always equals the key count. Non-platform
+// release assets (the generated winget manifest bundle) live in
+// `nonPlatformAssets` and are deliberately not rendered: a manifest bundle is
+// not a platform, and listing it here is what made this row claim six.
 const PLATFORM_LABELS: Record<string, string> = {
   'linux-aarch64': 'Linux arm64',
   'linux-x86_64': 'Linux x86_64',
@@ -39,7 +42,7 @@ const rows = Object.keys(sizes).map((key) => ({
 
 <div class="download-sizes mt-4">
   <div class="download-sizes-head mb-1 flex items-center justify-between gap-4">
-    <span class="stat-label">download sizes</span>
+    <span class="stat-label">platform archives</span>
     <span class="badge badge-secondary badge-sm">v{release}</span>
   </div>
   <dl class="download-sizes-grid grid grid-cols-2 gap-x-6 gap-y-3 m-0 sm:grid-cols-3 lg:grid-cols-5">

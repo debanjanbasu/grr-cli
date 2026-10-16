@@ -21,24 +21,50 @@ use std::path::PathBuf;
 const CONSOLE: &str = "https://console.cloud.google.com";
 const SETUP_DOCS: &str = "https://github.com/debanjanbasu/grr-cli/blob/main/docs/gcp-setup.md";
 
-/// Every API grr can talk to, so one `gcloud services enable` covers them.
-/// Every one is reachable through the generated command tree; a method's
-/// scopes decide what actually authorises.
-const SERVICES: &[(&str, &str)] = &[
-    ("gmail.googleapis.com", "Gmail"),
-    ("calendar-json.googleapis.com", "Calendar"),
-    ("drive.googleapis.com", "Drive"),
-    ("people.googleapis.com", "Contacts"),
-    ("chat.googleapis.com", "Chat"),
-    ("forms.googleapis.com", "Forms"),
-    ("tasks.googleapis.com", "Tasks"),
-    ("docs.googleapis.com", "Docs"),
-    ("sheets.googleapis.com", "Sheets"),
-    ("slides.googleapis.com", "Slides"),
-    ("script.googleapis.com", "Apps Script"),
-    ("analyticsadmin.googleapis.com", "Analytics Admin"),
-    ("analyticsdata.googleapis.com", "Analytics Data"),
-    ("searchconsole.googleapis.com", "Search Console"),
+/// Each API grr can talk to: the id the embedded index uses for it
+/// (`discovery::services()` keys, which is also what `grr auth login --service`
+/// takes), the name `gcloud services enable` knows the API by, and the label a
+/// human reads.
+///
+/// One `gcloud services enable` covers them all; a method's scopes decide what
+/// actually authorises. This is the only list — `every_indexed_service_is_here`
+/// derives the id set from the index and fails the build if the two ever
+/// disagree, so a service added to the index cannot be forgotten here. The
+/// order is curated anyway (Gmail first, the surfaces people set up first)
+/// rather than the index's A–Z, so the recipe reads the way someone would type
+/// it.
+///
+/// The `gcloud` name is typed rather than derived: `rootUrl` is the shared
+/// `www.googleapis.com` for Calendar and Drive, and Calendar's API is the
+/// legacy `calendar-json.googleapis.com` — `calendar.googleapis.com` is not an
+/// API `gcloud` can enable.
+const SERVICE_APIS: &[(&str, &str, &str)] = &[
+    ("gmail", "gmail.googleapis.com", "Gmail"),
+    ("calendar", "calendar-json.googleapis.com", "Calendar"),
+    ("drive", "drive.googleapis.com", "Drive"),
+    ("people", "people.googleapis.com", "Contacts"),
+    ("chat", "chat.googleapis.com", "Chat"),
+    ("forms", "forms.googleapis.com", "Forms"),
+    ("tasks", "tasks.googleapis.com", "Tasks"),
+    ("docs", "docs.googleapis.com", "Docs"),
+    ("sheets", "sheets.googleapis.com", "Sheets"),
+    ("slides", "slides.googleapis.com", "Slides"),
+    ("script", "script.googleapis.com", "Apps Script"),
+    (
+        "analyticsadmin",
+        "analyticsadmin.googleapis.com",
+        "Analytics Admin",
+    ),
+    (
+        "analyticsdata",
+        "analyticsdata.googleapis.com",
+        "Analytics Data",
+    ),
+    (
+        "searchconsole",
+        "searchconsole.googleapis.com",
+        "Search Console",
+    ),
 ];
 
 #[derive(Args, Debug, Clone)]
@@ -155,9 +181,9 @@ fn instructions() -> String {
     ));
     out.push_str(&format!(
         "2. Enable the APIs (one command if you have gcloud):\n     gcloud services enable {}\n\n",
-        SERVICES
+        SERVICE_APIS
             .iter()
-            .map(|(s, _)| *s)
+            .map(|(_, host, _)| *host)
             .collect::<Vec<_>>()
             .join(" ")
     ));
@@ -180,7 +206,7 @@ pub async fn handle_setup(args: SetupArgs) -> Result<()> {
                 "instructions": recipe,
                 "config_path": path.display().to_string(),
                 "wrote_config": false,
-                "apis": SERVICES.iter().map(|(s, n)| serde_json::json!({"service": s, "label": n})).collect::<Vec<_>>(),
+                "apis": SERVICE_APIS.iter().map(|(_, host, label)| serde_json::json!({"service": host, "label": label})).collect::<Vec<_>>(),
             }),
             args.format,
         )?;
@@ -280,9 +306,9 @@ async fn prompt(label: &str) -> Result<String> {
 /// `gcloud services enable` is a network-backed call that can take minutes;
 /// spawning it through tokio keeps the runtime free while it runs.
 async fn enable_apis_via_gcloud() -> Result<()> {
-    let services = SERVICES
+    let services = SERVICE_APIS
         .iter()
-        .map(|(s, _)| *s)
+        .map(|(_, host, _)| *host)
         .collect::<Vec<_>>()
         .join(" ");
 
@@ -349,10 +375,43 @@ mod tests {
     #[test]
     fn instructions_cover_every_service() {
         let text = instructions();
-        for (service, _) in SERVICES {
-            assert!(text.contains(service), "missing {service}");
+        for (_, host, _) in SERVICE_APIS {
+            assert!(text.contains(*host), "missing {host}");
         }
         assert!(text.contains("Desktop app"));
+    }
+
+    /// The list `grr auth setup` enables is the index's own service set: same
+    /// ids, no more and no fewer. A service added to `discovery.rs` (or dropped
+    /// from it) must fail here rather than silently vanish from the recipe.
+    #[test]
+    fn every_indexed_service_is_here() {
+        let indexed: std::collections::BTreeSet<&str> =
+            crate::discovery::services().keys().copied().collect();
+        let listed: std::collections::BTreeSet<&str> =
+            SERVICE_APIS.iter().map(|(id, _, _)| *id).collect();
+        assert_eq!(
+            listed, indexed,
+            "SERVICE_APIS and the embedded index disagree; a service must not be \
+             enabled by hand or left out of `gcloud services enable`"
+        );
+
+        for (id, host, label) in SERVICE_APIS {
+            assert!(!label.is_empty(), "{id} has no human label");
+            // Where the index carries a service-specific rootUrl, it must back
+            // the host typed here — the two `www.googleapis.com` entries
+            // (Calendar, Drive) are exactly the ones the index cannot name.
+            let root = crate::discovery::services()[*id]
+                .root_url
+                .as_deref()
+                .unwrap_or_default()
+                .trim_start_matches("https://")
+                .trim_end_matches('/')
+                .to_owned();
+            if root != "www.googleapis.com" {
+                assert_eq!(*host, root, "{id}'s gcloud name disagrees with the index");
+            }
+        }
     }
 
     #[test]

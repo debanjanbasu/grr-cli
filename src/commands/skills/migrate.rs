@@ -195,6 +195,23 @@ pub(crate) fn sync_into(
         let packaged_sha = sha256_hex(contents.as_bytes());
         let entry = manifest.files.get(rel).cloned();
 
+        // Every arm below records through here: one manifest entry (base =
+        // this packaged content, written = what the local file now holds)
+        // plus the refreshed backup snapshot that is the next version's merge
+        // base. One funnel so the two halves cannot drift apart arm by arm.
+        let mut record = |written_sha256: String| -> Result<()> {
+            manifest.files.insert(
+                rel.to_string(),
+                FileEntry {
+                    base_sha256: packaged_sha.clone(),
+                    written_sha256,
+                },
+            );
+            write_backup(target, rel, contents)?;
+            dirty = true;
+            Ok(())
+        };
+
         let local = match fs::read_to_string(&path) {
             Ok(local) => Some(local),
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
@@ -219,15 +236,7 @@ pub(crate) fn sync_into(
             }
             write_file(&path, contents)?;
             report.installed.push(rel.to_string());
-            manifest.files.insert(
-                rel.to_string(),
-                FileEntry {
-                    base_sha256: packaged_sha.clone(),
-                    written_sha256: packaged_sha.clone(),
-                },
-            );
-            write_backup(target, rel, contents)?;
-            dirty = true;
+            record(packaged_sha.clone())?;
             continue;
         };
 
@@ -237,15 +246,7 @@ pub(crate) fn sync_into(
                 .as_ref()
                 .is_none_or(|e| e.base_sha256 != packaged_sha || e.written_sha256 != packaged_sha)
             {
-                manifest.files.insert(
-                    rel.to_string(),
-                    FileEntry {
-                        base_sha256: packaged_sha.clone(),
-                        written_sha256: packaged_sha.clone(),
-                    },
-                );
-                write_backup(target, rel, contents)?;
-                dirty = true;
+                record(packaged_sha.clone())?;
             }
             continue;
         }
@@ -253,15 +254,7 @@ pub(crate) fn sync_into(
         if force {
             write_file(&path, contents)?;
             report.updated.push(rel.to_string());
-            manifest.files.insert(
-                rel.to_string(),
-                FileEntry {
-                    base_sha256: packaged_sha.clone(),
-                    written_sha256: packaged_sha.clone(),
-                },
-            );
-            write_backup(target, rel, contents)?;
-            dirty = true;
+            record(packaged_sha.clone())?;
             continue;
         }
 
@@ -284,15 +277,7 @@ pub(crate) fn sync_into(
         if local_sha == entry.written_sha256 && entry.written_sha256 == entry.base_sha256 {
             write_file(&path, contents)?;
             report.updated.push(rel.to_string());
-            manifest.files.insert(
-                rel.to_string(),
-                FileEntry {
-                    base_sha256: packaged_sha.clone(),
-                    written_sha256: packaged_sha.clone(),
-                },
-            );
-            write_backup(target, rel, contents)?;
-            dirty = true;
+            record(packaged_sha.clone())?;
             continue;
         }
 
@@ -309,28 +294,12 @@ pub(crate) fn sync_into(
                 // The packaged side did not change this file's merged
                 // region; nothing to write, but advance the base.
                 report.unchanged.push(rel.to_string());
-                manifest.files.insert(
-                    rel.to_string(),
-                    FileEntry {
-                        base_sha256: packaged_sha.clone(),
-                        written_sha256: entry.written_sha256.clone(),
-                    },
-                );
-                write_backup(target, rel, contents)?;
-                dirty = true;
+                record(entry.written_sha256.clone())?;
             }
             Ok(merged) => {
                 write_file(&path, &merged)?;
                 report.merged.push(rel.to_string());
-                manifest.files.insert(
-                    rel.to_string(),
-                    FileEntry {
-                        base_sha256: packaged_sha.clone(),
-                        written_sha256: sha256_hex(merged.as_bytes()),
-                    },
-                );
-                write_backup(target, rel, contents)?;
-                dirty = true;
+                record(sha256_hex(merged.as_bytes()))?;
             }
             Err(_) => {
                 // Conflict: the user's file is inviolable. Drop the new
@@ -339,15 +308,7 @@ pub(crate) fn sync_into(
                 let incoming = incoming_path(&path);
                 write_file(&incoming, contents)?;
                 report.conflicts.push(rel.to_string());
-                manifest.files.insert(
-                    rel.to_string(),
-                    FileEntry {
-                        base_sha256: packaged_sha.clone(),
-                        written_sha256: entry.written_sha256.clone(),
-                    },
-                );
-                write_backup(target, rel, contents)?;
-                dirty = true;
+                record(entry.written_sha256.clone())?;
             }
         }
     }

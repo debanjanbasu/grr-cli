@@ -66,23 +66,7 @@ impl GrrError {
     }
 }
 
-pub type Result<T> = std::result::Result<T, GrrError>;
-
-pub(crate) fn api_error(status: u16, body: &str) -> GrrError {
-    let message = serde_json::from_str::<serde_json::Value>(body)
-        .ok()
-        .map(|value| json_error_detail(&value))
-        .filter(|message| message != "unknown error")
-        .unwrap_or_else(|| {
-            let body = body.trim();
-            if body.is_empty() {
-                "HTTP request failed".to_string()
-            } else {
-                body.to_string()
-            }
-        });
-    GrrError::Api { status, message }
-}
+pub type Result<T, E = GrrError> = std::result::Result<T, E>;
 
 pub(crate) fn json_error_detail(body: &serde_json::Value) -> String {
     let reason = body
@@ -110,17 +94,6 @@ pub(crate) fn json_error_detail(body: &serde_json::Value) -> String {
 mod tests {
     use super::*;
     use serde_json::json;
-
-    #[test]
-    fn extracts_google_api_error_messages() {
-        let error = api_error(
-            400,
-            r#"{"error":{"code":400,"message":"invalid query","status":"INVALID_ARGUMENT"}}"#,
-        );
-        assert!(
-            matches!(error, GrrError::Api { status: 400, message } if message == "invalid query")
-        );
-    }
 
     #[test]
     fn extracts_oauth_error_details() {

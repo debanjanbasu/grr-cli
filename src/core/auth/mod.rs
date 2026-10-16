@@ -27,6 +27,10 @@ mod token;
 pub use device::DeviceAuthChallenge;
 pub use token::TokenStorage;
 
+/// The device flow's scope intersection, for `grr auth login --device` (the
+/// module itself stays private).
+pub(crate) use device::device_flow_scopes;
+
 use store::TokenStore;
 
 const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
@@ -264,6 +268,30 @@ impl GoogleAuth {
         self.store.backend()
     }
 
+    /// The scope set the credential in hand holds — what Google actually
+    /// granted, or the requested set when its response was silent — split out
+    /// of [`TokenStorage::scope`]. Empty before any credential is loaded in
+    /// this process (nothing is read from the keyring here), and for a token
+    /// record written before the field existed.
+    ///
+    /// `grr auth status` reports this. Only the credential knows what it
+    /// holds: `auth login`'s count is what was *requested*, and the consent
+    /// screen lets a user approve a subset of that.
+    pub async fn granted_scopes(&self) -> Vec<String> {
+        self.token_storage
+            .read()
+            .await
+            .as_ref()
+            .map(|storage| {
+                storage
+                    .scope
+                    .split_whitespace()
+                    .map(str::to_owned)
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
     /// The shared HTTP client, which speaks HTTP/3 (QUIC) with an HTTP/2
     /// fallback.
     ///
@@ -304,53 +332,67 @@ impl GoogleAuth {
 
     /// Get valid access token, refreshing if necessary
     pub async fn get_access_token(&self) -> Result<String> {
-        let mut storage_guard = self.token_storage.write().await;
-
         // First credential use in this process (the constructor never reads
-        // the store — see `with_store`). A logged-in user must never fall
-        // into the implicit OAuth flow just because the token was not loaded
-        // yet, so the store read happens before the None-means-fresh-install
-        // branch below.
-        if storage_guard.is_none() {
-            *storage_guard = self.store.load().await?;
-        }
-
-        if let Some(storage) = storage_guard.as_ref() {
-            if !storage.is_expired() {
-                debug!(
-                    "Using cached access token ({}s remaining)",
-                    storage.remaining_secs()
-                );
-                return Ok(storage.access_token.clone());
+        // the store — see `with_store`). The store read happens under the
+        // guard so two callers cannot both load it, and the guard is then
+        // dropped: everything below is network I/O — a refresh POST, or the
+        // interactive flow, which binds port 3434 and waits on the callback
+        // server for up to 300 s — and must never run holding the token lock.
+        let refreshed = {
+            let mut guard = self.token_storage.write().await;
+            if guard.is_none() {
+                *guard = self.store.load().await?;
             }
 
-            // A stored credential that cannot produce a fresh token must never
-            // trigger the implicit browser flow: `run_oauth_flow` binds port
-            // 3434 mid-API-call and wedges callers for the callback timeout.
-            let Some(refresh_token) = storage.refresh_token.clone() else {
-                return Err(GrrError::Auth(
-                    anyhow!(
-                        "stored token is expired and has no refresh token; rerun `grr auth login`"
-                    )
-                    .into(),
-                ));
-            };
+            // A logged-in user must never fall into the implicit OAuth flow
+            // just because the token was not loaded yet, so this runs before
+            // the None-means-fresh-install branch below.
+            match guard.as_ref() {
+                None => None,
+                Some(storage) if !storage.is_expired() => {
+                    debug!(
+                        "Using cached access token ({}s remaining)",
+                        storage.remaining_secs()
+                    );
+                    return Ok(storage.access_token.clone());
+                }
+                Some(storage) => {
+                    // A stored credential that cannot produce a fresh token
+                    // must never trigger the implicit browser flow:
+                    // `run_oauth_flow` binds port 3434 mid-API-call and wedges
+                    // callers for the callback timeout.
+                    let Some(refresh_token) = storage.refresh_token.clone() else {
+                        return Err(GrrError::Auth(
+                            anyhow!(
+                                "stored token is expired and has no refresh token; rerun `grr \
+                                 auth login`"
+                            )
+                            .into(),
+                        ));
+                    };
 
-            // A refresh request carries no scope list, and RFC 6749 §5.1
-            // lets Google omit `scope` when the grant is unchanged — so the
-            // response's absent scope must fall back to what the stored
-            // credential already holds, never to the index superset
-            // `scopes()`. A fabricated grant makes a later 403 look like a
-            // stale token instead of a scope the account never approved.
-            let stored_scopes: Vec<String> = storage
-                .scope
-                .split_whitespace()
-                .map(str::to_owned)
-                .collect();
+                    // A refresh request carries no scope list, and RFC 6749
+                    // §5.1 lets Google omit `scope` when the grant is
+                    // unchanged — so the response's absent scope must fall
+                    // back to what the stored credential already holds, never
+                    // to the index superset `scopes()`. A fabricated grant
+                    // makes a later 403 look like a stale token instead of a
+                    // scope the account never approved.
+                    let stored_scopes: Vec<String> = storage
+                        .scope
+                        .split_whitespace()
+                        .map(str::to_owned)
+                        .collect();
+                    Some((refresh_token, stored_scopes))
+                }
+            }
+        };
+
+        if let Some((refresh_token, stored_scopes)) = refreshed {
             info!("Refreshing expired access token");
             match self.refresh_token(&refresh_token, &stored_scopes).await {
                 Ok(new_storage) => {
-                    *storage_guard = Some(new_storage.clone());
+                    *self.token_storage.write().await = Some(new_storage.clone());
                     self.save_token(&new_storage).await?;
                     return Ok(new_storage.access_token);
                 }
@@ -370,25 +412,28 @@ impl GoogleAuth {
         // `grr auth login --service …` / `--all-scopes` after this.
         info!("No valid token, starting OAuth flow");
         let storage = self.run_oauth_flow(&login_scopes()).await?;
-        *storage_guard = Some(storage.clone());
+        *self.token_storage.write().await = Some(storage.clone());
         self.save_token(&storage).await?;
         Ok(storage.access_token)
     }
 
-    /// POST one form to the OAuth token endpoint and parse the JSON body a
-    /// single time. `client_secret` is appended when the caller names one —
-    /// a parameter rather than a field read, because the device flow
-    /// authenticates as a *different* client (type "TVs and Limited Input
-    /// devices") than the browser flow, and one request carrying both
-    /// secrets would be rejected.
+    /// POST one form to one OAuth endpoint and parse the JSON body a single
+    /// time. `endpoint` is the URL — the token endpoint for the PKCE exchange
+    /// and the refresh grant, Google's device-code URL for the device flow
+    /// (the same request/parse plumbing, a different URL). `client_secret` is
+    /// appended when the caller names one — a parameter rather than a field
+    /// read, because the device flow authenticates as a *different* client
+    /// (type "TVs and Limited Input devices") than the browser flow, and one
+    /// request carrying both secrets would be rejected.
     ///
     /// Returns `(status, body)` rather than making a success decision here,
     /// so each caller keeps its own logic and messages: the PKCE exchange
     /// and the refresh grant report Google's error detail on non-2xx, while
-    /// the device poll reads `error` codes out of a 400 body. Three callers
+    /// the device poll reads `error` codes out of a 400 body. Four callers
     /// previously duplicated this request/parse plumbing byte for byte.
     async fn token_request(
         &self,
+        endpoint: &str,
         client_secret: Option<&str>,
         mut form: Vec<(&str, String)>,
     ) -> Result<(reqwest::StatusCode, serde_json::Value)> {
@@ -398,7 +443,7 @@ impl GoogleAuth {
 
         let response = self
             .http_client
-            .post(self.token_endpoint.as_str())
+            .post(endpoint)
             .form(&form)
             .send()
             .await
@@ -407,9 +452,7 @@ impl GoogleAuth {
         let status = response.status();
         let body_text = response.text().await.map_err(GrrError::Http)?;
         let body: serde_json::Value = serde_json::from_str(&body_text).map_err(|e| {
-            GrrError::Auth(
-                anyhow!("token endpoint returned {status}: unparseable body ({e})").into(),
-            )
+            GrrError::Auth(anyhow!("{endpoint} returned {status}: unparseable body ({e})").into())
         })?;
         Ok((status, body))
     }
@@ -429,6 +472,7 @@ impl GoogleAuth {
     ) -> Result<TokenStorage> {
         let (status, token_data) = self
             .token_request(
+                &self.token_endpoint,
                 self.config.client_secret.as_deref(),
                 vec![
                     ("client_id", self.config.client_id.clone()),
@@ -594,5 +638,50 @@ mod tests {
             );
         }
         assert!(scopes_for_service("not-a-service").is_none());
+    }
+
+    /// `grr auth status` reports what the credential holds, not what a login
+    /// asked for: the recorded grant is Google's own response (or the
+    /// requested fallback when it was silent), and the field is empty until a
+    /// credential is actually in hand.
+    #[tokio::test]
+    async fn granted_scopes_read_the_stored_grant_not_the_request() -> anyhow::Result<()> {
+        let config = crate::core::config::OAuthConfig::default();
+        let granted = "openid https://www.googleapis.com/auth/calendar";
+
+        let loaded = GoogleAuth::with_token(
+            config.clone(),
+            TokenStorage {
+                access_token: "t".into(),
+                refresh_token: None,
+                expires_at: u64::MAX,
+                token_type: "Bearer".into(),
+                scope: granted.into(),
+            },
+        )
+        .await?;
+        assert_eq!(
+            loaded.granted_scopes().await,
+            vec![
+                "openid".to_owned(),
+                "https://www.googleapis.com/auth/calendar".to_owned()
+            ]
+        );
+
+        // A record written before the field existed, or one whose provider
+        // never named a scope, reads as empty — never as the index superset.
+        let empty = GoogleAuth::with_token(
+            config,
+            TokenStorage {
+                access_token: "t".into(),
+                refresh_token: None,
+                expires_at: u64::MAX,
+                token_type: "Bearer".into(),
+                scope: String::new(),
+            },
+        )
+        .await?;
+        assert!(empty.granted_scopes().await.is_empty());
+        Ok(())
     }
 }

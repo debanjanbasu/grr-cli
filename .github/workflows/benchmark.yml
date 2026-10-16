@@ -51,7 +51,7 @@ concurrency:
 jobs:
   benchmark:
     name: measure and refresh snapshot
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     permissions:
       # Push the benchmark branch; never main.
@@ -80,7 +80,17 @@ jobs:
         if: github.event_name == 'schedule'
         timeout-minutes: 3
         run: |
-          node scripts/benchmark.ts --gate >> "$GITHUB_OUTPUT" || echo "skip=false" >> "$GITHUB_OUTPUT"
+          # The gate skips the expensive build only when its fetch-based
+          # checks say "no new version" — never on a script crash: a broken
+          # gate must red the run, not silently force the suite hourly.
+          if node scripts/benchmark.ts --gate >> "$GITHUB_OUTPUT"; then
+            true
+          elif node scripts/benchmark.ts --gate 2>&1 | tee /tmp/gate.log | grep -qiE "could not be fetched|gate error|rate limit"; then
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::benchmark gate could not reach upstream; building anyway"
+          else
+            exit 1
+          fi
 
       - name: Quiet no-op run
         if: steps.gate.outputs.skip == 'true'

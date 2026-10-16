@@ -55,7 +55,7 @@ A source build has no OAuth client compiled in — see [Authentication and confi
 **Package managers**:
 
 ```sh
-winget install debanjanbasu.grr       # Windows (manifest not yet published — see Packaging & status)
+winget install debanjanbasu.grr       # Windows (manifest not yet published — submission automated via REPO_WINGET_TOKEN; see Packaging & status)
 cargo install grr-cli                 # crates.io
 ```
 
@@ -102,7 +102,7 @@ grr auth login
 grr gmail users getProfile --user-id me
 ```
 
-There is nothing to configure first: a release binary already carries an OAuth client, so `grr auth login` opens the browser, you consent, and every service works. Headless machine? `grr auth login --device` prints a URL + code instead of opening a browser — that flow authenticates as a *separate* client of type **TVs and Limited Input devices** (Google's device endpoint rejects the Desktop client with `Invalid client type`), which release binaries also carry; a source build supplies it with `GRR_DEVICE_CLIENT_ID` / `GRR_DEVICE_CLIENT_SECRET`. Google also caps what that flow may ask for: a device login grants **drive.file, calendar, calendar.readonly, the legacy Calendar/Contacts feeds, userinfo and openid** and nothing else, so Gmail, Chat, Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and the admin APIs still need the browser flow.
+There is nothing to configure first: a release binary already carries an OAuth client, so `grr auth login` opens the browser, you consent, and every service works. Headless machine? `grr auth login --device` prints a URL + code instead of opening a browser — that flow authenticates as a *separate* client of type **TVs and Limited Input devices** (Google's device endpoint rejects the Desktop client with `Invalid client type`), which release binaries also carry; a source build supplies it with `GRR_DEVICE_CLIENT_ID` / `GRR_DEVICE_CLIENT_SECRET`. Google also caps what that flow may ask for: only **drive.file, calendar, calendar.readonly, the legacy Calendar/Contacts feeds, userinfo and openid** are grantable, so a device login asks for the same flag-derived set the browser flow would (`--service` / `--all-scopes` work here too) *intersected* with that allowlist — one scope outside it fails the whole request. Gmail, Chat, Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and the admin APIs still need the browser flow, and `--device --all-scopes` will not get them.
 
 Building from source instead of installing a release? Read [Authentication and configuration](#authentication-and-configuration) before your first `grr` invocation.
 
@@ -213,7 +213,7 @@ The command tree is **generated** from the committed Discovery index by `scripts
 
 | Group | What it covers | Methods |
 | --- | --- | --- |
-| `grr auth` | `login [--device] [--account name] [--service name] [--all-scopes]`, `status [--account name]`, `setup [--client-id] [--client-secret] [--print-only] [--force] [--enable-apis]` — all accept `-f json\|jsonl\|table\|pretty` | — |
+| `grr auth` | `login [--device] [--account name] [--service name] [--all-scopes]`, `status [--account name]`, `setup [--client-id] [--client-secret] [--print-only] [--force] [--enable-apis]` — all accept `-f json\|jsonl\|table\|pretty`; `status` reports the credential's own scope set under `scopes_granted` (what Google actually approved — `login`'s `scopes_requested` is what was asked for) | — |
 | `grr ask` | `"<request>" [--run] [--dry-run] [--service] [--method]` — natural language to a typed method + params via a System One model; prints the plan by default | - |
 | `grr mcp` | an MCP (JSON-RPC over stdio) server exposing every method as a typed tool; speaks the stateless `2026-07-28` revision only — `server/discover` instead of the `initialize` handshake; `--readonly` for read-only | - |
 | `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 401 |
@@ -299,7 +299,7 @@ The site's [agents guide](https://grr-cli.pages.dev/docs/agents/) carries the sa
 
 - **HTTP/3 (QUIC) by default** — prior-knowledge h3 with one authenticated probe at startup and silent HTTP/2 fallback; `grr transport` shows what was actually negotiated.
 - **Tokio multi-threaded runtime**, auto-sized to cores — no thread pool to tune.
-- **In-flight request valve** — a semaphore (not a thread pool) caps concurrent HTTP requests at 64, staying under Gmail's per-user rate limits so bursts don't self-DOS into 429s. 429s are retried honoring `Retry-After` (waits capped at 30s); whole-request timeout is 30s.
+- **In-flight request valve** — a semaphore (not a thread pool) caps concurrent HTTP requests at 64, staying under Gmail's per-user rate limits so bursts don't self-DOS into 429s. 429s are retried honoring `Retry-After` (waits capped at 30s) — a header-less 429 retries on the transient backoff (100–800 ms) instead of surfacing; a `Retry-After` past the cap is reported (`Rate limited: retry after Ns`) rather than slept through, and HTTP-date `Retry-After` values are honored. Whole-request timeout is 30s. API requests ride the same probed engine as `grr transport`: one engine per service origin, probed once per process, HTTP/2-prior-knowledge fallback rebuilt automatically if the probe fails; a 401 on the data plane fails fast with the `grr auth login` hint.
 - **Compression always on** — gzip, deflate, zstd, and brotli response decompression.
 - **io_uring file I/O** is a Linux-only target-specific dependency, auto-detected at runtime; it is not a Cargo feature.
 
@@ -365,7 +365,7 @@ Each generator takes `--check` and exits 1 when its output is stale — that is 
 | --- | --- | --- |
 | GitHub Releases | 5-platform binaries (macOS arm64, Linux x86_64, Linux aarch64, Windows x86_64, Windows on ARM) built on `v*` tags, UPX-packed, `.tar.zst` on unix and `.zip` on Windows | **live** — every push to main releases; [releases](https://github.com/debanjanbasu/grr-cli/releases) always carries the newest |
 | crates.io | `cargo install grr-cli` (binary installs as `grr`; needs nightly + `RUSTFLAGS="--cfg reqwest_unstable"` for the default CLI HTTP/3 build, and brings no embedded OAuth client) | **live — one crate, published on every release**. Trusted publishing uses OIDC (no stored API tokens) |
-| winget | `winget install debanjanbasu.grr` | **not yet published** — the first submission stalled because the archives named the binary after its target (`windows-x86_64.exe`) while the manifest promised `grr.exe`; winget validation could never find the nested installer. Both sides are fixed (v0.8.1 archives ship `grr.exe`; `node scripts/generate-winget.ts <tag>` derives the manifest from the released archive and rides every release as `grr-<tag>-winget-manifests.tar.gz`) |
+| winget | `winget install debanjanbasu.grr` | **not yet published** — the first submission stalled because the archives named the binary after its target (`windows-x86_64.exe`) while the manifest promised `grr.exe`; winget validation could never find the nested installer. Both sides are fixed (v0.8.1 archives ship `grr.exe`; `node scripts/generate-winget.ts <tag>` derives the manifest from the released archive and rides every release as `grr-<tag>-winget-manifests.tar.gz`), and the release workflow auto-submits the manifests to winget-pkgs via komac when the `REPO_WINGET_TOKEN` secret (classic PAT, `public_repo`) is set — unset keeps the job green with a notice |
 | Homebrew | `brew tap debanjanbasu/tap && brew trust debanjanbasu/tap && brew install grr` (tap: [debanjanbasu/homebrew-tap](https://github.com/debanjanbasu/homebrew-tap), formula `Formula/grr.rb`, updated automatically on every release) | live (arm64 macOS + x86_64/arm64 Linux) |
 
 The project publishes one package, `grr-cli`, whose binary is `grr`. `v*` tags trigger the release workflow, and crates.io publishing is handled through trusted publishing.

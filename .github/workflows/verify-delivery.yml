@@ -30,7 +30,7 @@ concurrency:
 jobs:
   verify:
     name: verify the delivered release
-    runs-on: ubuntu-26.04-arm
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7

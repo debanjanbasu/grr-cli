@@ -44,20 +44,41 @@ const DEVICE_FLOW_SCOPES: &[&str] = &[
     "openid",
 ];
 
-/// The consent string the device flow may send: [`super::scopes`] filtered to
-/// what a TV/limited-input client can be granted.
+/// The consent set the device flow may send: `requested` — the flag-derived set
+/// `grr auth login` would have used, `--service`/`--all-scopes` included —
+/// filtered to what a TV/limited-input client can be granted. An
+/// *intersection*, never a union: one scope outside Google's allowlist fails
+/// the whole request with `invalid_scope`, granting nothing.
 ///
 /// A device login is therefore a *narrower* credential than a browser login —
 /// Gmail, Chat, Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and
 /// the admin surfaces are all outside Google's allowlist. That is Google's
-/// rule, not a choice here; asking anyway would grant nothing at all.
-pub(crate) fn device_flow_scopes_joined() -> String {
-    super::scopes()
+/// rule, not a choice here; asking anyway would grant nothing at all. What the
+/// allowlist drops is logged, so the user learns the grant is narrower than the
+/// flags asked for before they approve it, rather than after a 403.
+pub(crate) fn device_flow_scopes(requested: &[String]) -> Vec<String> {
+    let mut granted: Vec<String> = requested
         .iter()
         .filter(|scope| DEVICE_FLOW_SCOPES.contains(&scope.as_str()))
         .cloned()
-        .collect::<Vec<_>>()
-        .join(" ")
+        .collect();
+    // Sorted so the consent string is byte-stable whatever order the flags
+    // produced.
+    granted.sort_unstable();
+    granted.dedup();
+
+    if granted.len() < requested.len() {
+        warn!(
+            "device flow: Google grants a TV/limited-input client {} of the {} scopes requested \
+             (drive.file, calendar and legacy Calendar/Contacts, userinfo, openid); the {} it \
+             drops — Gmail, Chat, Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and \
+             the admin APIs — need the browser flow (`grr auth login`).",
+            granted.len(),
+            requested.len(),
+            requested.len() - granted.len()
+        );
+    }
+    granted
 }
 
 /// Pending device authorization: show `verification_url` + `user_code` to
@@ -126,49 +147,27 @@ impl super::GoogleAuth {
         Ok((id.to_owned(), secret))
     }
 
-    /// Start a device flow: returns the challenge to display to the user.
-    pub async fn request_device_code(&self) -> Result<DeviceAuthChallenge> {
+    /// Start a device flow asking for exactly `scopes` — the caller's
+    /// flag-derived set, already intersected with Google's allowlist by
+    /// [`device_flow_scopes`]. Returns the challenge to display to the user.
+    pub async fn request_device_code(&self, scopes: &[String]) -> Result<DeviceAuthChallenge> {
         let (client_id, client_secret) = self.device_client()?;
-        let scopes = device_flow_scopes_joined();
         if scopes.is_empty() {
             return Err(GrrError::Auth(
                 anyhow!(
-                    "no configured scope is available to Google's device flow; the browser flow \
-                     (`grr auth login`) is the way in"
+                    "the requested scopes are all outside Google's device-flow allowlist, so the \
+                     device endpoint would refuse the whole request; the browser flow \
+                     (`grr auth login`) can ask for them"
                 )
                 .into(),
             ));
         }
-        // The user must know the grant is narrower than a browser login's
-        // before they approve it, not after a 403 surprises them.
-        warn!(
-            "device flow: Google grants a TV/limited-input client only {} of this build's scopes \
-             (drive.file, calendar and legacy Calendar/Contacts, userinfo, openid). Gmail, Chat, \
-             Docs, Sheets, Slides, Tasks, Forms, Apps Script, Analytics and the admin APIs need \
-             the browser flow (`grr auth login`).",
-            scopes.split(' ').count()
-        );
 
-        let mut form = vec![("client_id", client_id), ("scope", scopes)];
-        if let Some(secret) = client_secret {
-            form.push(("client_secret", secret));
-        }
+        let form = vec![("client_id", client_id), ("scope", scopes.join(" "))];
 
-        let response = self
-            .http_client
-            .post(DEVICE_CODE_URL)
-            .form(&form)
-            .send()
-            .await
-            .map_err(GrrError::Http)?;
-
-        let status = response.status();
-        let body_text = response.text().await.map_err(GrrError::Http)?;
-        let body: serde_json::Value = serde_json::from_str(&body_text).map_err(|e| {
-            GrrError::Auth(
-                anyhow!("device endpoint returned {status}: unparseable body ({e})").into(),
-            )
-        })?;
+        let (status, body) = self
+            .token_request(DEVICE_CODE_URL, client_secret.as_deref(), form)
+            .await?;
 
         if !status.is_success() {
             // `invalid_scope` here means Google's per-flow allowlist moved:
@@ -221,15 +220,21 @@ impl super::GoogleAuth {
     /// Poll once. Returns `Ok(None)` while the user has not approved yet
     /// (caller sleeps `retry_after()` and retries), `Ok(Some)` with the
     /// stored token on approval, or `Err` on denial/expiry/failure.
+    ///
+    /// `scopes` is the same set [`Self::request_device_code`] was called with:
+    /// it is what the credential records when Google's response omits `scope`,
+    /// so the fallback is what was *requested*, never the index superset.
     pub async fn poll_device_code(
         &self,
         challenge: &mut DeviceAuthChallenge,
+        scopes: &[String],
     ) -> Result<Option<TokenStorage>> {
         // Device polling reports status via 400 + JSON error codes, so the
         // body — not the HTTP status — drives the decision below.
         let (client_id, client_secret) = self.device_client()?;
         let (_, body) = self
             .token_request(
+                &self.token_endpoint,
                 client_secret.as_deref(),
                 vec![
                     ("client_id", client_id),
@@ -254,7 +259,7 @@ impl super::GoogleAuth {
             }
         }
 
-        let storage = token_storage_from_response(&body, super::scopes())?;
+        let storage = token_storage_from_response(&body, scopes)?;
         *self.token_storage.write().await = Some(storage.clone());
         self.save_token(&storage).await?;
         Ok(Some(storage))
@@ -384,45 +389,91 @@ mod tests {
 
     /// Google rejects every scope outside its device-flow allowlist with
     /// `invalid_scope` — one bad scope fails the whole request — so the device
-    /// consent string is the intersection, and it is deliberately narrower
-    /// than the browser one (Gmail and Chat are not in it).
+    /// consent set is the *intersection* of the flag-derived request with that
+    /// allowlist: never a union, never the index superset, and the flags do
+    /// govern (`--all-scopes` is the only way the allowlist's drive.file and
+    /// calendar.readonly come along, because the default set does not ask for
+    /// them).
     #[test]
-    fn the_device_flow_requests_only_scopes_google_grants() {
-        let device = super::device_flow_scopes_joined();
-        let requested: Vec<&str> = device.split(' ').collect();
+    fn the_device_flow_requests_the_flags_intersected_with_the_allowlist() {
+        let consent = crate::core::auth::scopes();
+        let login = crate::core::auth::login_scopes();
 
-        // The flow stays usable: the two scopes that matter are in it.
-        for useful in [
-            "https://www.googleapis.com/auth/drive.file",
-            "https://www.googleapis.com/auth/calendar.readonly",
+        // `grr auth login --device` with no flags: the default set, filtered.
+        let default = super::device_flow_scopes(&login);
+        for granted in [
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "openid",
         ] {
-            assert!(requested.contains(&useful), "{useful} was dropped");
+            assert!(
+                default.contains(&granted.to_owned()),
+                "{granted} was dropped"
+            );
         }
-        // Scopes Google's device endpoint rejects — one bad scope fails the
-        // whole request. mail.google.com and chat.* are outside the flow's
-        // allowlist entirely; the other two are on Google's *page* for the
-        // flow but rejected by the endpoint itself (verified 2026-10-13).
+        // Asked for by the default set, outside the allowlist: one of these
+        // reaching Google fails the whole request.
         for rejected in [
             "https://mail.google.com/",
+            "https://www.googleapis.com/auth/drive",
             "https://www.googleapis.com/auth/drive.appdata",
             "https://www.googleapis.com/auth/drive.metadata.readonly",
         ] {
             assert!(
-                !requested.contains(&rejected),
+                !default.contains(&rejected.to_owned()),
                 "{rejected} must never reach the device endpoint"
             );
         }
         assert!(
-            !requested.iter().any(|s| s.contains("/auth/chat.")),
-            "Chat is not a device-flow scope: {device}"
+            !default.iter().any(|s| s.contains("/auth/chat.")),
+            "Chat is not a device-flow scope: {default:?}"
         );
-        // Never wider than the browser consent set.
-        for scope in &requested {
+        // The default set asks for `drive`, not drive.file: the device flow
+        // stops being useful for the allowlist-only scopes until a flag asks.
+        for allowlist_only in [
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/calendar.readonly",
+        ] {
+            assert!(!default.contains(&allowlist_only.to_owned()));
             assert!(
-                crate::core::auth::scopes().iter().any(|s| s == scope),
-                "{scope} is not in the consent set at all"
+                login.iter().all(|scope| scope != allowlist_only),
+                "{allowlist_only} unexpectedly entered the default login set"
             );
         }
+
+        // `--all-scopes`: the whole index, still intersected.
+        let all = super::device_flow_scopes(consent);
+        for useful in [
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/calendar.readonly",
+        ] {
+            assert!(all.contains(&useful.to_owned()), "{useful} was dropped");
+        }
+        assert_eq!(
+            all,
+            consent
+                .iter()
+                .filter(|scope| super::DEVICE_FLOW_SCOPES.contains(&scope.as_str()))
+                .cloned()
+                .collect::<Vec<_>>(),
+            "--all-scopes must be exactly the index intersected with the allowlist"
+        );
+
+        // Never wider than the request, never outside the allowlist, and
+        // byte-stable however the request was ordered.
+        for scope in all.iter().chain(default.iter()) {
+            assert!(
+                consent.iter().any(|known| known == scope),
+                "{scope} is not in the consent set at all"
+            );
+            assert!(
+                super::DEVICE_FLOW_SCOPES.contains(&scope.as_str()),
+                "{scope} is not in Google's device-flow allowlist"
+            );
+        }
+        let mut shuffled = login.clone();
+        shuffled.reverse();
+        assert_eq!(default, super::device_flow_scopes(&shuffled));
     }
 
     /// Google answers the Desktop client's device request with

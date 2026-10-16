@@ -113,10 +113,10 @@ pub async fn handle_auth_cmd(auth: &GoogleAuth, cmd: AuthCommands) -> Result<()>
                 Some(name) => auth.with_account_store(name).await?,
                 None => auth.with_default_account_store().await?,
             };
-            if login.device {
-                return handle_device_login(&auth, login.format).await;
-            }
             let scopes = requested_login_scopes(&login)?;
+            if login.device {
+                return handle_device_login(&auth, &scopes, login.format).await;
+            }
             let storage = auth.login(&scopes).await?;
             print_output(
                 &json!({
@@ -136,6 +136,13 @@ pub async fn handle_auth_cmd(auth: &GoogleAuth, cmd: AuthCommands) -> Result<()>
                 None => auth.with_default_account_store().await?,
             };
             let profile = fetch_profile(&auth).await?;
+            // The credential is in memory by now — `fetch_profile` is what
+            // authenticated — so reporting its scope never touches the
+            // keyring again. `login` reports what was *requested*; this is
+            // what the credential actually holds: Google's granted set wins
+            // over the request, and the consent screen lets a user approve a
+            // subset of it.
+            let scopes_granted = auth.granted_scopes().await;
             print_output(
                 &json!({
                     "authenticated": true,
@@ -144,6 +151,7 @@ pub async fn handle_auth_cmd(auth: &GoogleAuth, cmd: AuthCommands) -> Result<()>
                     "messages_total": field(&profile, "messagesTotal"),
                     "threads_total": field(&profile, "threadsTotal"),
                     "history_id": field(&profile, "historyId"),
+                    "scopes_granted": scopes_granted,
                 }),
                 status.format,
             )?;
@@ -176,8 +184,20 @@ fn field(profile: &Value, key: &str) -> Value {
     profile.get(key).cloned().unwrap_or(Value::Null)
 }
 
-async fn handle_device_login(auth: &GoogleAuth, format: OutputFormat) -> Result<()> {
-    let mut challenge = auth.request_device_code().await?;
+/// The device-flow login behind `grr auth login --device`.
+///
+/// `requested` is the same flag-derived set the browser flow gets
+/// (`--service` / `--all-scopes` included); the device flow may only send it
+/// intersected with Google's allowlist, and that intersection is what both the
+/// request and the stored fallback use — the flags are not silently ignored
+/// here, and the credential never records the index superset.
+async fn handle_device_login(
+    auth: &GoogleAuth,
+    requested: &[String],
+    format: OutputFormat,
+) -> Result<()> {
+    let scopes = crate::core::auth::device_flow_scopes(requested);
+    let mut challenge = auth.request_device_code(&scopes).await?;
     // stderr, not stdout: `--format json` writes its payload to stdout, and a
     // prose line ahead of it breaks `... -f json | jq`.
     eprintln!(
@@ -189,7 +209,7 @@ async fn handle_device_login(auth: &GoogleAuth, format: OutputFormat) -> Result<
         if challenge.is_expired() {
             anyhow::bail!("device code expired; rerun `grr auth login --device`");
         }
-        if let Some(storage) = auth.poll_device_code(&mut challenge).await? {
+        if let Some(storage) = auth.poll_device_code(&mut challenge, &scopes).await? {
             print_output(
                 &json!({
                     "authenticated": true,
