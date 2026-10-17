@@ -57,7 +57,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 64,
     scopes: 10,
-    revision: '20261011',
+    revision: '20261012',
     note: 'Files, permissions, comments, revisions, changes, drives, and team drives.',
   },
   {
@@ -93,7 +93,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v4',
     methods: 17,
     scopes: 5,
-    revision: '20261012',
+    revision: '20261014',
     note: 'Spreadsheet values, batch updates, data filters, and developer metadata.',
   },
   {
