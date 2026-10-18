@@ -93,7 +93,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v4',
     methods: 17,
     scopes: 5,
-    revision: '20261014',
+    revision: '20261012',
     note: 'Spreadsheet values, batch updates, data filters, and developer metadata.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261014',
+    revision: '20261017',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
