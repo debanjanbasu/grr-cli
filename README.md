@@ -31,7 +31,7 @@ grr schema
 
 ## Install
 
-**Prebuilt binaries** — macOS arm64, Linux x86_64, Linux aarch64, Windows x86_64, and Windows on ARM (aarch64, Snapdragon X / Oryon):
+**Prebuilt binaries** — macOS arm64, Linux x86_64, Linux aarch64, Windows x86_64, and Windows on ARM (aarch64):
 [GitHub Releases](https://github.com/debanjanbasu/grr-cli/releases)
 
 Release binaries are zero-config — an OAuth client is compiled in, so `grr auth login` works immediately. Archives are `.tar.zst` (zstd level 22) on unix and `.zip` on Windows; binaries are UPX-packed with `--best --lzma` where the compressor supports it — the workflow verifies the packed copy still executes and falls back to the unpacked binary with a warning if not.

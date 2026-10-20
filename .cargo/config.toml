@@ -62,9 +62,11 @@ linker = "aarch64-linux-gnu-gcc"
 [target.x86_64-pc-windows-msvc]
 rustflags = ["-C", "target-cpu=x86-64-v3", "-C", "target-feature=+crt-static", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
 
-# Windows on ARM: Snapdragon X Elite/Plus (Oryon). oryon-1 excludes the
-# pre-X Snapdragon 8cx devices (Surface Pro X and older), which are out of
-# support. Repeat the --cfg flags: a [target.*] table replaces [build].
+# Windows on ARM: portable ARMv8 baseline (generic), never oryon-1 —
+# winget's ARM64 validation VM is Azure Ampere Altra (ARMv8.2-A), where
+# Oryon's ARMv8.6-A instructions fail with STATUS_ILLEGAL_INSTRUCTION
+# (-1073741795 / 0xC000001D) after printing help. Repeat the --cfg flags:
+# a [target.*] table replaces [build].
 [target.aarch64-pc-windows-msvc]
-rustflags = ["-C", "target-cpu=oryon-1", "-C", "target-feature=+crt-static", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
+rustflags = ["-C", "target-cpu=generic", "-C", "target-feature=+crt-static", "-C", "panic=abort", "--cfg", "reqwest_unstable", "--cfg", "hyper_unstable_ffi", "--cfg", "tokio_unstable"]
 
