@@ -22,7 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Changed
+
+- **core:** remove unused transport wrappers, builder, and error variants
+
+### Internal
+
+- 12 internal commits (chore 12)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [2.1.1] - 2026-10-16
 
