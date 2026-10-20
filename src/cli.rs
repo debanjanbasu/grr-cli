@@ -45,7 +45,7 @@ use auth::AuthCommands;
 )]
 struct Cli {
     #[command(subcommand)]
-    command: StaticCommands,
+    command: Option<StaticCommands>,
     // NOTE: no global --format flag on purpose. A global `format` collides
     // by ID with per-command `format` args of *different types*, which
     // panics clap's downcast at runtime (0xC0000409). Every subcommand
@@ -121,9 +121,12 @@ pub async fn run() -> Result<()> {
     // fixed); any other matched name is a generated service, which clap
     // has already validated against the registered tree.
     let Some((name, sub)) = matches.subcommand() else {
-        // clap enforces `subcommand_required`; this arm exists for the
-        // compiler, not for users.
-        anyhow::bail!("a subcommand is required; run `grr --help`");
+        // Bare `grr` prints help and exits 0 (winget's portable-installer
+        // validator launches the binary with no args and flags exit code 2
+        // as Validation-Executable-Error).
+        root_command().print_help()?;
+        println!();
+        return Ok(());
     };
 
     // Self-migrating installs: if the skills manifest records a different grr

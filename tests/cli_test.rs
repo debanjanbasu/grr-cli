@@ -136,6 +136,14 @@ fn top_level_help_lists_static_commands_and_every_service() {
 }
 
 #[test]
+fn bare_grr_prints_help_and_exits_zero() {
+    grr()
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Usage: grr"));
+}
+
+#[test]
 fn gmail_help_shows_the_resource_tree() {
     grr()
         .arg("gmail")
