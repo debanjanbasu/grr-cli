@@ -1,12 +1,55 @@
 {
-  "generatedAt": "2026-10-20T23:00:32.143Z",
+  "generatedAt": "2026-10-20T23:47:15.440Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
-      "sections": []
+      "sections": [
+        {
+          "key": "documentation",
+          "heading": "Documentation",
+          "items": [
+            {
+              "description": "update winget status and validation war story for v2.1.3",
+              "scope": "winget",
+              "type": "docs",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
+              "note": null
+            }
+          ]
+        }
+      ]
     },
     {
       "version": "2.1.3",

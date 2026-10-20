@@ -22,7 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Documentation
+
+- **winget:** update winget status and validation war story for v2.1.3
+
+### Internal
+
+- 2 internal commits (chore 2)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [2.1.3] - 2026-10-20
 
