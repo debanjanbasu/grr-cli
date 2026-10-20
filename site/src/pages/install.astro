@@ -49,7 +49,7 @@ cargo build --release
         <article class="install-card card card-border border-base-300 bg-base-100">
           <div class="card-body gap-1 p-5">
             <h2 class="card-title m-0 text-base">Windows</h2>
-            <p class="m-0 text-[13px] text-base-content/70">winget is not published yet: every release generates the manifest bundle and attaches it to the GitHub release as <code>grr-&lt;tag&gt;-winget-manifests.tar.gz</code>, but the pull request to <code>microsoft/winget-pkgs</code> has not been merged (the first submission, winget-pkgs PR #441361, was rejected because the archives named the binary after its target; the archives and manifests are fixed as of v0.8.1). Until that lands, install the Windows release archive (x64 or ARM64) from GitHub Releases.</p>
+            <p class="m-0 text-[13px] text-base-content/70">winget is not published yet: every release derives the x64 and ARM64 manifests from the shipped archives (<code>grr-&lt;tag&gt;-winget-manifests.tar.gz</code>) and auto-submits a pull request to <code>microsoft/winget-pkgs</code> via komac (<a href="https://github.com/microsoft/winget-pkgs/pull/457479" target="_blank" rel="noreferrer">PR #457479</a>, awaiting moderator merge). Until that lands, install the Windows release archive (x64 or ARM64) from GitHub Releases.</p>
           </div>
         </article>
         <article class="install-card card card-border border-base-300 bg-base-100">

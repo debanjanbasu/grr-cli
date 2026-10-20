@@ -306,8 +306,15 @@ const surfaces = [
           derivation is honest. The manifest can no longer name a file the archive does not contain.
         </p>
         <p>
-          The listing still has to clear Microsoft's validation, and it has not yet. But the class of bug is
-          closed, because the manifest is now a function of the artifact instead of a second copy of it.
+          Clearing Microsoft's automated validator exposed three more assumptions a portable CLI takes for
+          granted: clean sandbox VMs carry no VC++ redistributable (fixed with <code>+crt-static</code>), the
+          post-install harness launches <code>grr.exe</code> with no arguments and flags clap's exit code 2 as{' '}
+          <code>Validation-Executable-Error</code> (fixed by printing help and exiting 0 on bare invocation),
+          and the ARM64 validation VM runs on Azure Ampere Altra (ARMv8.2-A), where a{' '}
+          <code>target-cpu=oryon-1</code> (ARMv8.6-A) build faults with{' '}
+          <code>STATUS_ILLEGAL_INSTRUCTION</code> after printing help (fixed by targeting portable{' '}
+          <code>generic</code> ARMv8). The release workflow now submits every version to{' '}
+          <code>microsoft/winget-pkgs</code> automatically via komac.
         </p>
       </div>
     </div>

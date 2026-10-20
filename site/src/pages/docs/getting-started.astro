@@ -87,7 +87,7 @@ const scopes = `$ grr api call gmail.users.messages.list --param userId=me --dry
           <article class="install-card card card-border border-base-300 bg-base-100">
             <div class="card-body gap-1 p-5">
               <h2 class="card-title m-0 text-base">Windows (x64 and ARM64)</h2>
-              <p class="m-0 text-[13px] text-base-content/70">Windows x64 is ready for winget &mdash; the first submission stalled because the release archives named the binary after its target while the manifest promised <code>grr.exe</code>, so validation could never find the nested installer. The archives and the manifest generation are fixed (v0.8.1+), and a corrected submission is prepared; it is not published yet. Both Windows x64 and ARM64 are published as release archives today.</p>
+              <p class="m-0 text-[13px] text-base-content/70">Every release generates the Windows x64 and ARM64 manifests from the shipped archives and auto-submits them to <code>microsoft/winget-pkgs</code> via komac (currently awaiting initial moderator merge on <a href="https://github.com/microsoft/winget-pkgs/pull/457479" target="_blank" rel="noreferrer">PR #457479</a>). Until that first merge lands, install the Windows x64 or ARM64 release archive from GitHub Releases.</p>
               <CodeBlock code={winget} label="winget" />
             </div>
           </article>
