@@ -26,9 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **core:** remove unused transport wrappers, builder, and error variants
 
+### Fixed
+
+- **cli:** print help and exit 0 on bare invocation for winget validator
+
 ### Internal
 
-- 12 internal commits (chore 12)
+- 13 internal commits (chore 13)
 
 ### Other
 
