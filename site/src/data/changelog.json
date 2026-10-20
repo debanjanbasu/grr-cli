@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-20T04:06:48.968Z",
+  "generatedAt": "2026-10-20T04:33:44.137Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -15,6 +15,18 @@
               "description": "remove unused transport wrappers, builder, and error variants",
               "scope": "core",
               "type": "refactor",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "print help and exit 0 on bare invocation for winget validator",
+              "scope": "cli",
+              "type": "fix",
               "note": null
             }
           ]
@@ -92,6 +104,12 @@
             {
               "description": "refresh download counts and archive sizes",
               "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
               "type": "chore",
               "note": null
             }
