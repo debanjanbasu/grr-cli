@@ -54,7 +54,7 @@ async fn call_through_the_engine(
     let engine = engine(server).await;
     let url = url::Url::parse(&format!("{}{CALL_PATH}", server.uri())).unwrap();
     let started = Instant::now();
-    let outcome = engine.execute(engine.get(url)).await;
+    let outcome = engine.execute(engine.http_client().get(url)).await;
     (started.elapsed(), outcome)
 }
 

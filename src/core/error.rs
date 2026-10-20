@@ -25,15 +25,6 @@ pub enum GrrError {
     #[error("Rate limited: retry after {retry_after_secs}s")]
     RateLimited { retry_after_secs: u64 },
 
-    #[error("API error {status}: {message}")]
-    Api { status: u16, message: String },
-
-    #[error("Not found: {0}")]
-    NotFound(String),
-
-    #[error("Permission denied: {0}")]
-    PermissionDenied(String),
-
     #[error("Internal error: {0}")]
     Internal(String),
 
@@ -42,28 +33,6 @@ pub enum GrrError {
 
     #[error(transparent)]
     Anyhow(#[from] anyhow::Error),
-}
-
-impl GrrError {
-    /// Check if error is retryable
-    pub fn is_retryable(&self) -> bool {
-        match self {
-            GrrError::Http(e) => e.is_timeout() || e.is_connect() || e.is_request(),
-            GrrError::RateLimited { .. } | GrrError::Timeout(_) => true,
-            GrrError::Api { status, .. } => *status >= 500 || *status == 429,
-            _ => false,
-        }
-    }
-
-    /// Get HTTP status code if available
-    pub fn status_code(&self) -> Option<u16> {
-        match self {
-            GrrError::Api { status, .. } => Some(*status),
-            GrrError::Http(e) => e.status().map(|s| s.as_u16()),
-            GrrError::RateLimited { .. } => Some(429),
-            _ => None,
-        }
-    }
 }
 
 pub type Result<T, E = GrrError> = std::result::Result<T, E>;

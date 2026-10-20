@@ -106,24 +106,6 @@ pub(crate) fn parse_url(raw: &str, kind: &str) -> Result<Url> {
     Url::parse(raw).map_err(|error| GrrError::Config(format!("Invalid {kind} URL: {error}")))
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum TransportMode {
-    Http3PriorKnowledge,
-    Http2PriorKnowledge,
-}
-
-/// The transport a client is built for: HTTP/3 where it is requested, HTTP/2
-/// prior knowledge on the fallback path [`HttpCore::connect`] takes when the
-/// HTTP/3 probe fails. Both call sites go through here so the mode is chosen
-/// in exactly one place.
-pub fn resolve_transport_mode(use_http3: bool) -> TransportMode {
-    if use_http3 {
-        TransportMode::Http3PriorKnowledge
-    } else {
-        TransportMode::Http2PriorKnowledge
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct TransportInfo {
     pub negotiated_version: String,
@@ -182,7 +164,7 @@ impl HttpCore {
                 warn!("HTTP/3 probe failed ({error}); rebuilding with HTTP/2");
                 info.http3_effective = false;
                 info.fell_back = true;
-                http_client = build_http_client_with_mode(resolve_transport_mode(false))?;
+                http_client = build_http_client_with_mode(false)?;
                 match probe(
                     &http_client,
                     base_url,
@@ -214,39 +196,9 @@ impl HttpCore {
         })
     }
 
-    /// Start a GET request against an absolute URL.
-    pub fn get(&self, url: Url) -> reqwest::RequestBuilder {
-        self.http_client.get(url)
-    }
-
-    /// Start a POST request against an absolute URL.
-    pub fn post(&self, url: Url) -> reqwest::RequestBuilder {
-        self.http_client.post(url)
-    }
-
-    /// Start a PUT request against an absolute URL.
-    pub fn put(&self, url: Url) -> reqwest::RequestBuilder {
-        self.http_client.put(url)
-    }
-
-    /// Start a PATCH request against an absolute URL.
-    pub fn patch(&self, url: Url) -> reqwest::RequestBuilder {
-        self.http_client.patch(url)
-    }
-
-    /// Start a DELETE request against an absolute URL.
-    pub fn delete(&self, url: Url) -> reqwest::RequestBuilder {
-        self.http_client.delete(url)
-    }
-
     /// The underlying reqwest client (multipart uploads, raw control).
     pub fn http_client(&self) -> &ReqwestClient {
         &self.http_client
-    }
-
-    /// Shared Google OAuth handle (login, device flow, token backend).
-    pub fn auth(&self) -> &GoogleAuth {
-        &self.auth
     }
 
     /// Transport negotiation details observed during connection.
@@ -421,10 +373,10 @@ async fn probe(
 /// Zero-config: every value is a constant tuned for Google frontends and
 /// bounded async I/O; the tokio runtime already sizes OS threads to cores.
 pub fn build_http_client() -> Result<ReqwestClient> {
-    build_http_client_with_mode(resolve_transport_mode(true))
+    build_http_client_with_mode(true)
 }
 
-fn build_http_client_with_mode(mode: TransportMode) -> Result<ReqwestClient> {
+fn build_http_client_with_mode(use_http3: bool) -> Result<ReqwestClient> {
     let mut builder = ReqwestClient::builder()
         .timeout(REQUEST_TIMEOUT)
         .connect_timeout(CONNECT_TIMEOUT)
@@ -437,9 +389,10 @@ fn build_http_client_with_mode(mode: TransportMode) -> Result<ReqwestClient> {
         .zstd(true)
         .gzip(true);
 
-    builder = match mode {
-        TransportMode::Http3PriorKnowledge => builder.http3_prior_knowledge(),
-        TransportMode::Http2PriorKnowledge => builder.http2_prior_knowledge(),
+    builder = if use_http3 {
+        builder.http3_prior_knowledge()
+    } else {
+        builder.http2_prior_knowledge()
     };
 
     let mut headers = HeaderMap::new();

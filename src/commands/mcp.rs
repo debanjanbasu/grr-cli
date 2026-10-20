@@ -13,7 +13,7 @@
 
 use crate::commands::build_auth;
 use crate::commands::safety::SafetyProfile;
-use crate::core::prelude::*;
+use crate::core::ConfigLoader;
 use anyhow::Result;
 use clap::Args;
 

@@ -19,7 +19,7 @@
 //! `gen_dispatch::dispatch_with_profile`, which shares the call path with
 //! `grr api`.
 
-use crate::core::prelude::*;
+use crate::core::ConfigLoader;
 use anyhow::Result;
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

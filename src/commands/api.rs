@@ -513,14 +513,8 @@ async fn read_body_source(source: &str) -> Result<String> {
 /// `Mutex<BTreeMap>`, and a process carries one credential handle (the
 /// `--account` rebind happens before any call), so keying on the base URL
 /// alone cannot mix accounts. The index covers 14 services, so a handful of
-/// origins is the whole population — [`MAX_ENGINES`] only closes the
-/// theoretical hole of caller-supplied hosts.
+/// origins is the whole population.
 static CORES: Mutex<BTreeMap<String, HttpCore>> = Mutex::new(BTreeMap::new());
-
-/// Bound on the engine cache. Real usage is a handful of Google origins;
-/// evicting the oldest (BTreeMap order = lexicographic) keeps a hypothetical
-/// caller-driven host explosion from pinning clients forever.
-const MAX_ENGINES: usize = 32;
 
 /// Probe path for the data plane: the service root. Any HTTP response — even
 /// a 404 — proves the transport negotiated, and no cheaper path is shared by
@@ -541,11 +535,7 @@ async fn engine_for(auth: &GoogleAuth, base: &url::Url) -> Result<HttpCore> {
     }
     match HttpCore::connect(auth.clone(), base, PROBE_PATH).await {
         Ok(engine) => {
-            let mut cores = cores();
-            while cores.len() >= MAX_ENGINES {
-                cores.pop_first();
-            }
-            cores.insert(key, engine.clone());
+            cores().insert(key, engine.clone());
             Ok(engine)
         }
         Err(error) => {

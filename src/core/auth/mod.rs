@@ -223,7 +223,7 @@ impl GoogleAuth {
         Self::with_store(config, store).await
     }
 
-    async fn with_store(config: OAuthConfig, store: TokenStore) -> Result<Self> {
+    async fn with_store(mut config: OAuthConfig, store: TokenStore) -> Result<Self> {
         let http_client = HttpClient::builder()
             .timeout(Duration::from_secs(30))
             .build()
@@ -234,6 +234,8 @@ impl GoogleAuth {
         // `schema`, and `api list`, which never need a credential. The first
         // read happens in `get_access_token`, the first moment a credential
         // is actually required.
+        config.client_secret = config.client_secret.take().filter(|s| !s.is_empty());
+        config.device_client_secret = config.device_client_secret.take().filter(|s| !s.is_empty());
         Ok(Self {
             config,
             http_client,
@@ -290,17 +292,6 @@ impl GoogleAuth {
                     .collect()
             })
             .unwrap_or_default()
-    }
-
-    /// The shared HTTP client, which speaks HTTP/3 (QUIC) with an HTTP/2
-    /// fallback.
-    ///
-    /// Exposed for `grr api`, which issues requests to arbitrary
-    /// Discovery-derived URLs. Routing those through the same client is the
-    /// point: the dynamic surface gets the same transport as the curated
-    /// commands rather than quietly dropping to HTTP/1.1.
-    pub fn http(&self) -> &HttpClient {
-        &self.http_client
     }
 
     /// Construct an auth handle pre-loaded with an in-memory token.
@@ -514,44 +505,6 @@ impl GoogleAuth {
         self.store.delete().await?;
         info!("Token revoked and removed");
         Ok(())
-    }
-}
-
-pub struct AuthConfigBuilder {
-    config: OAuthConfig,
-}
-
-impl AuthConfigBuilder {
-    pub fn new() -> Self {
-        Self {
-            config: OAuthConfig::default(),
-        }
-    }
-
-    /// Take the whole [`OAuthConfig`] instead of copying fields one at a
-    /// time: the config carries the device-flow client too, and a
-    /// field-by-field copy silently dropped it — `grr auth login --device`
-    /// then refused a device client the user had configured.
-    pub fn oauth(mut self, config: OAuthConfig) -> Self {
-        self.config = config;
-        // Empty strings behave as absent: the secret is omitted everywhere.
-        self.config.client_secret = self.config.client_secret.take().filter(|s| !s.is_empty());
-        self.config.device_client_secret = self
-            .config
-            .device_client_secret
-            .take()
-            .filter(|s| !s.is_empty());
-        self
-    }
-
-    pub async fn build(self) -> Result<GoogleAuth> {
-        GoogleAuth::new(self.config).await
-    }
-}
-
-impl Default for AuthConfigBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

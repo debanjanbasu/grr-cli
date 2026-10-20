@@ -16,7 +16,6 @@ use crate::output::{OutputFormat, print_output};
 use anyhow::{Context, Result, bail};
 use clap::Args;
 use std::io::IsTerminal;
-use std::path::PathBuf;
 
 const CONSOLE: &str = "https://console.cloud.google.com";
 const SETUP_DOCS: &str = "https://github.com/debanjanbasu/grr-cli/blob/main/docs/gcp-setup.md";
@@ -131,10 +130,6 @@ fn validate_client_secret(secret: &str) -> Result<()> {
     Ok(())
 }
 
-fn config_path() -> Result<PathBuf> {
-    Ok(ConfigLoader::config_path()?)
-}
-
 /// Escape a value for a TOML basic string.
 fn toml_escape(value: &str) -> String {
     value.replace('\\', r"\\").replace('"', "\\\"")
@@ -197,7 +192,7 @@ fn instructions() -> String {
 }
 
 pub async fn handle_setup(args: SetupArgs) -> Result<()> {
-    let path = config_path()?;
+    let path = ConfigLoader::config_path()?;
     let recipe = instructions();
 
     if args.print_only {
@@ -412,12 +407,5 @@ mod tests {
                 assert_eq!(*host, root, "{id}'s gcloud name disagrees with the index");
             }
         }
-    }
-
-    #[test]
-    fn writes_where_the_loader_reads() {
-        // `grr auth setup` and the loader must agree on the path, or setup
-        // writes a file nothing ever reads.
-        assert_eq!(config_path().unwrap(), ConfigLoader::config_path().unwrap());
     }
 }

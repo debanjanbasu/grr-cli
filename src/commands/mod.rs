@@ -4,7 +4,7 @@
 //! Discovery index) and is dispatched by `gen_dispatch.rs`; the rest are
 //! the hand-written account-level commands.
 
-use crate::core::prelude::*;
+use crate::core::{GoogleAuth, GrrConfig};
 use anyhow::Result;
 
 /// Build a fresh `GoogleAuth` from the loaded config. One credential backs
@@ -17,10 +17,7 @@ pub(crate) async fn build_auth(config: &GrrConfig) -> Result<GoogleAuth> {
         anyhow::bail!(crate::core::config::NO_CLIENT_HELP);
     }
 
-    Ok(AuthConfigBuilder::new()
-        .oauth(config.oauth.clone())
-        .build()
-        .await?)
+    Ok(GoogleAuth::new(config.oauth.clone()).await?)
 }
 
 pub mod api;

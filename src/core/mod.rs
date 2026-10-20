@@ -21,23 +21,9 @@ pub mod error;
 pub mod http;
 pub mod runtime;
 
-pub use auth::{AuthConfigBuilder, DeviceAuthChallenge, GoogleAuth, TokenStorage};
+pub use auth::{DeviceAuthChallenge, GoogleAuth, TokenStorage};
 pub use config::{GrrConfig, OAuthConfig};
 pub use config_loader::ConfigLoader;
 pub use error::{GrrError, Result};
-pub use http::{
-    HttpCore, TransportInfo, TransportMode, apply_transport_version, resolve_transport_mode,
-};
+pub use http::{HttpCore, TransportInfo, apply_transport_version};
 pub use runtime::{RuntimeFeatures, detect_runtime_features};
-
-/// Prelude for convenient imports
-pub mod prelude {
-    pub use crate::core::auth::{AuthConfigBuilder, DeviceAuthChallenge, GoogleAuth, TokenStorage};
-    pub use crate::core::config::{GrrConfig, OAuthConfig};
-    pub use crate::core::config_loader::ConfigLoader;
-    pub use crate::core::error::{GrrError, Result};
-    pub use crate::core::http::{
-        HttpCore, TransportInfo, TransportMode, apply_transport_version, resolve_transport_mode,
-    };
-    pub use crate::core::runtime::{RuntimeFeatures, detect_runtime_features};
-}
