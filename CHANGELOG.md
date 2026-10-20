@@ -22,7 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No changes yet._
+### Fixed
+
+- **winget:** use generic ARMv8 baseline for windows-aarch64
+
+### Internal
+
+- 4 internal commits (chore 4)
+
+### Other
+
+- **compare:** refresh daily benchmark snapshot
 
 ## [2.1.2] - 2026-10-20
 
