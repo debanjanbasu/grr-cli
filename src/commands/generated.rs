@@ -7,7 +7,7 @@
 //! regenerate with `node scripts/generate-commands.mjs` (or run it
 //! with `--check`, which exits 1 when this file is stale).
 //!
-//! Generated at: 2026-10-19T09:53:20.114Z — the index manifest's own timestamp,
+//! Generated at: 2026-10-20T09:24:50.768Z — the index manifest's own timestamp,
 //! so regeneration is byte-identical until the index actually changes.
 //!
 //! Shape:
@@ -29,11 +29,11 @@
 //! schemas are not part of the distilled index, so POST/PATCH/PUT
 //! bodies pass through `--params` / `--body-file` verbatim.
 //!
-//! Numbers: 14 services, 401 methods, 401 leaves, 96 resource groups, 994 typed flags.
+//! Numbers: 14 services, 402 methods, 402 leaves, 96 resource groups, 995 typed flags.
 
 /// When the generator last ran, taken from the Discovery index
 /// manifest's own timestamp so it only moves when the index moves.
-pub const GENERATED_AT: &str = "2026-10-19T09:53:20.114Z";
+pub const GENERATED_AT: &str = "2026-10-20T09:24:50.768Z";
 
 #[rustfmt::skip] // mechanical output; formatting it would churn every diff
 pub mod tree {
@@ -2200,6 +2200,17 @@ pub mod tree {
             .subcommand(leaf_chat_spaces_messages_reactions_list())
     }
 
+    // chat.spaces.messages.replaceCards
+    fn leaf_chat_spaces_messages_replace_cards() -> Command {
+        Command::new("chat.spaces.messages.replaceCards")
+            .visible_alias("replaceCards")
+            .about("Replaces the cards included in a message. A Chat app can only replace cards on a human-created...")
+            .long_about("Replaces the cards included in a message. A Chat app can only replace cards on a human-created message if the message already contains cards, and the cards were created by the app. If the app replaces the cards with an empty list, the cards are removed. After removing the cards, the app cannot add c")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Required. The resource name of the message. Format: `spaces/{space}/messages/{message}`"))
+            .args(escape_hatch_args())
+    }
+
     // chat.spaces.messages.search
     fn leaf_chat_spaces_messages_search() -> Command {
         Command::new("chat.spaces.messages.search")
@@ -2238,6 +2249,7 @@ pub mod tree {
             .subcommand(leaf_chat_spaces_messages_list())
             .subcommand(leaf_chat_spaces_messages_patch())
             .subcommand(group_chat_spaces_messages_reactions())
+            .subcommand(leaf_chat_spaces_messages_replace_cards())
             .subcommand(leaf_chat_spaces_messages_search())
             .subcommand(leaf_chat_spaces_messages_update())
     }
@@ -2623,7 +2635,7 @@ pub mod tree {
     // chat
     fn service_chat() -> Command {
         Command::new("chat")
-            .about("Google Chat API operations (v1, 54 methods)")
+            .about("Google Chat API operations (v1, 55 methods)")
             .subcommand_required(true)
             .subcommand(group_chat_custom_emojis())
             .subcommand(group_chat_media())
