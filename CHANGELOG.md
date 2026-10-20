@@ -22,13 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [2.1.3] - 2026-10-20
+
 ### Fixed
 
 - **winget:** use generic ARMv8 baseline for windows-aarch64
 
 ### Internal
 
-- 4 internal commits (chore 4)
+- 5 internal commits (chore 5)
 
 ### Other
 
@@ -648,7 +652,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial commit: gmail-opencode-rust - High-performance Gmail API client with HTTP/3, QUIC, zero-copy streaming
 - small fix wave partial
 
-[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v2.1.2...HEAD
+[unreleased]: https://github.com/debanjanbasu/grr-cli/compare/v2.1.3...HEAD
+[2.1.3]: https://github.com/debanjanbasu/grr-cli/compare/v2.1.2...v2.1.3
 [2.1.2]: https://github.com/debanjanbasu/grr-cli/compare/v2.1.1...v2.1.2
 [2.1.1]: https://github.com/debanjanbasu/grr-cli/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/debanjanbasu/grr-cli/compare/v2.0.1...v2.1.0
