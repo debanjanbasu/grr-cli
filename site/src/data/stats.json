@@ -1,8 +1,8 @@
 {
   "version": "2.1.3",
-  "crateDownloads": 325,
-  "crateDownloads30d": 325,
-  "githubDownloads": 334,
+  "crateDownloads": 334,
+  "crateDownloads30d": 334,
+  "githubDownloads": 347,
   "latestRelease": "v2.1.3",
   "latestReleaseDate": "2026-10-20T23:00:11Z",
   "binarySizes": {
@@ -12,6 +12,8 @@
     "windows-aarch64": 3584527,
     "windows-x86_64": 3100519
   },
-  "nonPlatformAssets": null,
-  "updatedAt": "2026-10-20T23:00:29.667Z"
+  "nonPlatformAssets": {
+    "winget-manifests": 903
+  },
+  "updatedAt": "2026-10-21T10:00:26.899Z"
 }
