@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-10-21T07:52:50.864Z",
+  "generatedAt": "2026-10-23T22:26:00.277Z",
   "environment": {
     "platform": "linux",
     "arch": "arm64",
-    "nodeVersion": "v26.12.0",
+    "nodeVersion": "v26.12.1",
     "binaryKind": "release",
     "binaryPath": "target/release/grr",
     "grrVersion": "grr 2.1.3"
@@ -14,8 +14,8 @@
       "latestTag": "v2.1.3"
     },
     "gog": {
-      "local": "v0.46.0 (e0e3cb9c 2026-10-21T05:43:32Z)",
-      "latestTag": "v0.46.0"
+      "local": "v0.47.0 (f7dab31f 2026-10-23T20:54:01Z)",
+      "latestTag": "v0.47.0"
     },
     "gws": {
       "local": "gws 0.22.5",
@@ -33,21 +33,21 @@
   "grr": {
     "startup": {
       "available": true,
-      "medianMs": 5.4,
-      "p95Ms": 6.1,
-      "minMs": 5.1
+      "medianMs": 4.9,
+      "p95Ms": 5.5,
+      "minMs": 4.7
     },
     "schemaDump": {
       "available": true,
-      "medianMs": 20.1,
-      "p95Ms": 20.6,
-      "minMs": 19.6
+      "medianMs": 18.7,
+      "p95Ms": 19.5,
+      "minMs": 18.3
     },
     "apiList": {
       "available": true,
-      "medianMs": 6.7,
-      "p95Ms": 6.9,
-      "minMs": 6.3
+      "medianMs": 6,
+      "p95Ms": 6.5,
+      "minMs": 5.9
     },
     "memory": {
       "available": true,
@@ -76,18 +76,18 @@
       "url": "https://github.com/openclaw/gogcli",
       "available": true,
       "obtainedVia": "path",
-      "version": "v0.46.0 (e0e3cb9c 2026-10-21T05:43:32Z)",
+      "version": "v0.47.0 (f7dab31f 2026-10-23T20:54:01Z)",
       "startup": {
         "available": true,
-        "medianMs": 71.6,
-        "p95Ms": 73.9,
-        "minMs": 71
+        "medianMs": 69.4,
+        "p95Ms": 70.5,
+        "minMs": 68
       },
       "schemaDump": {
         "available": true,
-        "medianMs": 155.1,
-        "p95Ms": 159.3,
-        "minMs": 152.1
+        "medianMs": 149.6,
+        "p95Ms": 153.2,
+        "minMs": 147.3
       },
       "apiList": {
         "available": false,
@@ -95,12 +95,12 @@
       },
       "memory": {
         "available": true,
-        "maxRssKb": 99608,
+        "maxRssKb": 96508,
         "runs": 15,
         "command": "gog schema"
       },
       "binary": {
-        "bytes": 41353376,
+        "bytes": 41418912,
         "source": "installed on PATH",
         "form": "binary"
       }
@@ -114,15 +114,15 @@
       "version": "gws 0.22.5",
       "startup": {
         "available": true,
-        "medianMs": 29.3,
-        "p95Ms": 32.3,
-        "minMs": 28.3
+        "medianMs": 26.4,
+        "p95Ms": 28.2,
+        "minMs": 25.8
       },
       "schemaDump": {
         "available": true,
-        "medianMs": 31.2,
-        "p95Ms": 31.8,
-        "minMs": 29.7
+        "medianMs": 27.9,
+        "p95Ms": 31.1,
+        "minMs": 27.3
       },
       "apiList": {
         "available": false,
@@ -130,7 +130,7 @@
       },
       "memory": {
         "available": true,
-        "maxRssKb": 47880,
+        "maxRssKb": 48140,
         "runs": 15,
         "command": "gws schema drive.files.list --resolve-refs"
       },
