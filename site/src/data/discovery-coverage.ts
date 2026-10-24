@@ -48,7 +48,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 38,
     scopes: 18,
-    revision: '20261019',
+    revision: '20261021',
     note: 'Calendars, events, instances, ACL, free/busy, colors, and settings.',
   },
   {
@@ -57,7 +57,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 64,
     scopes: 10,
-    revision: '20261012',
+    revision: '20261020',
     note: 'Files, permissions, comments, revisions, changes, drives, and team drives.',
   },
   {
@@ -75,7 +75,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 55,
     scopes: 41,
-    revision: '20261016',
+    revision: '20261019',
     note: 'Spaces, messages, memberships, reactions, attachments, sections, and availability.',
   },
   {
@@ -120,7 +120,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 3,
     scopes: 5,
-    revision: '20261014',
+    revision: '20261019',
     note: 'Document create, read, and batch update.',
   },
   {
