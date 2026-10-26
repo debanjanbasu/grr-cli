@@ -99,6 +99,14 @@ jobs:
             printf '%s\n' "$output" >&2
             echo "::notice::Cannot bypass branch protection; falling back to auto-merge."
             gh pr merge "$PR_NUMBER" --squash --auto --delete-branch
+          elif printf '%s\n' "$output" | grep -qi "required status checks are in progress"; then
+            # --admin raced the checks: GitHub refuses to merge past checks
+            # that are RUNNING (it only bypasses PENDING/failed). Not a
+            # permission problem — the checks are mid-flight, so enable
+            # auto-merge and let them finish; the merge fires on green.
+            printf '%s\n' "$output" >&2
+            echo "::notice::Checks still running; falling back to auto-merge."
+            gh pr merge "$PR_NUMBER" --squash --auto --delete-branch
           else
             printf '%s\n' "$output" >&2
             exit 1
@@ -117,6 +125,8 @@ jobs:
           elif printf '%s\n' "$output" | grep -qi "already enabled"; then
             printf '%s\n' "$output"
           else
+            # Auto-merge enablement can race a concurrent enablement from the
+            # same event burst; anything else is a real failure.
             printf '%s\n' "$output" >&2
             exit 1
           fi
