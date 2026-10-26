@@ -300,21 +300,122 @@ fn tools_list() -> Vec<Value> {
 fn tool_descriptor(service: &Service, method: &Method) -> Value {
     json!({
         "name": format!("{}.{}", service.name, method.id),
-        "description": tool_description(method),
+        "description": tool_description(service, method),
         "inputSchema": input_schema(method),
     })
 }
 
-/// The method's Discovery description + its HTTP verb + a hint that write
-/// verbs need auth scopes (and are gated by `--readonly`).
-fn tool_description(method: &Method) -> String {
-    let verb = method.http_method.to_ascii_uppercase();
-    let mut text = format!("{} [HTTP {verb}]", method.description);
-    if is_write_verb(&verb) {
-        text.push_str(" — write verb: needs auth scopes; refused under --readonly safety profiles");
-    } else {
-        text.push_str(" — needs auth scopes");
+/// Curated descriptions for the few Discovery methods that ship none —
+/// high-impact tools an agent must not have to guess at. Keyed by the
+/// method's index id (resource path + verb, WITHOUT the service prefix —
+/// the service name joins at tool-name assembly, not in `Method.id`);
+/// anything not listed falls through to the verb-derived text.
+const DESCRIPTION_OVERRIDES: &[(&str, &str)] = &[(
+    "scripts.run",
+    "Executes a function in an Apps Script project (Apps Script API script.run). The script \
+         runs headlessly with the scopes its manifest declares — review them before calling: \
+         arbitrary script code executes with your authorization. Returns the script function's \
+         response (OPS_ERROR / ops for failures); script-side failures come back as tool errors, \
+         not dead servers. Prefer `script processes list` to observe running executions and \
+         `script projects get` to read a project's source before running it.",
+)];
+
+/// The resources this method's id sits among, as sibling guidance: the
+/// other verbs over the same resource path, so an agent sees the CRUD
+/// neighbourhood without leaving the tool list.
+fn sibling_summary(service: &Service, method: &Method) -> String {
+    // The method id is `resource.path.segments.verb`; siblings share every
+    // segment but the last.
+    let verb = method.id.rsplit('.').next().unwrap_or("");
+    let resource = &method.id[..method.id.len().saturating_sub(verb.len()).saturating_sub(1)];
+    if resource.is_empty() {
+        return String::new();
     }
+    let mut siblings: Vec<&str> = service
+        .methods
+        .iter()
+        .filter(|m| {
+            m.id != method.id
+                && m.id
+                    .strip_suffix(&format!(".{}", m.id.rsplit('.').next().unwrap_or("")))
+                    == Some(resource)
+        })
+        .map(|m| m.id.rsplit('.').next().unwrap_or(""))
+        .collect();
+    siblings.sort_unstable();
+    siblings.dedup();
+    if siblings.is_empty() {
+        String::new()
+    } else {
+        format!(" Siblings over the same resource: {}.", siblings.join(", "))
+    }
+}
+
+/// What the call returns, derived from the verb — the shape the shared
+/// call path actually delivers (JSON on stdout, envelope on MCP).
+fn returns_summary(method: &Method) -> &'static str {
+    match method.http_method.to_ascii_uppercase().as_str() {
+        "GET" => "Returns the requested resource as JSON",
+        "DELETE" => "Returns the post-delete resource state (or empty) as JSON",
+        _ => "Returns the API's response resource as JSON",
+    }
+}
+
+/// The method's Discovery description, enriched with what an agent needs
+/// to pick and use the tool correctly: the resource it acts on, what comes
+/// back, how the request body is built, the auth/safety story, and the
+/// sibling methods over the same resource. Everything here is derived from
+/// the Discovery index — no hand-written per-method prose to rot.
+fn tool_description(service: &Service, method: &Method) -> String {
+    let verb = method.http_method.to_ascii_uppercase();
+    let base = DESCRIPTION_OVERRIDES
+        .iter()
+        .find(|(id, _)| *id == method.id)
+        .map(|(_, text)| text.to_string())
+        .unwrap_or_else(|| {
+            if method.description.is_empty() {
+                format!(
+                    "{}s {} via the {} API",
+                    verb.to_ascii_lowercase(),
+                    method.id.rsplit('.').next().unwrap_or("resource"),
+                    service.name
+                )
+            } else {
+                method.description.clone()
+            }
+        });
+
+    // Discovery descriptions commonly end in a period; normalize so we never
+    // ship "text.. [HTTP".
+    let base = base.trim_end_matches('.');
+    let mut text = format!("{base} [HTTP {verb}]");
+
+    // Behavior: what the call does to the world, before the auth line.
+    match verb.as_str() {
+        "POST" => text.push_str(" — creates or triggers a change"),
+        "DELETE" => text.push_str(
+            " — removes the resource; irreversible unless the API documents a trash/undo flow",
+        ),
+        "PATCH" | "PUT" => text.push_str(" — updates the resource"),
+        _ => {}
+    }
+    if is_write_verb(&verb) {
+        text.push_str("; refused under --readonly safety profiles");
+    }
+
+    // Completeness: the two things the schema cannot say.
+    // Discovery text can carry its own trailing period mid-sentence; don't
+    // let our appended clause double it. Trailing-period truncation (300
+    // chars) at distill time also leaves a bare period to normalize.
+    if text.ends_with(' ') {
+        text.pop();
+    }
+    text.push_str(&format!(
+        ". {} — request bodies are built from the typed parameters (typed flags win over the `params` map), or read whole from `body_file`",
+        returns_summary(method)
+    ));
+
+    text.push_str(&sibling_summary(service, method));
     text
 }
 
@@ -624,6 +725,65 @@ mod tests {
             assert!(
                 tool["description"].as_str().unwrap().contains("HTTP"),
                 "{name}"
+            );
+        }
+    }
+
+    /// Descriptions carry what an agent needs to pick a tool: what the call
+    /// returns, how the request body is built, and — where the resource has
+    /// siblings — the CRUD neighbourhood. Also covers the curated overrides:
+    /// Discovery methods that ship no description still get real prose.
+    #[tokio::test]
+    async fn descriptions_carry_returns_body_and_siblings() {
+        let server = test_server().await;
+        let line = request(2, "tools/list", "{}");
+        let response = server.handle_line(&line).await.unwrap();
+        let tools = response["result"]["tools"].as_array().unwrap();
+        let by_name = |name: &str| {
+            tools
+                .iter()
+                .find(|t| t["name"] == name)
+                .unwrap_or_else(|| panic!("{name} missing"))["description"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+
+        let delete = by_name("gmail.users.messages.delete");
+        assert!(
+            delete.contains("irreversible"),
+            "delete should warn about irreversibility: {delete}"
+        );
+        assert!(
+            delete.contains("refused under --readonly"),
+            "write verbs name the safety gate: {delete}"
+        );
+
+        let list = by_name("calendar.events.list");
+        assert!(
+            list.contains("Siblings over the same resource"),
+            "list tools name their CRUD neighbours: {list}"
+        );
+        assert!(list.contains("as JSON"), "returns are described: {list}");
+        assert!(
+            list.contains("body_file"),
+            "body building is described: {list}"
+        );
+
+        let run = by_name("script.scripts.run");
+        assert!(
+            run.starts_with("Executes a function"),
+            "Discovery shipped no description for scripts.run; the curated override must supply one: {run}"
+        );
+
+        // Our appended clauses never start with a period directly after the
+        // upstream text's own: the verb tag always follows cleanly.
+        for tool in tools {
+            let d = tool["description"].as_str().unwrap();
+            assert!(
+                !d.contains(". [HTTP"),
+                "{}: doubled period before the verb tag in {d}",
+                tool["name"]
             );
         }
     }
