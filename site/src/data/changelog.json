@@ -1,11 +1,17 @@
 {
-  "generatedAt": "2026-10-26T02:44:19.505Z",
+  "generatedAt": "2026-10-26T03:05:22.855Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": []
+    },
+    {
+      "version": "2.1.5",
+      "date": "2026-10-26",
+      "unreleased": false,
       "sections": [
         {
           "key": "fixed",
@@ -27,6 +33,36 @@
               "description": "bump undici from 8.11.2 to 8.12.3 in /site",
               "scope": "deps-dev",
               "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v2.1.5",
+              "scope": "release",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
               "note": null
             }
           ]
