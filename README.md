@@ -215,7 +215,7 @@ The command tree is **generated** from the committed Discovery index by `scripts
 | --- | --- | --- |
 | `grr auth` | `login [--device] [--account name] [--service name] [--all-scopes]`, `status [--account name]`, `setup [--client-id] [--client-secret] [--print-only] [--force] [--enable-apis]` — all accept `-f json\|jsonl\|table\|pretty`; `status` reports the credential's own scope set under `scopes_granted` (what Google actually approved — `login`'s `scopes_requested` is what was asked for) | — |
 | `grr ask` | `"<request>" [--run] [--dry-run] [--service] [--method]` — natural language to a typed method + params via a System One model; prints the plan by default | - |
-| `grr mcp` | an MCP (JSON-RPC over stdio) server exposing every method as a typed tool; speaks the stateless `2026-07-28` revision only — `server/discover` instead of the `initialize` handshake; `--readonly` for read-only | - |
+| `grr mcp` | an MCP (JSON-RPC over stdio) server exposing every method as a typed tool; speaks the stateless `2026-07-28` revision — `server/discover` for discovery, plus a minimal legacy `initialize` handshake so standard MCP clients connect; `--readonly` for read-only | - |
 | `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 401 |
 | `grr schema` | the whole command tree as JSON | — |
 | `grr completions` | `<bash\|elvish\|powershell\|zsh>` — a shell completion script for the whole tree, offline; see [Install](#install) | — |

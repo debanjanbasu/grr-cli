@@ -9,7 +9,7 @@
 
 ## Agent surfaces
 
-- [MCP server](https://grr-cli.pages.dev/docs/agents/#mcp-title): `grr mcp` serves a Model Context Protocol stdio server exposing every one of the 401 methods as a typed MCP tool — speaking the stateless `2026-07-28` revision only: `server/discover` instead of the `initialize` handshake, identity in every result's `_meta`, and a legacy `initialize`/`ping` call fails with an error naming the revision to speak; `--readonly` for a read-only server.
+- [MCP server](https://grr-cli.pages.dev/docs/agents/#mcp-title): `grr mcp` serves a Model Context Protocol stdio server exposing every one of the 401 methods as a typed MCP tool — speaking the stateless `2026-07-28` revision: `server/discover` for discovery, identity in every result's `_meta`, plus a minimal legacy `initialize` handshake so standard clients connect; `--readonly` for a read-only server.
 - [Natural language](https://grr-cli.pages.dev/docs/commands/#system-one): `grr ask "show my unread messages"` - a System One model (Jev by default) classifies the request hierarchically and fills the typed parameters; prints the plan, `--run` executes. The endpoint/model/api-key/confidence-threshold config and the preferred `TYPESAFE_API_KEY` env route are documented there.
 - [Safety profiles](https://grr-cli.pages.dev/docs/commands/): global `--readonly`, `--deny-service`, `--deny-verb` flags honored by the CLI, `grr api call`, and the MCP server alike.
 - [Multi-account](https://grr-cli.pages.dev/docs/commands/): `grr auth login --account work` keeps a separate token per account in the OS keyring.

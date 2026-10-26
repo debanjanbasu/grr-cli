@@ -10,8 +10,10 @@
 //! * `tools/list` — every method in the Discovery index as a tool
 //! * `tools/call` — one method invocation through the shared call path
 //!
-//! `2026-07-28` is the only revision served, so the handshake methods of
-//! earlier revisions are deliberately absent: `initialize`, `ping` and
+//! `2026-07-28` is the newest revision served, so the handshake is gone from
+//! the happy path — but `initialize` is answered with a minimal legacy
+//! handshake (server/discover remains the discovery RPC), because the
+//! deployed client ecosystem still opens with it. `ping` and
 //! `logging/setLevel` answer with a JSON-RPC error naming the revision to
 //! speak instead. Notifications (`notifications/initialized`, whatever the
 //! revision) carry no id, so they are never answered at all.
@@ -42,10 +44,11 @@ use serde_json::{Map, Value, json};
 /// `_meta`.
 ///
 /// Legacy revisions are deliberately not served. Their handshake shape
-/// (`initialize`, `ping`, `logging/setLevel`) is gone from the spec, and
-/// carrying it forever buys nothing a client cannot get by reading this
-/// constant out of `server/discover` — so a client that still opens with
-/// `initialize` gets an error naming the revision to speak instead.
+/// (`ping`, `logging/setLevel`) is gone from the spec; `initialize` alone
+/// is answered with a minimal legacy handshake so standard clients
+/// (mcp-proxy, Claude Desktop, Cursor, Glama's introspector) can connect —
+/// they then use `tools/*`, or read this constant out of `server/discover`
+/// and speak the current revision.
 pub(crate) const PROTOCOL_VERSION: &str = "2026-07-28";
 
 /// Every revision this server can serve, newest first — exactly what
@@ -121,10 +124,38 @@ impl McpServer {
                 }
                 json!({ "jsonrpc": "2.0", "id": id, "result": result })
             }
-            // Gone from the spec, and served by nothing here. The caller is
-            // a client that has not caught up, which is exactly the audience
-            // an error should help: name the revision, name the replacement.
-            "initialize" | "ping" | "logging/setLevel" => error_response(
+            // `initialize` compat: the stateless revision removed the
+            // handshake, but the deployed client ecosystem (mcp-proxy,
+            // Claude Desktop, Cursor, Glama's introspector) still opens
+            // with it. Answer with a minimal legacy handshake naming the
+            // newest revision we speak, so standard clients connect and
+            // then use `tools/*` (or graduate to `server/discover`).
+            // `ping` stays refused: nothing in the legacy flow needs it
+            // to connect.
+            "initialize" => {
+                let requested = params
+                    .get("protocolVersion")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                // Serve the requested legacy revision only if we name it;
+                // anything else (unknown or absent) gets the current one.
+                let version = SUPPORTED_VERSIONS
+                    .iter()
+                    .find(|v| **v == requested)
+                    .copied()
+                    .unwrap_or(PROTOCOL_VERSION);
+                json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "result": {
+                        "protocolVersion": version,
+                        "capabilities": { "tools": {} },
+                        "serverInfo": server_info(),
+                        "instructions": discover_result()["instructions"].clone(),
+                    },
+                })
+            }
+            "logging/setLevel" => error_response(
                 &id,
                 METHOD_NOT_FOUND,
                 format!(
@@ -474,22 +505,46 @@ mod tests {
         assert_eq!(tools.len(), server.tool_count());
     }
 
-    /// The handshake revisions are not served at all. A client that opens
-    /// with one of their methods gets an error naming the revision to speak
-    /// and the RPC that replaced the handshake.
+    /// The handshake revisions are not served at all — except `initialize`,
+    /// which gets a minimal legacy handshake so standard clients connect.
+    /// `ping` and `logging/setLevel` get an error naming the revision to
+    /// speak and the RPC that replaced the handshake.
     #[tokio::test]
     async fn legacy_handshake_methods_are_refused_with_the_revision_to_speak() {
         let server = test_server().await;
 
-        for method in ["initialize", "ping", "logging/setLevel"] {
+        for method in ["ping", "logging/setLevel"] {
             let line = request(1, method, "{}");
             let response = server.handle_line(&line).await.unwrap();
 
             assert_eq!(response["error"]["code"], METHOD_NOT_FOUND, "{method}");
-            let message = response["error"]["message"].as_str().unwrap();
-            assert!(message.contains(PROTOCOL_VERSION), "{method}: {message}");
-            assert!(message.contains("server/discover"), "{method}: {message}");
         }
+    }
+
+    /// `initialize` compat: a standard client opens with the legacy
+    /// handshake and must get a valid result — server identity, tool
+    /// capability, the newest revision we speak — instead of an error.
+    #[tokio::test]
+    async fn initialize_answers_a_minimal_legacy_handshake() {
+        let server = test_server().await;
+
+        let line = request(
+            1,
+            "initialize",
+            r#"{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"probe","version":"0"}}"#,
+        );
+        let response = server.handle_line(&line).await.unwrap();
+        let result = &response["result"];
+        assert_eq!(result["protocolVersion"], PROTOCOL_VERSION);
+        assert_eq!(result["serverInfo"]["name"], "grr");
+        assert!(result["capabilities"]["tools"].is_object());
+        // The handshake completes; tools/* then works as usual.
+        let line = request(2, "tools/list", "{}");
+        let response = server.handle_line(&line).await.unwrap();
+        assert_eq!(
+            response["result"]["tools"].as_array().unwrap().len(),
+            server.tool_count()
+        );
     }
 
     /// The stateless revision has no handshake, so `server/discover` may be

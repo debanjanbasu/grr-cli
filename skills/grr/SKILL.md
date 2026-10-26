@@ -108,7 +108,7 @@ Scripts, agents, and CI: set `GRR_TOKEN_STORE=file` before anything else. It kee
 - Tool name = the dotted method id (`gmail.users.messages.list`); `tools/list` returns every tool with an inputSchema built from Discovery (typed properties, required list, enum values) plus `params`/`body_file`/`query`/`dry_run`.
 - `tools/call` runs through the same engine as the CLI — results come back as JSON text content; errors are `isError` results, never a dead server.
 - Connect any MCP client: register `grr mcp` as a stdio server (Claude Desktop, Gemini CLI, VS Code, Cursor). `--readonly` gives a server that refuses writes.
-- Protocol: `2026-07-28` only — the stateless revision. There is no `initialize`: call `tools/*` inline, and `server/discover` reports `supportedVersions` plus the server identity (also carried in every result's `_meta`). A legacy handshake (`initialize`, `ping`, `logging/setLevel`) fails with an error naming the revision to speak, so nothing is silently negotiated.
+- Protocol: `2026-07-28` — the stateless revision. Call `tools/*` inline; `server/discover` reports `supportedVersions` plus the server identity (also carried in every result's `_meta`). A minimal legacy `initialize` handshake is also answered so standard clients connect; other legacy RPCs (`ping`, `logging/setLevel`) fail with an error naming the revision to speak.
 - The stream is stdout; logs go to stderr. Do not print to the stream.
 
 ## Natural language: `grr ask`
