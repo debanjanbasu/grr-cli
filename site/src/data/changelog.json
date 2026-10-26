@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T06:09:17.359Z",
+  "generatedAt": "2026-10-26T08:39:58.688Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -8,6 +8,18 @@
       "unreleased": true,
       "sections": [
         {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "distill request-body schemas and name them in descriptions",
+              "scope": "discovery",
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
+        {
           "key": "internal",
           "heading": "Internal",
           "items": [
@@ -15,6 +27,30 @@
               "description": "re-record the terminal demo from source",
               "scope": "demo",
               "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
               "note": null
             }
           ]
