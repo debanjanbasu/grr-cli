@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T03:21:42.986Z",
+  "generatedAt": "2026-10-26T04:50:04.236Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -7,6 +7,18 @@
       "date": null,
       "unreleased": true,
       "sections": [
+        {
+          "key": "added",
+          "heading": "Added",
+          "items": [
+            {
+              "description": "enrich tool descriptions with returns, body flow, and siblings",
+              "scope": "mcp",
+              "type": "feat",
+              "note": null
+            }
+          ]
+        },
         {
           "key": "internal",
           "heading": "Internal",
@@ -20,6 +32,12 @@
             {
               "description": "refresh download counts and archive sizes",
               "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
               "type": "chore",
               "note": null
             }
