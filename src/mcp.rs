@@ -127,9 +127,12 @@ impl McpServer {
             // `initialize` compat: the stateless revision removed the
             // handshake, but the deployed client ecosystem (mcp-proxy,
             // Claude Desktop, Cursor, Glama's introspector) still opens
-            // with it. Answer with a minimal legacy handshake naming the
-            // newest revision we speak, so standard clients connect and
-            // then use `tools/*` (or graduate to `server/discover`).
+            // with it — and several of its members REJECT an answer that
+            // names a newer revision than they asked for. Negotiate:
+            // echo the client's requested revision back when it looks
+            // like an MCP revision (dated string), otherwise answer with
+            // the newest one we speak. Either way the client then uses
+            // `tools/*`, which is revision-agnostic here.
             // `ping` stays refused: nothing in the legacy flow needs it
             // to connect.
             "initialize" => {
@@ -137,13 +140,13 @@ impl McpServer {
                     .get("protocolVersion")
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
-                // Serve the requested legacy revision only if we name it;
-                // anything else (unknown or absent) gets the current one.
-                let version = SUPPORTED_VERSIONS
-                    .iter()
-                    .find(|v| **v == requested)
-                    .copied()
-                    .unwrap_or(PROTOCOL_VERSION);
+                let looks_like_revision =
+                    |v: &str| v.len() == 10 && v.as_bytes()[4] == b'-' && v.starts_with("20");
+                let version = if looks_like_revision(requested) {
+                    requested
+                } else {
+                    PROTOCOL_VERSION
+                };
                 json!({
                     "jsonrpc": "2.0",
                     "id": id,
@@ -523,7 +526,8 @@ mod tests {
 
     /// `initialize` compat: a standard client opens with the legacy
     /// handshake and must get a valid result — server identity, tool
-    /// capability, the newest revision we speak — instead of an error.
+    /// capability, and the revision it asked for echoed back (several
+    /// clients reject a newer one) — instead of an error.
     #[tokio::test]
     async fn initialize_answers_a_minimal_legacy_handshake() {
         let server = test_server().await;
@@ -535,7 +539,7 @@ mod tests {
         );
         let response = server.handle_line(&line).await.unwrap();
         let result = &response["result"];
-        assert_eq!(result["protocolVersion"], PROTOCOL_VERSION);
+        assert_eq!(result["protocolVersion"], "2025-06-18");
         assert_eq!(result["serverInfo"]["name"], "grr");
         assert!(result["capabilities"]["tools"].is_object());
         // The handshake completes; tools/* then works as usual.
