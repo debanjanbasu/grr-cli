@@ -126,6 +126,7 @@ interface RawMethod {
   parameterOrder?: string[];
   parameters?: Record<string, RawParameter>;
   response?: { $ref?: string };
+  request?: { $ref?: string };
 }
 
 interface RawResource {
@@ -161,7 +162,7 @@ function collect(node: RawResource | undefined, path: string, out: DistilledMeth
         httpMethod: m.httpMethod,
         path: m.path,
         flatPath: m.flatPath ?? null,
-        description: (m.description ?? '').replace(/\s+/g, ' ').trim().slice(0, 300),
+        description: (m.description ?? '').replace(/\s+/g, ' ').trim().slice(0, 600),
         // Prefer least-privilege: discovery lists scopes best-first, and the
         // broad ones (https://mail.google.com/) come first. We keep the whole
         // list but record the narrowest for least-privilege defaults.
@@ -189,6 +190,7 @@ function collect(node: RawResource | undefined, path: string, out: DistilledMeth
           }))
           .sort((a, b) => a.name.localeCompare(b.name)),
         responseRef: m.response?.$ref ?? null,
+        requestRef: m.request?.$ref ?? null,
       });
     }
   }

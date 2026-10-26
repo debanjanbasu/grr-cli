@@ -310,7 +310,7 @@ fn tool_descriptor(service: &Service, method: &Method) -> Value {
     let mut descriptor = json!({
         "name": format!("{}.{}", service.name, method.id),
         "description": tool_description(service, method),
-        "inputSchema": input_schema(method),
+        "inputSchema": input_schema(service, method),
     });
     if let Some(schema) = output_schema {
         descriptor
@@ -426,19 +426,65 @@ fn tool_description(service: &Service, method: &Method) -> String {
     if text.ends_with(' ') {
         text.pop();
     }
-    text.push_str(&format!(
-        ". {} — request bodies are built from the typed parameters (typed flags win over the `params` map), or read whole from `body_file`",
-        returns_summary(method)
-    ));
+    match &method.request_ref {
+        Some(body_type) => {
+            let fields = request_body_fields(service, body_type);
+            text.push_str(&format!(
+                ". {} — request body is a JSON {body_type} object{fields}; pass it via `params` or whole via `body_file`",
+                returns_summary(method)
+            ));
+        }
+        None => text.push_str(&format!(
+            ". {} — request bodies are built from the typed parameters (typed flags win over the `params` map), or read whole from `body_file`",
+            returns_summary(method)
+        )),
+    }
 
     text.push_str(&sibling_summary(service, method));
     text
 }
 
+/// The request schema's top-level field names, for the description — an
+/// agent choosing parameters sees what the body accepts without opening
+/// the schema. Long lists truncate at eight names.
+fn request_body_fields(service: &Service, schema_name: &str) -> String {
+    let Some(schema) = service.schemas.get(schema_name) else {
+        return String::new();
+    };
+    let Some(properties) = &schema.properties else {
+        return String::new();
+    };
+    let mut names: Vec<&String> = properties.keys().collect();
+    names.sort_unstable();
+    if names.is_empty() {
+        return String::new();
+    }
+    if names.len() > 8 {
+        format!(
+            " accepting {} and {} more fields",
+            names[..8]
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>()
+                .join(", "),
+            names.len() - 8
+        )
+    } else {
+        format!(
+            " accepting {}",
+            names
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    }
+}
+
 /// The tool's input schema: a JSON-schema object built from the method's
 /// parameters plus grr's escape hatches; `required` is the method's
 /// required parameter names.
-fn input_schema(method: &Method) -> Value {
+fn input_schema(service: &Service, method: &Method) -> Value {
     let mut properties = Map::new();
     for param in &method.parameters {
         properties.insert(param.name.clone(), param_schema(param));
@@ -451,15 +497,38 @@ fn input_schema(method: &Method) -> Value {
             "description": "Parameter map merged into the request; typed parameters win.",
         }),
     );
-    properties.insert("body_file".into(), json!({
-        "type": "string",
-        "description": "Read the request body from this file ('-' for stdin) instead of building one from the parameters.",
-    }));
+    let body_file_desc = match &method.request_ref {
+        Some(name) => format!(
+            "Read the request body from this file ('-' for stdin) instead of building one from the parameters. The body is a JSON {name} object."
+        ),
+        None => "Read the request body from this file ('-' for stdin) instead of building one from the parameters.".to_owned(),
+    };
+    properties.insert(
+        "body_file".into(),
+        json!({
+            "type": "string",
+            "description": body_file_desc,
+        }),
+    );
     properties.insert("query".into(), json!({
         "type": "array",
         "items": { "type": "string" },
         "description": "Extra KEY=VALUE query pairs for endpoints whose parameters Discovery does not describe.",
     }));
+    // The request-body shape, when the upstream method names one: agents
+    // see the field names to build (params map keys or body_file content).
+    if let Some(name) = &method.request_ref
+        && let Some(schema) = service.schemas.get(name)
+    {
+        let mut body_schema = serde_json::to_value(schema).expect("Schema serializes");
+        if let Some(obj) = body_schema.as_object_mut() {
+            obj.insert(
+                "description".into(),
+                json!(format!("Request body of type {name}: pass it via `params` (merged into the built body) or whole via `body_file`.")),
+            );
+        }
+        properties.insert("request_body".into(), body_schema);
+    }
     properties.insert(
         "dry_run".into(),
         json!({
@@ -836,6 +905,59 @@ mod tests {
         assert!(
             !raw.contains("\"outputSchema\":{\"description"),
             "pruned schemas carry no descriptions"
+        );
+    }
+
+    /// Methods whose upstream document names a request body get its shape
+    /// as a `request_body` schema (field names an agent can build) and a
+    /// description clause naming the body type; tools without one keep the
+    /// generic body_file wording.
+    #[tokio::test]
+    async fn request_body_schemas_carry_the_body_shape_and_type_name() {
+        let server = test_server().await;
+        let line = request(2, "tools/list", "{}");
+        let response = server.handle_line(&line).await.unwrap();
+        let tools = response["result"]["tools"].as_array().unwrap();
+        let find = |name: &str| {
+            tools
+                .iter()
+                .find(|t| t["name"] == name)
+                .unwrap_or_else(|| panic!("{name} missing"))
+        };
+
+        let query = find("searchconsole.searchanalytics.query");
+        let body = &query["inputSchema"]["properties"]["request_body"];
+        assert!(body.is_object(), "query must expose its request body shape");
+        assert_eq!(body["type"], "object");
+        assert!(
+            body["properties"]["startDate"].is_object(),
+            "body field names survive distillation"
+        );
+        let description = query["description"].as_str().unwrap();
+        assert!(
+            description.contains("SearchAnalyticsQueryRequest"),
+            "description names the body type: {description}"
+        );
+        assert!(
+            description.contains("startDate"),
+            "description lists top-level body fields: {description}"
+        );
+
+        // A method without a request ref: no request_body property, generic
+        // body_file wording.
+        let get = find("gmail.users.threads.list");
+        assert!(
+            get["inputSchema"]["properties"]
+                .get("request_body")
+                .is_none(),
+            "no fabricated request body"
+        );
+        let body_file = get["inputSchema"]["properties"]["body_file"]["description"]
+            .as_str()
+            .unwrap();
+        assert!(
+            !body_file.contains("JSON"),
+            "generic wording when no body type exists: {body_file}"
         );
     }
 

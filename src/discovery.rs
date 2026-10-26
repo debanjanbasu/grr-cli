@@ -207,6 +207,10 @@ pub struct Method {
     /// upstream method documents one (`response.$ref`).
     #[serde(default, rename = "responseRef")]
     pub response_ref: Option<String>,
+    /// Name of the request-body schema in the index's `schemas` map, when
+    /// the upstream method documents one (`request.$ref`).
+    #[serde(default, rename = "requestRef")]
+    pub request_ref: Option<String>,
 }
 
 impl Method {
@@ -610,8 +614,8 @@ fn distill_schemas(doc: &serde_json::Value) -> BTreeMap<String, Schema> {
 /// rules that matter:
 ///   - walk `resources` ENTRIES (not values): the resource name prefixes the
 ///     method id;
-///   - descriptions are whitespace-collapsed and truncated (the raw Gmail doc
-///     alone is ~1.5 MB);
+///   - descriptions are whitespace-collapsed and truncated to 600 chars (the
+///     raw Gmail doc alone is ~1.5 MB; 300 cut complex methods mid-sentence);
 ///   - required parameters are the ones `parameterOrder` names;
 ///   - parameters sort by name, methods sort by id — determinism keeps the
 ///     nightly refresh diff quiet.
@@ -654,7 +658,7 @@ pub(crate) fn distill(doc: &serde_json::Value) -> Result<Vec<Method>, String> {
                     .split_whitespace()
                     .collect::<Vec<_>>()
                     .join(" ");
-                let description = description.chars().take(300).collect::<String>();
+                let description = description.chars().take(600).collect::<String>();
                 let scopes = method
                     .get("scopes")
                     .and_then(|v| v.as_array())
@@ -747,6 +751,11 @@ pub(crate) fn distill(doc: &serde_json::Value) -> Result<Vec<Method>, String> {
                     parameters,
                     response_ref: method
                         .get("response")
+                        .and_then(|r| r.get("$ref"))
+                        .and_then(|v| v.as_str())
+                        .map(str::to_owned),
+                    request_ref: method
+                        .get("request")
                         .and_then(|r| r.get("$ref"))
                         .and_then(|v| v.as_str())
                         .map(str::to_owned),

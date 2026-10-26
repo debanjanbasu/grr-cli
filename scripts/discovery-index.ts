@@ -40,6 +40,9 @@ export interface DistilledMethod {
   /** `$ref` into `schemas` for the response body; null when the method
    * documents no response (or returns an empty body). */
   responseRef: string | null;
+  /** `$ref` into `schemas` for the request body; null for methods whose
+   * parameters fully describe the request. */
+  requestRef: string | null;
 }
 
 /** A pruned JSON-schema for a response type: field names, types, array and
