@@ -17,6 +17,16 @@ name: Dependabot auto-merge
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
+  # Manual re-drive: the auto-merge can race a running check or lose the
+  # event entirely (rebased branch, dropped webhook); a dispatch re-runs
+  # the decision for the PR named in `pr_number` without waiting for
+  # Dependabot to touch the branch again.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to re-evaluate"
+        required: true
+        type: string
 
 permissions:
   pull-requests: write
@@ -33,18 +43,32 @@ concurrency:
 
 jobs:
   dependabot:
-    if: github.actor == 'dependabot[bot]'
+    if: github.actor == 'dependabot[bot]' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Resolve the PR number
+        id: target
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_NUMBER: ${{ inputs.pr_number }}
+          EVENT_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "pr_number=$DISPATCH_NUMBER" >> "$GITHUB_OUTPUT"
+          else
+            echo "pr_number=$EVENT_NUMBER" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Decide patch vs. gated
         id: mode
         shell: bash
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # A run queued behind a successful merge must not try to merge a PR
           # that is already merged: `gh pr merge` errors on one, which turned a
@@ -55,6 +79,11 @@ jobs:
             echo "::notice::PR #$PR_NUMBER is $state; nothing left to decide."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+          # A dispatch has no pull_request context: take the head ref from
+          # the PR so the grouped-patch detection still works.
+          if [ -z "$HEAD_REF" ]; then
+            HEAD_REF="$(gh pr view "$PR_NUMBER" --json headRefName --jq .headRefName)"
           fi
           # Only bypass CI for a known patch update. Keep this tiny self-check
           # so a regex edit cannot accidentally classify a minor/major as patch.
@@ -87,7 +116,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
         run: |
           # --admin is the point: it merges past pending required checks, which
           # is the whole intent for patches. If the token is not allowed to
@@ -118,7 +147,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
         run: |
           if output="$(gh pr merge "$PR_NUMBER" --squash --auto --delete-branch 2>&1)"; then
             printf '%s\n' "$output"
@@ -137,7 +166,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
           MODE: ${{ steps.mode.outputs.mode }}
         run: |
           if [ "$MODE" = "patch" ]; then
