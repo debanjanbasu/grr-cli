@@ -1,11 +1,42 @@
 {
-  "generatedAt": "2026-10-26T02:03:50.112Z",
+  "generatedAt": "2026-10-26T02:44:19.505Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": [
+        {
+          "key": "fixed",
+          "heading": "Fixed",
+          "items": [
+            {
+              "description": "negotiate the client's requested revision in initialize",
+              "scope": "mcp",
+              "type": "fix",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "bump undici from 8.11.2 to 8.12.3 in /site",
+              "scope": "deps-dev",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.1.4",
+      "date": "2026-10-26",
+      "unreleased": false,
       "sections": [
         {
           "key": "fixed",
@@ -104,6 +135,18 @@
             {
               "description": "refresh download counts and archive sizes",
               "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v2.1.4",
+              "scope": "release",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
               "type": "chore",
               "note": null
             }
