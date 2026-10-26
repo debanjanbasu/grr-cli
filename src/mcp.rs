@@ -298,11 +298,27 @@ fn tools_list() -> Vec<Value> {
 }
 
 fn tool_descriptor(service: &Service, method: &Method) -> Value {
-    json!({
+    // outputSchema: the pruned response shape for this method's $ref, when
+    // the upstream document named one (~87% of methods). GET/list tools
+    // declare their payload shape; a write tool's outputSchema describes
+    // the post-write resource state.
+    let output_schema = method
+        .response_ref
+        .as_deref()
+        .and_then(|name| service.schemas.get(name))
+        .map(|schema| serde_json::to_value(schema).expect("Schema serializes"));
+    let mut descriptor = json!({
         "name": format!("{}.{}", service.name, method.id),
         "description": tool_description(service, method),
         "inputSchema": input_schema(method),
-    })
+    });
+    if let Some(schema) = output_schema {
+        descriptor
+            .as_object_mut()
+            .expect("descriptor is an object")
+            .insert("outputSchema".into(), schema);
+    }
+    descriptor
 }
 
 /// Curated descriptions for the few Discovery methods that ship none —
@@ -482,8 +498,52 @@ fn param_schema(param: &Parameter) -> Value {
         }
         _ => {}
     }
+    if let Some(format) = &param.format {
+        // Google's format names (int32, uint32, google-fieldmask,
+        // google-datetime) pass through verbatim — close enough for a
+        // consumer and honest about their origin.
+        out.insert("format".into(), json!(format));
+    }
+    if let Some(minimum) = param.minimum {
+        out.insert("minimum".into(), json!(minimum));
+    }
+    if let Some(maximum) = param.maximum {
+        out.insert("maximum".into(), json!(maximum));
+    }
+    if let Some(pattern) = &param.pattern {
+        out.insert("pattern".into(), json!(pattern));
+    }
+    if let Some(default) = &param.default_value {
+        out.insert("default".into(), json!(default));
+    }
+    let mut description = String::new();
+    if let Some(location) = &param.location {
+        let hint = match location.as_str() {
+            "path" => "URL path segment",
+            "query" => "query parameter",
+            other => other,
+        };
+        description.push_str(&format!("[{hint}] "));
+    }
     if !param.description.is_empty() {
-        out.insert("description".into(), json!(param.description));
+        description.push_str(&param.description);
+    }
+    if let (Some(values), Some(texts)) = (&param.enum_values, &param.enum_descriptions)
+        && values.len() == texts.len()
+        && !texts.is_empty()
+    {
+        let pairs: Vec<String> = values
+            .iter()
+            .zip(texts)
+            .map(|(v, t)| format!("`{v}` = {t}"))
+            .collect();
+        if !description.is_empty() {
+            description.push(' ');
+        }
+        description.push_str(&format!("Values: {}.", pairs.join("; ")));
+    }
+    if !description.is_empty() {
+        out.insert("description".into(), json!(description));
     }
     if let Some(values) = &param.enum_values {
         out.insert("enum".into(), json!(values));
@@ -727,6 +787,90 @@ mod tests {
                 "{name}"
             );
         }
+    }
+
+    /// Tools whose upstream method documents a response schema declare an
+    /// `outputSchema`; its shape mirrors the pruned Discovery schema (field
+    /// names, types, array items). Tools without one omit the key rather
+    /// than fake a shape.
+    #[tokio::test]
+    async fn output_schema_mirrors_the_response_ref() {
+        let server = test_server().await;
+        let line = request(2, "tools/list", "{}");
+        let response = server.handle_line(&line).await.unwrap();
+        let tools = response["result"]["tools"].as_array().unwrap();
+
+        let find = |name: &str| {
+            tools
+                .iter()
+                .find(|t| t["name"] == name)
+                .unwrap_or_else(|| panic!("{name} missing"))
+        };
+
+        // gmail.users.threads.list responds with ListThreadsResponse.
+        let list = find("gmail.users.threads.list");
+        let output = &list["outputSchema"];
+        assert!(
+            output.is_object(),
+            "threads.list must carry an outputSchema"
+        );
+        assert_eq!(output["type"], "object");
+        assert!(
+            output["properties"]["nextPageToken"]["type"] == "string",
+            "list envelope fields survive distillation"
+        );
+        assert!(
+            output["properties"]["threads"]["items"]["properties"]["id"]["type"] == "string",
+            "nested array items are inlined one $ref deep"
+        );
+
+        // Methods whose upstream document names no response omit the key.
+        let empty = find("gmail.users.stop");
+        assert!(
+            empty.get("outputSchema").is_none(),
+            "no fabricated output schema"
+        );
+
+        // Schemas are pruned: no description keys anywhere in the output.
+        let raw = serde_json::to_string(&response).unwrap();
+        assert!(
+            !raw.contains("\"outputSchema\":{\"description"),
+            "pruned schemas carry no descriptions"
+        );
+    }
+
+    /// Parameter schemas surface what Discovery documents beyond the type:
+    /// location (path segment vs query), enum-value prose, format, default,
+    /// and bounds.
+    #[tokio::test]
+    async fn parameter_schemas_carry_location_enums_format_and_bounds() {
+        let server = test_server().await;
+        let line = request(2, "tools/list", "{}");
+        let response = server.handle_line(&line).await.unwrap();
+        let tools = response["result"]["tools"].as_array().unwrap();
+        let find = |name: &str| {
+            tools
+                .iter()
+                .find(|t| t["name"] == name)
+                .unwrap_or_else(|| panic!("{name} missing"))
+        };
+
+        let user_id =
+            find("gmail.users.threads.list")["inputSchema"]["properties"]["userId"]["description"]
+                .as_str()
+                .unwrap();
+        assert!(
+            user_id.starts_with("[URL path segment]"),
+            "path parameters announce their location: {user_id}"
+        );
+
+        // calendar.events.list maxResults: format int32, default 250, min 1.
+        let max_results = find("calendar.events.list")["inputSchema"]["properties"]["maxResults"]
+            .as_object()
+            .expect("maxResults present");
+        assert_eq!(max_results["format"], "int32");
+        assert_eq!(max_results["minimum"], 1.0);
+        assert_eq!(max_results["default"], "250");
     }
 
     /// Descriptions carry what an agent needs to pick a tool: what the call

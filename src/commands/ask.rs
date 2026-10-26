@@ -1169,6 +1169,12 @@ mod tests {
             location: Some("query".into()),
             description: "Sort order".into(),
             enum_values: Some(vec!["startTime".into(), "updated".into()]),
+            enum_descriptions: None,
+            format: None,
+            default_value: None,
+            minimum: None,
+            maximum: None,
+            pattern: None,
         };
         let question = param_question(&param, "List events.", &["startTime".into()]);
         let options = question["criteria"].as_object().unwrap();
@@ -1199,6 +1205,12 @@ mod tests {
             location: Some("query".into()),
             description: "Page size".into(),
             enum_values: None,
+            enum_descriptions: None,
+            format: None,
+            default_value: None,
+            minimum: None,
+            maximum: None,
+            pattern: None,
         };
         assert_eq!(coerce_value("10", &param), json!(10));
         assert_eq!(coerce_value("not-a-number", &param), json!("not-a-number"));

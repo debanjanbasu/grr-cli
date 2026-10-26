@@ -130,6 +130,61 @@ pub struct Parameter {
     pub description: String,
     #[serde(default, rename = "enum")]
     pub enum_values: Option<Vec<String>>,
+    /// Per-enum-value prose, aligned with `enum_values` by index.
+    #[serde(default, rename = "enumDescriptions")]
+    pub enum_descriptions: Option<Vec<String>>,
+    /// Discovery format hint (`int32`, `uint32`, `google-fieldmask`,
+    /// `google-datetime`), surfaced as a JSON-schema `format`.
+    #[serde(default)]
+    pub format: Option<String>,
+    /// Documented default, as Discovery spells it (a string).
+    #[serde(default, rename = "default")]
+    pub default_value: Option<String>,
+    #[serde(default, deserialize_with = "lenient_bound")]
+    pub minimum: Option<f64>,
+    #[serde(default, deserialize_with = "lenient_bound")]
+    pub maximum: Option<f64>,
+    /// Regexp the value must match.
+    #[serde(default)]
+    pub pattern: Option<String>,
+}
+
+/// A pruned response schema: field names, types, array/enum shapes, and
+/// required markers — deliberately without descriptions (that is the bulk
+/// of the raw size, and the shape is what an outputSchema consumer needs).
+#[derive(Debug, Clone, serde::Serialize, Deserialize)]
+pub struct Schema {
+    #[serde(rename = "type")]
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub properties: Option<BTreeMap<String, Schema>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub items: Option<Box<Schema>>,
+    #[serde(default, rename = "enum", skip_serializing_if = "Option::is_none")]
+    pub enum_values: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required: Option<Vec<String>>,
+}
+
+/// Discovery serves `minimum`/`maximum` as JSON numbers in most services
+/// but as strings ("1") in calendar's document; accept either rather than
+/// let one service's formatting take the whole index down.
+fn lenient_bound<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Bound {
+        Number(f64),
+        Text(String),
+    }
+    Ok(match Option::<Bound>::deserialize(deserializer)? {
+        Some(Bound::Number(n)) => Some(n),
+        Some(Bound::Text(text)) => text.trim().parse::<f64>().ok(),
+        None => None,
+    })
 }
 
 #[derive(Debug, Clone, serde::Serialize, Deserialize)]
@@ -148,6 +203,10 @@ pub struct Method {
     pub required: Vec<String>,
     #[serde(default)]
     pub parameters: Vec<Parameter>,
+    /// Name of the response schema in the index's `schemas` map, when the
+    /// upstream method documents one (`response.$ref`).
+    #[serde(default, rename = "responseRef")]
+    pub response_ref: Option<String>,
 }
 
 impl Method {
@@ -232,6 +291,10 @@ pub struct Service {
     #[serde(default, rename = "batchPath")]
     pub batch_path: Option<String>,
     pub methods: Vec<Method>,
+    /// Response schemas by name (Discovery's `schemas`, pruned); methods'
+    /// `response_ref` keys into this map.
+    #[serde(default)]
+    pub schemas: BTreeMap<String, Schema>,
 }
 
 impl Service {
@@ -451,6 +514,93 @@ fn shared_prefix(left: &str, right: &str) -> usize {
         .count()
 }
 
+/// Prune a raw Discovery schema tree to field names, types, array/enum
+/// shapes, and required markers — descriptions dropped (they are the bulk
+/// of the raw size; the shape is what an outputSchema consumer needs).
+///
+/// `$ref` links resolve up to `depth` hops so property names stay visible
+/// without inlining whole subtrees.
+fn prune_schema(
+    schema: &serde_json::Value,
+    schemas: &serde_json::Map<String, serde_json::Value>,
+    depth: u8,
+) -> Schema {
+    use serde_json::Value;
+    let kind_of = |s: &Value| {
+        s.get("type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("object")
+            .to_owned()
+    };
+    if let Some(reference) = schema.get("$ref").and_then(|v| v.as_str()) {
+        if depth >= 2 {
+            return Schema {
+                kind: "object".to_owned(),
+                properties: None,
+                items: None,
+                enum_values: None,
+                required: None,
+            };
+        }
+        return match schemas.get(reference) {
+            Some(target) => prune_schema(target, schemas, depth + 1),
+            None => Schema {
+                kind: "object".to_owned(),
+                properties: None,
+                items: None,
+                enum_values: None,
+                required: None,
+            },
+        };
+    }
+    let properties = schema
+        .get("properties")
+        .and_then(|v| v.as_object())
+        .map(|props| {
+            props
+                .iter()
+                .map(|(k, v)| (k.clone(), prune_schema(v, schemas, depth)))
+                .collect()
+        });
+    let items = schema
+        .get("items")
+        .filter(|v| v.is_object())
+        .map(|v| Box::new(prune_schema(v, schemas, depth)));
+    let enum_values = schema.get("enum").and_then(|v| v.as_array()).map(|a| {
+        a.iter()
+            .filter_map(|s| s.as_str().map(str::to_owned))
+            .collect()
+    });
+    let required = schema.get("required").and_then(|v| v.as_array()).map(|a| {
+        a.iter()
+            .filter_map(|s| s.as_str().map(str::to_owned))
+            .collect()
+    });
+    Schema {
+        kind: kind_of(schema),
+        properties,
+        items,
+        enum_values,
+        required,
+    }
+}
+
+/// Prune the document's `schemas` map, keyed by schema name.
+fn distill_schemas(doc: &serde_json::Value) -> BTreeMap<String, Schema> {
+    let empty = serde_json::Map::new();
+    let schemas = doc
+        .get("schemas")
+        .and_then(|v| v.as_object())
+        .unwrap_or(&empty);
+    schemas
+        .iter()
+        .map(|(name, schema)| (name.clone(), prune_schema(schema, schemas, 0)))
+        .collect()
+}
+
+/// Distil a raw Google Discovery document into the compact index this module
+/// embeds — the per-method half; the `schemas` map is distilled separately
+/// by [`distill_schemas`].
 /// Distil a raw Google Discovery document into the compact index this module
 /// embeds.
 ///
@@ -561,6 +711,25 @@ pub(crate) fn distill(doc: &serde_json::Value) -> Result<Vec<Method>, String> {
                                         .filter_map(|s| s.as_str().map(str::to_owned))
                                         .collect()
                                 }),
+                                enum_descriptions: p
+                                    .get("enumDescriptions")
+                                    .and_then(|v| v.as_array())
+                                    .map(|a| {
+                                        a.iter()
+                                            .filter_map(|s| s.as_str().map(str::to_owned))
+                                            .collect()
+                                    }),
+                                format: p.get("format").and_then(|v| v.as_str()).map(str::to_owned),
+                                default_value: p
+                                    .get("default")
+                                    .and_then(|v| v.as_str())
+                                    .map(str::to_owned),
+                                minimum: p.get("minimum").and_then(|v| v.as_f64()),
+                                maximum: p.get("maximum").and_then(|v| v.as_f64()),
+                                pattern: p
+                                    .get("pattern")
+                                    .and_then(|v| v.as_str())
+                                    .map(str::to_owned),
                             })
                             .collect()
                     })
@@ -576,6 +745,11 @@ pub(crate) fn distill(doc: &serde_json::Value) -> Result<Vec<Method>, String> {
                     scopes,
                     required,
                     parameters,
+                    response_ref: method
+                        .get("response")
+                        .and_then(|r| r.get("$ref"))
+                        .and_then(|v| v.as_str())
+                        .map(str::to_owned),
                 });
             }
         }
@@ -738,6 +912,7 @@ async fn fetch_one(
             .get("batchPath")
             .and_then(|v| v.as_str())
             .map(str::to_owned),
+        schemas: distill_schemas(&doc),
         methods,
     };
     let json = serde_json::to_string(&index).map_err(|e| e.to_string())?;

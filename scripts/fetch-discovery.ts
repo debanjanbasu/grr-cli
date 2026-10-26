@@ -20,7 +20,7 @@
 
 import { mkdir, readdir, writeFile, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import type { DistilledIndex, DistilledMethod, Manifest, ManifestServiceEntry } from './discovery-index.ts';
+import type { DistilledIndex, DistilledMethod, DistilledSchema, Manifest, ManifestServiceEntry } from './discovery-index.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUT_DIR = resolve(ROOT, 'src', 'discovery');
@@ -96,6 +96,23 @@ interface RawParameter {
   location?: string;
   description?: string;
   enum?: Array<string | number>;
+  enumDescriptions?: string[];
+  format?: string;
+  default?: string;
+  minimum?: number | string;
+  maximum?: number | string;
+  pattern?: string;
+}
+
+interface RawSchema {
+  type?: string;
+  properties?: Record<string, RawSchema>;
+  items?: RawSchema;
+  enum?: Array<string | number>;
+  required?: string[];
+  description?: string;
+  $ref?: string;
+  additionalProperties?: RawSchema | boolean;
 }
 
 interface RawMethod {
@@ -108,6 +125,7 @@ interface RawMethod {
   scopes?: string[];
   parameterOrder?: string[];
   parameters?: Record<string, RawParameter>;
+  response?: { $ref?: string };
 }
 
 interface RawResource {
@@ -117,12 +135,14 @@ interface RawResource {
 
 interface RawDiscoveryDocument {
   resources?: Record<string, RawResource>;
+  methods?: Record<string, RawMethod>;
   revision?: string;
   title?: string;
   rootUrl?: string;
   servicePath?: string;
   basePath?: string;
   batchPath?: string;
+  schemas?: Record<string, RawSchema>;
 }
 
 /** Uniform `message` extraction — catch params are `unknown` under strict TS. */
@@ -158,8 +178,17 @@ function collect(node: RawResource | undefined, path: string, out: DistilledMeth
             location: p.location ?? null,
             description: (p.description ?? '').replace(/\s+/g, ' ').trim().slice(0, 160),
             enum: p.enum ?? null,
+            enumDescriptions: p.enumDescriptions ?? null,
+            format: p.format ?? null,
+            default: p.default ?? null,
+            // Discovery serves bounds as JSON numbers in most services but
+            // as strings ("1") in calendar; normalize to number | null.
+            minimum: normalizeBound(p.minimum),
+            maximum: normalizeBound(p.maximum),
+            pattern: p.pattern ?? null,
           }))
           .sort((a, b) => a.name.localeCompare(b.name)),
+        responseRef: m.response?.$ref ?? null,
       });
     }
   }
@@ -168,6 +197,44 @@ function collect(node: RawResource | undefined, path: string, out: DistilledMeth
       collect(r, path ? `${path}.${rname}` : rname, out);
     }
   }
+}
+
+/** Prune a raw Discovery schema to the shape an outputSchema needs: field
+ * names, types, array/enum shapes, and required markers. Descriptions are
+ * deliberately dropped — they are the bulk of the raw size (~1.2 MB across
+ * 14 services) and the shape is what agents resolve against. `$ref` links
+ * resolve one level (a property that is just a `$ref` becomes an object
+ * with the referenced schema's shape inline). */
+/** Discovery bounds arrive as numbers in most services but as strings
+ * ("1") in calendar's document; coerce to number | null. */
+function normalizeBound(v: number | string | undefined): number | null {
+  if (v === undefined || v === null) return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pruneSchema(s: RawSchema | undefined, schemas: Record<string, RawSchema>, depth: number): DistilledSchema | null {
+  if (!s || typeof s !== 'object') return null;
+  if (s.$ref) {
+    if (depth > 2) return { type: 'object' }; // cycle guard; names stay visible in properties
+    return pruneSchema(schemas[s.$ref], schemas, depth + 1);
+  }
+  const out: DistilledSchema = { type: s.type ?? 'object' };
+  if (s.properties && typeof s.properties === 'object') {
+    const props: Record<string, DistilledSchema> = {};
+    for (const [k, v] of Object.entries(s.properties)) {
+      const pruned = pruneSchema(v, schemas, depth);
+      if (pruned) props[k] = pruned;
+    }
+    if (Object.keys(props).length > 0) out.properties = props;
+  }
+  if (s.items) {
+    const items = pruneSchema(s.items, schemas, depth);
+    if (items) out.items = items;
+  }
+  if (s.enum) out.enum = s.enum;
+  if (s.required) out.required = s.required;
+  return out;
 }
 
 async function fetchJson(url: string): Promise<RawDiscoveryDocument> {
@@ -197,7 +264,17 @@ async function main(): Promise<void> {
     for (const [resourceName, resource] of Object.entries(doc.resources ?? {})) {
       collect(resource, resourceName, methods);
     }
+    // Top-level methods (no resource path): id is just the method name.
+    for (const [name, m] of Object.entries(doc.methods ?? {})) {
+      collect({ methods: { [name]: m } }, '', methods);
+    }
     methods.sort((a, b) => a.id.localeCompare(b.id));
+
+    const schemas: Record<string, DistilledSchema> = {};
+    for (const [name, schema] of Object.entries(doc.schemas ?? {})) {
+      const pruned = pruneSchema(schema, doc.schemas ?? {}, 0);
+      if (pruned) schemas[name] = pruned;
+    }
 
     const scopes = [...new Set(methods.flatMap((m) => m.scopes))].sort();
     const index: DistilledIndex = {
@@ -210,6 +287,7 @@ async function main(): Promise<void> {
       basePath: doc.basePath ?? '',
       batchPath: doc.batchPath ?? null,
       methods,
+      schemas,
     };
 
     const file = resolve(OUT_DIR, `${name}.json`);

@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261021',
+    revision: '20261024',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];

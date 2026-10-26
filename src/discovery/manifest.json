@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T08:52:23.513Z",
+  "generatedAt": "2026-10-26T05:30:58.723Z",
   "services": {
     "gmail": {
       "methods": 79,
@@ -69,7 +69,7 @@
     "searchconsole": {
       "methods": 11,
       "scopes": 2,
-      "revision": "20261021"
+      "revision": "20261024"
     }
   }
 }
