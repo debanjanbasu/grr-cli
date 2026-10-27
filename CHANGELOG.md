@@ -22,12 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **demo:** redact bare bearer scheme word so live-agent casts pass privacy gate
+
 ### Internal
 
-- 1 internal commit (chore 1)
+- 6 internal commits (chore 6)
 
 ### Other
 
+- **compare:** refresh daily benchmark snapshot
+- **compare:** refresh daily benchmark snapshot
 - **compare:** refresh daily benchmark snapshot
 
 ## [2.5.0] - 2026-10-26
