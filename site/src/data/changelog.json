@@ -1,11 +1,42 @@
 {
-  "generatedAt": "2026-10-27T12:06:40.817Z",
+  "generatedAt": "2026-10-27T13:52:28.691Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
       "version": "Unreleased",
       "date": null,
       "unreleased": true,
+      "sections": [
+        {
+          "key": "internal",
+          "heading": "Internal",
+          "items": [
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            }
+          ]
+        },
+        {
+          "key": "other",
+          "heading": "Other",
+          "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
+              "note": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2.5.1",
+      "date": "2026-10-27",
+      "unreleased": false,
       "sections": [
         {
           "key": "fixed",
@@ -50,6 +81,24 @@
             {
               "description": "refresh Google Discovery index",
               "scope": "discovery",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "grr v2.5.1",
+              "scope": "release",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "re-record the terminal demo from source",
+              "scope": "demo",
               "type": "chore",
               "note": null
             },
