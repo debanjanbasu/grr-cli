@@ -209,14 +209,14 @@ grr gmail users messages list --user-id me --q "in:inbox" --max-results 1 | jq -
 
 ### Command reference
 
-The command tree is **generated** from the committed Discovery index by `scripts/generate-commands.ts` (CI-gated with `--check`), so this table is deliberately coarse: **`grr --help` and `grr schema` are the source of truth**, and every one of the 401 methods is a real, typed command.
+The command tree is **generated** from the committed Discovery index by `scripts/generate-commands.ts` (CI-gated with `--check`), so this table is deliberately coarse: **`grr --help` and `grr schema` are the source of truth**, and every one of the 402 methods is a real, typed command.
 
 | Group | What it covers | Methods |
 | --- | --- | --- |
 | `grr auth` | `login [--device] [--account name] [--service name] [--all-scopes]`, `status [--account name]`, `setup [--client-id] [--client-secret] [--print-only] [--force] [--enable-apis]` — all accept `-f json\|jsonl\|table\|pretty`; `status` reports the credential's own scope set under `scopes_granted` (what Google actually approved — `login`'s `scopes_requested` is what was asked for) | — |
 | `grr ask` | `"<request>" [--run] [--dry-run] [--service] [--method]` — natural language to a typed method + params via a System One model; prints the plan by default | - |
 | `grr mcp` | an MCP (JSON-RPC over stdio) server exposing every method as a typed tool; speaks the stateless `2026-07-28` revision — `server/discover` for discovery, plus a minimal legacy `initialize` handshake so standard MCP clients connect; `--readonly` for read-only | - |
-| `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 401 |
+| `grr api` | `list [--service X] [--filter substr] [--grouped]`, `describe <id>`, `call <id> …`, `refresh [--service X]` — every method by id, the flat escape hatch | 402 |
 | `grr schema` | the whole command tree as JSON | — |
 | `grr completions` | `<bash\|elvish\|powershell\|zsh>` — a shell completion script for the whole tree, offline; see [Install](#install) | — |
 | `grr transport` | negotiated HTTP version + runtime features | — |
@@ -225,7 +225,7 @@ The command tree is **generated** from the committed Discovery index by `scripts
 | `grr calendar` | calendars, events, instances, ACL, free/busy, colors, settings | 38 |
 | `grr drive` | files, permissions, comments, replies, revisions, changes, drives, apps, approvals | 64 |
 | `grr people` | contacts, connections, contact groups, other contacts, directory people | 24 |
-| `grr chat` | spaces, members, messages, reactions, media, custom emoji, read state | 54 |
+| `grr chat` | spaces, members, messages, reactions, media, custom emoji, read state | 55 |
 | `grr forms` | form bodies, responses, watches, publish settings | 10 |
 | `grr tasks` | tasklists and the tasks inside them | 14 |
 | `grr docs` | documents `get` / `create` / `batchUpdate` | 3 |
@@ -245,7 +245,7 @@ grr --deny-service chat chat spaces list                            # refused: t
 
 ## The generated tree
 
-Every service command above is generated from the committed index by `scripts/generate-commands.ts` — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~430 KiB across the 14 services) and emits the whole tree into `src/commands/generated.rs` — 401 leaves, 994 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates the index along with the command tree, the per-service agent skills, and the site's coverage table, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
+Every service command above is generated from the committed index by `scripts/generate-commands.ts` — there are no hand-written per-service commands and no hand-written per-service clients. `scripts/generate-commands.ts` reads the committed Discovery index (`src/discovery/*.json`, ~2.6 MiB across the 14 services) and emits the whole tree into `src/commands/generated.rs` — 402 leaves, 996 typed flags, using clap's builder API. A daily [workflow](.github/workflows/discovery.yml) refetches Google's Discovery Service, regenerates the index along with the command tree, the per-service agent skills, and the site's coverage table, and opens a PR, so new API surface reaches you without waiting for a grr release. The tree and the index are generated artifacts: never hand-edit them.
 
 The rules, so you can predict any command without memorizing it:
 
@@ -281,7 +281,7 @@ Consent starts small: `grr auth login` requests Gmail, Drive, Calendar, Tasks, D
 grr ships a packaged agent skill: [skills/grr/SKILL.md](skills/grr/SKILL.md) — the discovery-first discipline (`schema` → `api list` → `api describe` → `--dry-run`), the method-id naming rule, and the output contract in one file, written for any AI agent. The core skill plus the 14 generated per-service skills are compiled into the binary, so `grr skills install` writes them into `~/.agents/skills/` with no network (Codex, opencode, Cursor, Gemini CLI, Copilot CLI and omp all read that location; `--claude` mirrors into `~/.claude/skills/` for Claude Code, which reads nothing else):
 
 ```sh
-grr skills install            # all 16 into ~/.agents/skills/ (idempotent; identical files are a no-op)
+grr skills install            # all 16 files into ~/.agents/skills/ (idempotent; identical files are a no-op)
 grr skills install --claude   # also mirror into ~/.claude/skills/
 grr skills install --force    # replace files that differ from the packaged copy
 grr skills list               # the packaged set, and what each target directory holds
@@ -322,7 +322,7 @@ Measured startup, binary size, and request-latency numbers against the other Goo
 │   │                         # whole service tree, ~470 KiB) and gen_dispatch.rs
 │   │                         # (resolves leaf ids, funnels into the shared path)
 │   ├── discovery.rs          # loader over the embedded index
-│   ├── discovery/             # generated *.json index (~430 KiB, committed,
+│   ├── discovery/             # generated *.json index (~2.6 MiB, committed,
 │   │                         # refreshed daily by workflow PR)
 │   ├── schema.rs
 │   ├── output.rs

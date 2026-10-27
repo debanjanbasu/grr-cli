@@ -2,9 +2,9 @@
 //!
 //! Google's Discovery Service publishes a machine-readable description of
 //! every Workspace method: HTTP verb, path template, parameters and OAuth
-//! scopes. `scripts/fetch-discovery.mjs` distils those documents into a
+//! scopes. `scripts/fetch-discovery.ts` distils those documents into a
 //! compact index (method id, verb, path, scopes, parameters) which this
-//! module embeds — 401 methods across 14 services in ~430 KiB, versus
+//! module embeds — 402 methods across 14 services in ~2.6 MiB, versus
 //! several megabytes for the raw documents.
 //!
 //! This is the escape hatch that makes the curated commands unnecessary for

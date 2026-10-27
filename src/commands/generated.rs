@@ -7,7 +7,7 @@
 //! regenerate with `node scripts/generate-commands.mjs` (or run it
 //! with `--check`, which exits 1 when this file is stale).
 //!
-//! Generated at: 2026-10-27T09:48:11.745Z — the index manifest's own timestamp,
+//! Generated at: 2026-10-27T10:01:45.181Z — the index manifest's own timestamp,
 //! so regeneration is byte-identical until the index actually changes.
 //!
 //! Shape:
@@ -33,7 +33,7 @@
 
 /// When the generator last ran, taken from the Discovery index
 /// manifest's own timestamp so it only moves when the index moves.
-pub const GENERATED_AT: &str = "2026-10-27T09:48:11.745Z";
+pub const GENERATED_AT: &str = "2026-10-27T10:01:45.181Z";
 
 #[rustfmt::skip] // mechanical output; formatting it would churn every diff
 pub mod tree {
@@ -75,6 +75,26 @@ pub mod tree {
             service_slides(),
             service_tasks(),
         ]
+    }
+
+    // analyticsadmin.accountSummaries.list
+    fn leaf_analyticsadmin_account_summaries_list() -> Command {
+        Command::new("analyticsadmin.accountSummaries.list")
+            .visible_alias("list")
+            .about("Returns summaries of all accounts accessible by the caller.")
+            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
+                .help("Optional. The maximum number of AccountSummary resources to return. The service may return fewer than this value, even if there are additional pages. If unspeci"))
+            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
+                .help("Optional. A page token, received from a previous `ListAccountSummaries` call. Provide this to retrieve the subsequent page. When paginating, all other parameter"))
+            .args(escape_hatch_args())
+    }
+
+    // analyticsadmin.accountSummaries
+    fn group_analyticsadmin_account_summaries() -> Command {
+        Command::new("accountSummaries")
+            .about("Methods under analyticsadmin.accountSummaries")
+            .subcommand_required(true)
+            .subcommand(leaf_analyticsadmin_account_summaries_list())
     }
 
     // analyticsadmin.accounts.delete
@@ -178,26 +198,6 @@ pub mod tree {
             .subcommand(leaf_analyticsadmin_accounts_provision_account_ticket())
             .subcommand(leaf_analyticsadmin_accounts_run_access_report())
             .subcommand(leaf_analyticsadmin_accounts_search_change_history_events())
-    }
-
-    // analyticsadmin.accountSummaries.list
-    fn leaf_analyticsadmin_account_summaries_list() -> Command {
-        Command::new("analyticsadmin.accountSummaries.list")
-            .visible_alias("list")
-            .about("Returns summaries of all accounts accessible by the caller.")
-            .arg(Arg::new("page-size").long("page-size").value_name("PAGE_SIZE").value_parser(clap::value_parser!(i64))
-                .help("Optional. The maximum number of AccountSummary resources to return. The service may return fewer than this value, even if there are additional pages. If unspeci"))
-            .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
-                .help("Optional. A page token, received from a previous `ListAccountSummaries` call. Provide this to retrieve the subsequent page. When paginating, all other parameter"))
-            .args(escape_hatch_args())
-    }
-
-    // analyticsadmin.accountSummaries
-    fn group_analyticsadmin_account_summaries() -> Command {
-        Command::new("accountSummaries")
-            .about("Methods under analyticsadmin.accountSummaries")
-            .subcommand_required(true)
-            .subcommand(leaf_analyticsadmin_account_summaries_list())
     }
 
     // analyticsadmin.properties.acknowledgeUserDataCollection
@@ -843,8 +843,8 @@ pub mod tree {
         Command::new("analyticsadmin")
             .about("Google Analytics Admin API operations (v1beta, 55 methods)")
             .subcommand_required(true)
-            .subcommand(group_analyticsadmin_accounts())
             .subcommand(group_analyticsadmin_account_summaries())
+            .subcommand(group_analyticsadmin_accounts())
             .subcommand(group_analyticsadmin_properties())
     }
 
@@ -6033,10 +6033,10 @@ pub mod tree {
             .visible_alias("list")
             .about("Lists the sitemaps-entries submitted for this site, or included in the sitemap index file (if...")
             .long_about("Lists the sitemaps-entries submitted for this site, or included in the sitemap index file (if `sitemapIndex` is specified in the request).")
-            .arg(Arg::new("sitemap-index").long("sitemap-index").value_name("SITEMAP_INDEX")
-                .help("A URL of a site's sitemap index. For example: `http://www.example.com/sitemapindex.xml`."))
             .arg(Arg::new("site-url").long("site-url").value_name("SITE_URL").required(true)
                 .help("The site's URL, including protocol. For example: `http://www.example.com/`."))
+            .arg(Arg::new("sitemap-index").long("sitemap-index").value_name("SITEMAP_INDEX")
+                .help("A URL of a site's sitemap index. For example: `http://www.example.com/sitemapindex.xml`."))
             .args(escape_hatch_args())
     }
 

@@ -500,7 +500,7 @@ function readmeMarkdown(services: Analysis[], generatedAt: string): string {
     '### With grr (offline)',
     '',
     '```sh',
-    'grr skills install            # all 16 into ~/.agents/skills/ — the cross-client user-level location',
+    'grr skills install            # all 16 files into ~/.agents/skills/ — the cross-client user-level location',
     'grr skills install --claude   # mirror into ~/.claude/skills/ too (Claude Code reads only that)',
     'grr skills install --force    # replace files that differ from the packaged copy',
     'grr skills list               # the packaged set, and what each target directory holds',

@@ -139,7 +139,7 @@ unknown method 'users.messages.lst'; did you mean: users.messages.list, ...`;
           <li><strong>It works offline.</strong> The index is compiled in, not fetched at runtime. <code>grr api list</code> and <code>grr api describe</code> need no network, no cache directory, and no API key, so an agent can discover what is available before it has a credential.</li>
           <li><strong>Scope is reported per method, consented per login.</strong> Each method carries its own scope list, and <code>grr api describe</code> reports the narrowest entry. Consent is not per method: <code>grr auth login</code> asks for a small default set and <code>--service &lt;name&gt;</code> widens it from the same index, so a call is never gated on a narrower sibling the build did not ask for &mdash; see the caveat below.</li>
         </ul>
-        <p>The distilled index is a few hundred KiB across {discoveryServiceCount} service documents plus the manifest, against several megabytes for the raw documents &mdash; a meaningful difference in a binary whose size is a selling point.</p>
+        <p>The distilled index is about 2.6 MiB across {discoveryServiceCount} service documents plus the manifest, against several megabytes for the raw documents &mdash; a meaningful difference in a binary whose size is a selling point.</p>
       </div>
     </section>
 

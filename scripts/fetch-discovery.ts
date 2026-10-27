@@ -21,6 +21,7 @@
 import { mkdir, readdir, writeFile, readFile, stat } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { DistilledIndex, DistilledMethod, DistilledSchema, Manifest, ManifestServiceEntry } from './discovery-index.ts';
+import { canonicalJson } from './script-utils.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUT_DIR = resolve(ROOT, 'src', 'discovery');
@@ -188,7 +189,7 @@ function collect(node: RawResource | undefined, path: string, out: DistilledMeth
             maximum: normalizeBound(p.maximum),
             pattern: p.pattern ?? null,
           }))
-          .sort((a, b) => a.name.localeCompare(b.name)),
+          .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
         responseRef: m.response?.$ref ?? null,
         requestRef: m.request?.$ref ?? null,
       });
@@ -270,7 +271,7 @@ async function main(): Promise<void> {
     for (const [name, m] of Object.entries(doc.methods ?? {})) {
       collect({ methods: { [name]: m } }, '', methods);
     }
-    methods.sort((a, b) => a.id.localeCompare(b.id));
+    methods.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
     const schemas: Record<string, DistilledSchema> = {};
     for (const [name, schema] of Object.entries(doc.schemas ?? {})) {
@@ -293,7 +294,7 @@ async function main(): Promise<void> {
     };
 
     const file = resolve(OUT_DIR, `${name}.json`);
-    const body = `${JSON.stringify(index)}\n`;
+    const body = `${canonicalJson(index)}\n`;
     let previous: string | null = null;
     try {
       previous = await readFile(file, 'utf8');

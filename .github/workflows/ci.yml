@@ -120,6 +120,8 @@ jobs:
         run: npm install
       - name: Typecheck scripts
         run: npm run typecheck
+      - name: Test scripts
+        run: npm test
       - name: Generated artifacts are current
         timeout-minutes: 5
         # These gates used to run inside the `test` matrix, which executed

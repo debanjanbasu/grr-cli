@@ -129,10 +129,10 @@ const surfaces = [
           A hand-written command tree can never keep up with Google Workspace. There are
           <strong>{discoveryMethodTotal} methods</strong> across <strong>{discoveryServiceCount} APIs</strong>,
           and Google adds more on its own schedule. So grr does not hand-write one. Google publishes a
-          machine-readable Discovery document per API; the repository commits a distilled index — a few
-          hundred KiB across the {discoveryServiceCount} services — and
+          machine-readable Discovery document per API; the repository commits a distilled index —
+          2.6 MiB across the {discoveryServiceCount} services — and
           <code>scripts/generate-commands.ts</code> compiles the entire command tree from it:
-          {discoveryMethodTotal} leaves and 994 typed flags, built with clap's builder API rather than
+          {discoveryMethodTotal} leaves and 996 typed flags, built with clap's builder API rather than
           derive, because the tree is composed at runtime and derive cannot express that.
         </p>
         <p>The naming rule is the whole interface: a method id, dots turned into spaces, is the command.</p>

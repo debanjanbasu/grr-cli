@@ -5,7 +5,7 @@ description: Use grr, a fast Rust CLI for Google Workspace (Gmail, Calendar, Dri
 
 # grr — Google Workspace from the terminal
 
-One binary, one OAuth login, **401 methods across 14 Google APIs**, JSON on stdout. The entire command tree is generated from Google's Discovery Service, so the move is always the same: discover what exists, then call it.
+One binary, one OAuth login, **402 methods across 14 Google APIs**, JSON on stdout. The entire command tree is generated from Google's Discovery Service, so the move is always the same: discover what exists, then call it.
 
 ## Progressive loading
 
@@ -59,7 +59,7 @@ grr gmail users messages list --user-id me --q "is:unread" --max-results 5 \
 
 ## Agent skills: install and self-migration
 
-`grr skills install` copies the 16 packaged skills (this file, the 14 service skills, and the index) into `~/.agents/skills/` — offline, no auth, zero config; `--claude` also mirrors them into `~/.claude/skills/` (the one directory Claude Code reads).
+`grr skills install` copies the 16 packaged skill files (this file, the 14 service skills, and the index) into `~/.agents/skills/` — offline, no auth, zero config; `--claude` also mirrors them into `~/.claude/skills/` (the one directory Claude Code reads).
 
 Installs are provenance-tracked and self-migrating:
 

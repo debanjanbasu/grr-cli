@@ -1,6 +1,6 @@
 # grr — Agent Execution Ruleset
 
-`grr` is a Rust CLI for Google Workspace: one binary (`grr`), one crate (`grr-cli`), a generated command tree covering **401 methods across 14 Google APIs** (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, Search Console) — compiled from the committed Discovery index, never hand-written — plus the id-based `grr api` escape hatch and static commands (`auth`, `api`, `mcp`, `transport`, `schema`, `completions`, `ask`, `skills`). HTTP/3 (QUIC) is always on. Requires **Rust nightly**.
+`grr` is a Rust CLI for Google Workspace: one binary (`grr`), one crate (`grr-cli`), a generated command tree covering **402 methods across 14 Google APIs** (Gmail, Calendar, Drive, People, Chat, Forms, Tasks, Docs, Sheets, Slides, Apps Script, Analytics Admin, Analytics Data, Search Console) — compiled from the committed Discovery index, never hand-written — plus the id-based `grr api` escape hatch and static commands (`auth`, `api`, `mcp`, `transport`, `schema`, `completions`, `ask`, `skills`). HTTP/3 (QUIC) is always on. Requires **Rust nightly**.
 
 Use this file as the execution ruleset. Deep detail lives in the files linked from it.
 
@@ -41,10 +41,11 @@ node scripts/generate-winget.ts v0.8.1      # regenerate the winget submission (
 node scripts/generate-changelog.ts     # regenerate CHANGELOG.md + site data
 node scripts/generate-changelog.ts --check # idempotency gate
 npm run demo                             # regenerate demo/demo.cast (local: + opencode segment)
+npm test                                 # generator script regression tests
 
 grr schema                                  # the full command tree as JSON — the contract
 grr completions <bash|elvish|powershell|zsh> # shell completion script for the full tree, offline (no fish: clap_complete's fish generator stops at 2 levels)
-grr api list [--service X] [--filter SUBSTR] # the 401 methods, offline, no login
+grr api list [--service X] [--filter SUBSTR] # the 402 methods, offline, no login
 grr skills install [--claude] [--force]      # the packaged agent skills into ~/.agents/skills, offline
 grr skills list                              # what is installed, per target directory
 ```
@@ -63,7 +64,7 @@ grr skills list                              # what is installed, per target dir
 ### Invariants worth knowing before you change something
 
 1. **A `[target.*]` rustflags table REPLACES `[build]` rustflags** — cargo does not merge them. The three `--cfg` flags (`reqwest_unstable`, `hyper_unstable_ffi`, `tokio_unstable`) must be repeated in every target table, or crates gating on them fail to compile on that target.
-2. **The discovery index is committed on purpose** (`src/discovery/*.json`, ~430 KiB across the 14 services). Do not move it to runtime-only fetch: that breaks offline use, adds first-run latency, and sacrifices determinism. Refresh via the script; the daily workflow opens a PR.
+2. **The discovery index is committed on purpose** (`src/discovery/*.json`, ~2.6 MiB across the 14 services). Do not move it to runtime-only fetch: that breaks offline use, adds first-run latency, and sacrifices determinism. Refresh via the script; the daily workflow opens a PR.
 3. **The command tree is generated** — never hand-edit `src/commands/generated.rs`. Change the generator (`scripts/generate-commands.ts`) or the index (`scripts/fetch-discovery.ts`), then regenerate; CI gates both with `--check`. The daily discovery PR regenerates the tree, the skills, and the site coverage table in the same commit as the index, so nothing derived from it can drift.
 4. **Method ids include resource names**: `users.messages.list`, not `messages.list`. The distiller walks `Object.entries(doc.resources)` and passes the name as the path prefix — and the CLI command mirrors the id verbatim (`grr gmail users messages list`), resource segments included.
 5. **`basePath` is inconsistent across Google's docs** (`gmail/v1/` vs `/drive/v3/`). `Service::base()` strips the leading slash — `rootUrl` always ends in `/`, so a naive concat yields `//` and a 404.
@@ -73,7 +74,7 @@ grr skills list                              # what is installed, per target dir
 9. **stdout is machine output, stderr is logs** — `grr gmail users messages list --user-id me | jq` must never receive log lines. The known plain-text stdout exceptions are `grr transport` and `grr skills install` (a human install summary; `grr skills list` is JSON); note any new one in docs when you add it.
 10. **Global args are IDs, not names**: a `global(true)` arg's ID must be the FIELD name (`deny_service`), not the long flag (`deny-service`) - the hyphenated variant is the exact "Mismatch between definition and access" clap panic. And a flag may only be declared ONCE in the tree: a second declaration with the same ID panics arg-matching.
 11. **The demo cast is generated** (`scripts/generate-demo.ts`), never hand-edited; the committed cast is recorded with `--local` on the owner's machine (CI validates via demo.yml and opens PRs from `--ci-record` runs with carry-forward), so the opencode agent segment cannot silently regress. The committed cast must never contain private data: no Bearer tokens, no client ids, no real message subjects.
-12. **Counts in the site are derived, never typed.** `site/src/data/discovery-coverage.ts` is generated by `scripts/generate-coverage.ts` from the index, and every page that prints a method or service count imports `discoveryMethodTotal` / `discoveryServiceCount` from it. Hardcoding "401 methods" or "14 APIs" in an `.astro` file reintroduces the drift the generator exists to remove — the counts in prose belong in the coverage table.
+12. **Counts in the site are derived, never typed.** `site/src/data/discovery-coverage.ts` is generated by `scripts/generate-coverage.ts` from the index, and every page that prints a method or service count imports `discoveryMethodTotal` / `discoveryServiceCount` from it. Hardcoding a method count or API count in an `.astro` file reintroduces the drift the generator exists to remove — the counts in prose belong in the coverage table.
 13. **Site graphics are generated pixel art, never vector.** Every mascot pose, service illustration, glyph, favicon and the og card comes from `site/scripts/generate-mascot.mjs`, which authors them on character grids and emits run-length-merged, axis-aligned `<path>` runs. Two rules hold the style together: no curve commands and no blurred shadows anywhere in the set — a `Q`/`C` or a `<filter>` in an asset means it slipped back into vector, and a shadow is a Bayer-dithered *strip*, not an ellipse (a flat ellipse can only vary along x and renders as a row of bars). The CLI banner in `src/logo.rs` embeds the same mascot map and the same palette, so the terminal and the site are one brand.
 
 ## Rust coding standards
