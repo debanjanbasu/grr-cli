@@ -204,11 +204,20 @@ jobs:
               echo "::notice::PR #$n was conflicted; closed and dispatched $owner."
               continue
             fi
-            # Approve every pending run for this head first — without an
-            # approval the CI never starts and --auto can never complete.
-            ids="$(gh api --paginate \
-              "repos/{owner}/{repo}/actions/runs?head_sha=$sha&status=action_required" \
-              --jq '.workflow_runs[].id' || true)"
+            # The PR's CI run does not exist at sweep time: GitHub creates it
+            # a minute or so after the branch is pushed, so the poller's first
+            # approval pass finds nothing and the run sits in action_required
+            # until the next tick — which GitHub often drops. Poll for the
+            # pending run before moving on.
+            ids=""
+            for attempt in 1 2 3 4 5 6 7 8; do
+              ids="$(gh api --paginate \
+                "repos/{owner}/{repo}/actions/runs?head_sha=$sha&status=action_required" \
+                --jq '.workflow_runs[].id' || true)"
+              [ -n "$ids" ] && break
+              echo "::notice::no pending CI run yet for PR #$n (attempt $attempt/8)"
+              sleep 15
+            done
             if [ -n "$ids" ]; then
               for id in $ids; do
                 echo "Approving run $id (PR #$n)"
