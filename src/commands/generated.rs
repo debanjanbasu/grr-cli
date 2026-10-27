@@ -7,7 +7,7 @@
 //! regenerate with `node scripts/generate-commands.mjs` (or run it
 //! with `--check`, which exits 1 when this file is stale).
 //!
-//! Generated at: 2026-10-26T10:06:07.348Z — the index manifest's own timestamp,
+//! Generated at: 2026-10-27T09:48:11.745Z — the index manifest's own timestamp,
 //! so regeneration is byte-identical until the index actually changes.
 //!
 //! Shape:
@@ -29,11 +29,11 @@
 //! schemas are not part of the distilled index, so POST/PATCH/PUT
 //! bodies pass through `--params` / `--body-file` verbatim.
 //!
-//! Numbers: 14 services, 402 methods, 402 leaves, 96 resource groups, 995 typed flags.
+//! Numbers: 14 services, 402 methods, 402 leaves, 96 resource groups, 996 typed flags.
 
 /// When the generator last ran, taken from the Discovery index
 /// manifest's own timestamp so it only moves when the index moves.
-pub const GENERATED_AT: &str = "2026-10-26T10:06:07.348Z";
+pub const GENERATED_AT: &str = "2026-10-27T09:48:11.745Z";
 
 #[rustfmt::skip] // mechanical output; formatting it would churn every diff
 pub mod tree {
@@ -6560,9 +6560,9 @@ pub mod tree {
         Command::new("tasks.tasklists.delete")
             .visible_alias("delete")
             .about("Deletes the authenticated user's specified task list. If the list contains assigned tasks, both the...")
-            .long_about("Deletes the authenticated user's specified task list. If the list contains assigned tasks, both the assigned tasks and the original tasks in the assignment surface (Docs, Chat Spaces) are deleted.")
+            .long_about("Deletes the authenticated user's specified task list. If the list contains assigned tasks, both the assigned tasks and the original tasks in the assignment surface (Docs, Chat Spaces) are deleted. The user's default task list cannot be deleted.")
             .arg(Arg::new("tasklist").long("tasklist").value_name("TASKLIST").required(true)
-                .help("Task list identifier."))
+                .help("Task list identifier. The default task list cannot be deleted."))
             .args(escape_hatch_args())
     }
 
@@ -6572,7 +6572,7 @@ pub mod tree {
             .visible_alias("get")
             .about("Returns the authenticated user's specified task list.")
             .arg(Arg::new("tasklist").long("tasklist").value_name("TASKLIST").required(true)
-                .help("Task list identifier."))
+                .help("Task list identifier. Use \"@default\" to get the authenticated user's default task list."))
             .args(escape_hatch_args())
     }
 
@@ -6591,9 +6591,9 @@ pub mod tree {
             .visible_alias("list")
             .about("Returns all the authenticated user's task lists. A user can have up to 2000 lists at a time.")
             .arg(Arg::new("max-results").long("max-results").value_name("MAX_RESULTS").value_parser(clap::value_parser!(i64))
-                .help("Maximum number of task lists returned on one page. Optional. The default is 1000 (max allowed: 1000)."))
+                .help("Optional. Maximum number of task lists returned on one page. The default is 1000 (max allowed: 1000)."))
             .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
-                .help("Token specifying the result page to return. Optional."))
+                .help("Optional. Token specifying the result page to return."))
             .args(escape_hatch_args())
     }
 
@@ -6672,10 +6672,12 @@ pub mod tree {
             .visible_alias("insert")
             .about("Creates a new task on the specified task list. Tasks assigned from Docs or Chat Spaces cannot be...")
             .long_about("Creates a new task on the specified task list. Tasks assigned from Docs or Chat Spaces cannot be inserted from Tasks Public API; they can only be created by assigning them from Docs or Chat Spaces. A user can have up to 20,000 non-hidden tasks per list and up to 100,000 tasks in total at a time.")
+            .arg(Arg::new("hidden").long("hidden").action(ArgAction::SetTrue)
+                .help("Optional. Flag indicating whether the task is created as 'hidden', as if it had been completed and then cleared from the task list (see the \"clear\" method). Hid"))
             .arg(Arg::new("parent").long("parent").value_name("PARENT")
-                .help("Parent task identifier. If the task is created at the top level, this parameter is omitted. An assigned task cannot be a parent task, nor can it have a parent."))
+                .help("Optional. Parent task identifier. If the task is created at the top level, this parameter is omitted. An assigned task cannot be a parent task, nor can it have"))
             .arg(Arg::new("previous").long("previous").value_name("PREVIOUS")
-                .help("Previous sibling task identifier. If the task is created at the first position among its siblings, this parameter is omitted. Optional."))
+                .help("Optional. Previous sibling task identifier. If the task is created at the first position among its siblings, this parameter is omitted."))
             .arg(Arg::new("tasklist").long("tasklist").value_name("TASKLIST").required(true)
                 .help("Task list identifier."))
             .args(escape_hatch_args())
@@ -6688,29 +6690,29 @@ pub mod tree {
             .about("Returns all tasks in the specified task list. Doesn't return assigned tasks by default (from Docs...")
             .long_about("Returns all tasks in the specified task list. Doesn't return assigned tasks by default (from Docs, Chat Spaces). A user can have up to 20,000 non-hidden tasks per list and up to 100,000 tasks in total at a time.")
             .arg(Arg::new("completed-max").long("completed-max").value_name("COMPLETED_MAX")
-                .help("Upper bound for a task's completion date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by completion date."))
+                .help("Optional. Upper bound for a task's completion date (as a RFC 3339 timestamp) to filter by. The default is not to filter by completion date."))
             .arg(Arg::new("completed-min").long("completed-min").value_name("COMPLETED_MIN")
-                .help("Lower bound for a task's completion date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by completion date."))
+                .help("Optional. Lower bound for a task's completion date (as a RFC 3339 timestamp) to filter by. The default is not to filter by completion date."))
             .arg(Arg::new("due-max").long("due-max").value_name("DUE_MAX")
-                .help("Upper bound for a task's due date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by due date."))
+                .help("Optional. Upper bound for a task's due date (as a RFC 3339 timestamp) to filter by. The default is not to filter by due date."))
             .arg(Arg::new("due-min").long("due-min").value_name("DUE_MIN")
-                .help("Lower bound for a task's due date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by due date."))
+                .help("Optional. Lower bound for a task's due date (as a RFC 3339 timestamp) to filter by. The default is not to filter by due date."))
             .arg(Arg::new("max-results").long("max-results").value_name("MAX_RESULTS").value_parser(clap::value_parser!(i64))
-                .help("Maximum number of tasks returned on one page. Optional. The default is 20 (max allowed: 100)."))
+                .help("Optional. Maximum number of tasks returned on one page. The default is 20 (max allowed: 100)."))
             .arg(Arg::new("page-token").long("page-token").value_name("PAGE_TOKEN")
-                .help("Token specifying the result page to return. Optional."))
+                .help("Optional. Token specifying the result page to return."))
             .arg(Arg::new("show-assigned").long("show-assigned").action(ArgAction::SetTrue)
-                .help("Optional. Flag indicating whether tasks assigned to the current user are returned in the result. Optional. The default is False."))
+                .help("Optional. Flag indicating whether tasks assigned to the current user are returned in the result. The default is False."))
             .arg(Arg::new("show-completed").long("show-completed").action(ArgAction::SetTrue)
-                .help("Flag indicating whether completed tasks are returned in the result. Note that showHidden must also be True to show tasks completed in first party clients, such"))
+                .help("Optional. Flag indicating whether completed tasks are returned in the result. Note that showHidden must also be True to show tasks completed in first party clie"))
             .arg(Arg::new("show-deleted").long("show-deleted").action(ArgAction::SetTrue)
-                .help("Flag indicating whether deleted tasks are returned in the result. Optional. The default is False."))
+                .help("Optional. Flag indicating whether deleted tasks are returned in the result. The default is False."))
             .arg(Arg::new("show-hidden").long("show-hidden").action(ArgAction::SetTrue)
-                .help("Flag indicating whether hidden tasks are returned in the result. Optional. The default is False."))
+                .help("Optional. Flag indicating whether hidden tasks are returned in the result. The default is False."))
             .arg(Arg::new("tasklist").long("tasklist").value_name("TASKLIST").required(true)
                 .help("Task list identifier."))
             .arg(Arg::new("updated-min").long("updated-min").value_name("UPDATED_MIN")
-                .help("Lower bound for a task's last modification time (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by last modification time."))
+                .help("Optional. Lower bound for a task's last modification time (as a RFC 3339 timestamp) to filter by. The default is not to filter by last modification time."))
             .args(escape_hatch_args())
     }
 
