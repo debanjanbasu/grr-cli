@@ -39,7 +39,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 79,
     scopes: 14,
-    revision: '20261019',
+    revision: '20261026',
     note: 'Messages, threads, drafts, labels, history, filters, forwarding, send-as, and settings.',
   },
   {
@@ -48,7 +48,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 38,
     scopes: 18,
-    revision: '20261021',
+    revision: '20261026',
     note: 'Calendars, events, instances, ACL, free/busy, colors, and settings.',
   },
   {
@@ -66,7 +66,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 24,
     scopes: 12,
-    revision: '20261026',
+    revision: '20261027',
     note: 'Contacts, connections, other contacts, contact groups, and directory people.',
   },
   {
@@ -75,7 +75,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 55,
     scopes: 41,
-    revision: '20261025',
+    revision: '20261026',
     note: 'Spaces, messages, memberships, reactions, attachments, sections, and availability.',
   },
   {
@@ -84,7 +84,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 10,
     scopes: 6,
-    revision: '20261022',
+    revision: '20261026',
     note: 'Form bodies, responses, publish settings, and push-notification watches.',
   },
   {
@@ -102,7 +102,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 14,
     scopes: 2,
-    revision: '20261025',
+    revision: '20261027',
     note: 'Task lists and the tasks inside them. See the scope caveat below.',
   },
   {
@@ -138,7 +138,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 55,
     scopes: 2,
-    revision: '20261026',
+    revision: '20261027',
     note: 'Accounts, properties, data streams, custom dimensions and metrics, conversion events, and the Ads and Firebase links.',
   },
   {
@@ -147,7 +147,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 11,
     scopes: 2,
-    revision: '20261026',
+    revision: '20261027',
     note: 'Run reports — standard, realtime, pivot, and batch — plus compatibility checks, metadata, and audience exports.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261027',
+    revision: '20261028',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
