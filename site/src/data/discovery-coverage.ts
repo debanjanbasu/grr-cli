@@ -48,7 +48,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 38,
     scopes: 18,
-    revision: '20261026',
+    revision: '20261028',
     note: 'Calendars, events, instances, ACL, free/busy, colors, and settings.',
   },
   {
@@ -120,7 +120,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 3,
     scopes: 5,
-    revision: '20261021',
+    revision: '20261026',
     note: 'Document create, read, and batch update.',
   },
   {
@@ -138,7 +138,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 55,
     scopes: 2,
-    revision: '20261028',
+    revision: '20261027',
     note: 'Accounts, properties, data streams, custom dimensions and metrics, conversion events, and the Ads and Firebase links.',
   },
   {
