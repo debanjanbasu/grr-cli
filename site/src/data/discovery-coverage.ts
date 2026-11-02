@@ -129,7 +129,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 16,
     scopes: 18,
-    revision: '20261011',
+    revision: '20261026',
     note: 'Script projects, deployments, versions, processes, and running functions.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261031',
+    revision: '20261101',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
