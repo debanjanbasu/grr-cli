@@ -7,7 +7,7 @@
 //! regenerate with `node scripts/generate-commands.mjs` (or run it
 //! with `--check`, which exits 1 when this file is stale).
 //!
-//! Generated at: 2026-10-31T10:22:44.612Z — the index manifest's own timestamp,
+//! Generated at: 2026-11-02T01:54:24.420Z — the index manifest's own timestamp,
 //! so regeneration is byte-identical until the index actually changes.
 //!
 //! Shape:
@@ -33,7 +33,7 @@
 
 /// When the generator last ran, taken from the Discovery index
 /// manifest's own timestamp so it only moves when the index moves.
-pub const GENERATED_AT: &str = "2026-10-31T10:22:44.612Z";
+pub const GENERATED_AT: &str = "2026-11-02T01:54:24.420Z";
 
 #[rustfmt::skip] // mechanical output; formatting it would churn every diff
 pub mod tree {
