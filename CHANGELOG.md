@@ -24,10 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- 1 internal commit (chore 1)
+- 12 internal commits (chore 12)
 
 ### Other
 
+- **compare:** refresh daily benchmark snapshot
+- **compare:** refresh daily benchmark snapshot
+- **compare:** refresh daily benchmark snapshot
+- **compare:** refresh daily benchmark snapshot
+- **compare:** refresh daily benchmark snapshot
 - **compare:** refresh daily benchmark snapshot
 
 ## [2.5.1] - 2026-10-27
