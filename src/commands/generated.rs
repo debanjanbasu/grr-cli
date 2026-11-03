@@ -7,7 +7,7 @@
 //! regenerate with `node scripts/generate-commands.mjs` (or run it
 //! with `--check`, which exits 1 when this file is stale).
 //!
-//! Generated at: 2026-10-27T10:01:45.181Z — the index manifest's own timestamp,
+//! Generated at: 2026-11-03T11:55:00.088Z — the index manifest's own timestamp,
 //! so regeneration is byte-identical until the index actually changes.
 //!
 //! Shape:
@@ -29,11 +29,11 @@
 //! schemas are not part of the distilled index, so POST/PATCH/PUT
 //! bodies pass through `--params` / `--body-file` verbatim.
 //!
-//! Numbers: 14 services, 402 methods, 402 leaves, 96 resource groups, 996 typed flags.
+//! Numbers: 14 services, 402 methods, 402 leaves, 96 resource groups, 995 typed flags.
 
 /// When the generator last ran, taken from the Discovery index
 /// manifest's own timestamp so it only moves when the index moves.
-pub const GENERATED_AT: &str = "2026-10-27T10:01:45.181Z";
+pub const GENERATED_AT: &str = "2026-11-03T11:55:00.088Z";
 
 #[rustfmt::skip] // mechanical output; formatting it would churn every diff
 pub mod tree {
@@ -6672,8 +6672,6 @@ pub mod tree {
             .visible_alias("insert")
             .about("Creates a new task on the specified task list. Tasks assigned from Docs or Chat Spaces cannot be...")
             .long_about("Creates a new task on the specified task list. Tasks assigned from Docs or Chat Spaces cannot be inserted from Tasks Public API; they can only be created by assigning them from Docs or Chat Spaces. A user can have up to 20,000 non-hidden tasks per list and up to 100,000 tasks in total at a time.")
-            .arg(Arg::new("hidden").long("hidden").action(ArgAction::SetTrue)
-                .help("Optional. Flag indicating whether the task is created as 'hidden', as if it had been completed and then cleared from the task list (see the \"clear\" method). Hid"))
             .arg(Arg::new("parent").long("parent").value_name("PARENT")
                 .help("Optional. Parent task identifier. If the task is created at the top level, this parameter is omitted. An assigned task cannot be a parent task, nor can it have"))
             .arg(Arg::new("previous").long("previous").value_name("PREVIOUS")

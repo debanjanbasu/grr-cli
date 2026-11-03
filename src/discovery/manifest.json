@@ -1,75 +1,75 @@
 {
-  "generatedAt": "2026-10-27T10:01:45.181Z",
+  "generatedAt": "2026-11-03T11:55:00.088Z",
   "services": {
     "gmail": {
       "methods": 79,
       "scopes": 14,
-      "revision": "20261019"
+      "revision": "20261026"
     },
     "calendar": {
       "methods": 38,
       "scopes": 18,
-      "revision": "20261021"
+      "revision": "20261028"
     },
     "drive": {
       "methods": 64,
       "scopes": 10,
-      "revision": "20261020"
+      "revision": "20261028"
     },
     "people": {
       "methods": 24,
       "scopes": 12,
-      "revision": "20261025"
+      "revision": "20261101"
     },
     "chat": {
       "methods": 55,
       "scopes": 41,
-      "revision": "20261022"
+      "revision": "20261029"
     },
     "forms": {
       "methods": 10,
       "scopes": 6,
-      "revision": "20261022"
+      "revision": "20261030"
     },
     "tasks": {
       "methods": 14,
       "scopes": 2,
-      "revision": "20261025"
+      "revision": "20261101"
     },
     "docs": {
       "methods": 3,
       "scopes": 5,
-      "revision": "20261021"
+      "revision": "20261028"
     },
     "sheets": {
       "methods": 17,
       "scopes": 5,
-      "revision": "20261021"
+      "revision": "20261028"
     },
     "slides": {
       "methods": 5,
       "scopes": 7,
-      "revision": "20261021"
+      "revision": "20261028"
     },
     "script": {
       "methods": 16,
       "scopes": 18,
-      "revision": "20261011"
+      "revision": "20261026"
     },
     "analyticsadmin": {
       "methods": 55,
       "scopes": 2,
-      "revision": "20261025"
+      "revision": "20261027"
     },
     "analyticsdata": {
       "methods": 11,
       "scopes": 2,
-      "revision": "20261025"
+      "revision": "20261101"
     },
     "searchconsole": {
       "methods": 11,
       "scopes": 2,
-      "revision": "20261025"
+      "revision": "20261102"
     }
   }
 }
