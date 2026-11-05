@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **compare:** refresh daily benchmark snapshot
 - **compare:** refresh daily benchmark snapshot
+- **compare:** refresh daily benchmark snapshot
 
 ## [2.5.1] - 2026-10-27
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T13:03:23.117Z",
+  "generatedAt": "2026-11-05T22:12:02.794Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -71,6 +71,12 @@
           "key": "other",
           "heading": "Other",
           "items": [
+            {
+              "description": "refresh daily benchmark snapshot",
+              "scope": "compare",
+              "type": "bench",
+              "note": null
+            },
             {
               "description": "refresh daily benchmark snapshot",
               "scope": "compare",
