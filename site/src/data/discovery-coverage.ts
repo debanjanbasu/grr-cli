@@ -57,7 +57,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 64,
     scopes: 10,
-    revision: '20261102',
+    revision: '20261103',
     note: 'Files, permissions, comments, revisions, changes, drives, and team drives.',
   },
   {
@@ -66,7 +66,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 24,
     scopes: 12,
-    revision: '20261103',
+    revision: '20261104',
     note: 'Contacts, connections, other contacts, contact groups, and directory people.',
   },
   {
@@ -75,7 +75,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 55,
     scopes: 41,
-    revision: '20261101',
+    revision: '20261103',
     note: 'Spaces, messages, memberships, reactions, attachments, sections, and availability.',
   },
   {
@@ -138,7 +138,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 55,
     scopes: 2,
-    revision: '20261103',
+    revision: '20261104',
     note: 'Accounts, properties, data streams, custom dimensions and metrics, conversion events, and the Ads and Firebase links.',
   },
   {
@@ -147,7 +147,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 11,
     scopes: 2,
-    revision: '20261103',
+    revision: '20261104',
     note: 'Run reports — standard, realtime, pivot, and batch — plus compatibility checks, metadata, and audience exports.',
   },
   {
