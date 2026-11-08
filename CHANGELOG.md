@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- 14 internal commits (chore 14)
+- 15 internal commits (chore 15)
 
 ### Other
 
