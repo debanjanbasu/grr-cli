@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-11-08T11:16:06.803Z",
+  "generatedAt": "2026-11-09T12:51:03.680Z",
   "services": {
     "gmail": {
       "methods": 79,
-      "scopes": 14,
-      "revision": "20261102"
+      "scopes": 26,
+      "revision": "20261106"
     },
     "calendar": {
       "methods": 38,
@@ -24,12 +24,12 @@
     "chat": {
       "methods": 55,
       "scopes": 41,
-      "revision": "20261103"
+      "revision": "20261107"
     },
     "forms": {
       "methods": 10,
       "scopes": 6,
-      "revision": "20261105"
+      "revision": "20261107"
     },
     "tasks": {
       "methods": 14,
@@ -69,7 +69,7 @@
     "searchconsole": {
       "methods": 11,
       "scopes": 2,
-      "revision": "20261107"
+      "revision": "20261108"
     }
   }
 }
