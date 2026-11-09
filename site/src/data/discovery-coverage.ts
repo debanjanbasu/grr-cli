@@ -38,8 +38,8 @@ export const discoveryServices: DiscoveryService[] = [
     label: 'Gmail',
     version: 'v1',
     methods: 79,
-    scopes: 14,
-    revision: '20261102',
+    scopes: 26,
+    revision: '20261106',
     note: 'Messages, threads, drafts, labels, history, filters, forwarding, send-as, and settings.',
   },
   {
@@ -75,7 +75,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 55,
     scopes: 41,
-    revision: '20261103',
+    revision: '20261107',
     note: 'Spaces, messages, memberships, reactions, attachments, sections, and availability.',
   },
   {
@@ -84,7 +84,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 10,
     scopes: 6,
-    revision: '20261105',
+    revision: '20261107',
     note: 'Form bodies, responses, publish settings, and push-notification watches.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261107',
+    revision: '20261108',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
