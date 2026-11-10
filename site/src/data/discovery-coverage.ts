@@ -48,7 +48,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 38,
     scopes: 18,
-    revision: '20261102',
+    revision: '20261109',
     note: 'Calendars, events, instances, ACL, free/busy, colors, and settings.',
   },
   {
@@ -66,7 +66,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 24,
     scopes: 12,
-    revision: '20261106',
+    revision: '20261108',
     note: 'Contacts, connections, other contacts, contact groups, and directory people.',
   },
   {
@@ -102,7 +102,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 14,
     scopes: 2,
-    revision: '20261106',
+    revision: '20261108',
     note: 'Task lists and the tasks inside them. See the scope caveat below.',
   },
   {
@@ -111,7 +111,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 5,
     scopes: 7,
-    revision: '20261106',
+    revision: '20261109',
     note: 'Presentation batch updates, page reads, and thumbnails.',
   },
   {
@@ -138,7 +138,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 55,
     scopes: 2,
-    revision: '20261106',
+    revision: '20261108',
     note: 'Accounts, properties, data streams, custom dimensions and metrics, conversion events, and the Ads and Firebase links.',
   },
   {
@@ -147,7 +147,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 11,
     scopes: 2,
-    revision: '20261106',
+    revision: '20261108',
     note: 'Run reports — standard, realtime, pivot, and batch — plus compatibility checks, metadata, and audience exports.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261108',
+    revision: '20261109',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
