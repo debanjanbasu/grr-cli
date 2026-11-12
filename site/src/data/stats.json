@@ -2,7 +2,7 @@
   "version": "2.5.1",
   "crateDownloads": 409,
   "crateDownloads30d": 409,
-  "githubDownloads": 467,
+  "githubDownloads": 470,
   "latestRelease": "v2.5.1",
   "latestReleaseDate": "2026-10-27T13:37:11Z",
   "binarySizes": {
@@ -15,5 +15,5 @@
   "nonPlatformAssets": {
     "winget-manifests": 905
   },
-  "updatedAt": "2026-11-11T12:35:58.096Z"
+  "updatedAt": "2026-11-12T13:40:27.644Z"
 }
