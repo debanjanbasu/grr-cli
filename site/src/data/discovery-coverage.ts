@@ -66,7 +66,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 24,
     scopes: 12,
-    revision: '20261109',
+    revision: '20261110',
     note: 'Contacts, connections, other contacts, contact groups, and directory people.',
   },
   {
@@ -84,7 +84,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 10,
     scopes: 6,
-    revision: '20261107',
+    revision: '20261108',
     note: 'Form bodies, responses, publish settings, and push-notification watches.',
   },
   {
@@ -102,7 +102,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 14,
     scopes: 2,
-    revision: '20261108',
+    revision: '20261110',
     note: 'Task lists and the tasks inside them. See the scope caveat below.',
   },
   {
@@ -138,7 +138,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 55,
     scopes: 2,
-    revision: '20261109',
+    revision: '20261110',
     note: 'Accounts, properties, data streams, custom dimensions and metrics, conversion events, and the Ads and Firebase links.',
   },
   {
@@ -147,7 +147,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 11,
     scopes: 2,
-    revision: '20261109',
+    revision: '20261110',
     note: 'Run reports — standard, realtime, pivot, and batch — plus compatibility checks, metadata, and audience exports.',
   },
   {
