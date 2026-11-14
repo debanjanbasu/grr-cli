@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-13T12:59:19.117Z",
+  "generatedAt": "2026-11-14T11:32:27.247Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -158,6 +158,18 @@
             {
               "description": "refresh download counts and archive sizes",
               "scope": "site",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "bump astro from 7.3.5 to 7.4.7 in /site",
+              "scope": "deps-dev",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh Google Discovery index",
+              "scope": "discovery",
               "type": "chore",
               "note": null
             }
