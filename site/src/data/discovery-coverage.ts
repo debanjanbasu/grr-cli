@@ -48,7 +48,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 38,
     scopes: 18,
-    revision: '20261109',
+    revision: '20261111',
     note: 'Calendars, events, instances, ACL, free/busy, colors, and settings.',
   },
   {
@@ -147,7 +147,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 11,
     scopes: 2,
-    revision: '20261111',
+    revision: '20261112',
     note: 'Run reports — standard, realtime, pivot, and batch — plus compatibility checks, metadata, and audience exports.',
   },
   {
