@@ -39,7 +39,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 79,
     scopes: 26,
-    revision: '20261106',
+    revision: '20261109',
     note: 'Messages, threads, drafts, labels, history, filters, forwarding, send-as, and settings.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261110',
+    revision: '20261114',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
