@@ -73,9 +73,9 @@ export const discoveryServices: DiscoveryService[] = [
     name: 'chat',
     label: 'Chat',
     version: 'v1',
-    methods: 55,
+    methods: 56,
     scopes: 41,
-    revision: '20261110',
+    revision: '20261113',
     note: 'Spaces, messages, memberships, reactions, attachments, sections, and availability.',
   },
   {
@@ -84,7 +84,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 10,
     scopes: 6,
-    revision: '20261108',
+    revision: '20261111',
     note: 'Form bodies, responses, publish settings, and push-notification watches.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261114',
+    revision: '20261115',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
