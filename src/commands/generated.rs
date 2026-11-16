@@ -7,7 +7,7 @@
 //! regenerate with `node scripts/generate-commands.mjs` (or run it
 //! with `--check`, which exits 1 when this file is stale).
 //!
-//! Generated at: 2026-11-15T11:56:23.172Z — the index manifest's own timestamp,
+//! Generated at: 2026-11-16T12:43:39.676Z — the index manifest's own timestamp,
 //! so regeneration is byte-identical until the index actually changes.
 //!
 //! Shape:
@@ -29,11 +29,11 @@
 //! schemas are not part of the distilled index, so POST/PATCH/PUT
 //! bodies pass through `--params` / `--body-file` verbatim.
 //!
-//! Numbers: 14 services, 402 methods, 402 leaves, 96 resource groups, 995 typed flags.
+//! Numbers: 14 services, 403 methods, 403 leaves, 96 resource groups, 997 typed flags.
 
 /// When the generator last ran, taken from the Discovery index
 /// manifest's own timestamp so it only moves when the index moves.
-pub const GENERATED_AT: &str = "2026-11-15T11:56:23.172Z";
+pub const GENERATED_AT: &str = "2026-11-16T12:43:39.676Z";
 
 #[rustfmt::skip] // mechanical output; formatting it would churn every diff
 pub mod tree {
@@ -2590,12 +2590,26 @@ pub mod tree {
             .args(escape_hatch_args())
     }
 
+    // chat.users.spaces.threads.updateThreadReadState
+    fn leaf_chat_users_spaces_threads_update_thread_read_state() -> Command {
+        Command::new("chat.users.spaces.threads.updateThreadReadState")
+            .visible_alias("updateThreadReadState")
+            .about("Updates a user's read state within a thread, used to identify read and unread messages. For an...")
+            .long_about("Updates a user's read state within a thread, used to identify read and unread messages. For an example, see Update a user's thread read state. Requires user authentication with the authorization scope: - `https://www.googleapis.com/auth/chat.users.readstate`")
+            .arg(Arg::new("name").long("name").value_name("NAME").required(true)
+                .help("Resource name of the thread read state. Format: `users/{user}/spaces/{space}/threads/{thread}/threadReadState`"))
+            .arg(Arg::new("update-mask").long("update-mask").value_name("UPDATE_MASK")
+                .help("Required. The field paths to update. Currently supported field paths: - `last_read_time` When `last_read_time` is before the latest message create time, the thr"))
+            .args(escape_hatch_args())
+    }
+
     // chat.users.spaces.threads
     fn group_chat_users_spaces_threads() -> Command {
         Command::new("threads")
             .about("Methods under chat.users.spaces.threads")
             .subcommand_required(true)
             .subcommand(leaf_chat_users_spaces_threads_get_thread_read_state())
+            .subcommand(leaf_chat_users_spaces_threads_update_thread_read_state())
     }
 
     // chat.users.spaces.updateSpaceReadState
@@ -2635,7 +2649,7 @@ pub mod tree {
     // chat
     fn service_chat() -> Command {
         Command::new("chat")
-            .about("Google Chat API operations (v1, 55 methods)")
+            .about("Google Chat API operations (v1, 56 methods)")
             .subcommand_required(true)
             .subcommand(group_chat_custom_emojis())
             .subcommand(group_chat_media())
