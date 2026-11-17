@@ -102,7 +102,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 14,
     scopes: 2,
-    revision: '20261110',
+    revision: '20261114',
     note: 'Task lists and the tasks inside them. See the scope caveat below.',
   },
   {
@@ -111,7 +111,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 5,
     scopes: 7,
-    revision: '20261109',
+    revision: '20261111',
     note: 'Presentation batch updates, page reads, and thumbnails.',
   },
   {
@@ -120,7 +120,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 3,
     scopes: 5,
-    revision: '20261109',
+    revision: '20261111',
     note: 'Document create, read, and batch update.',
   },
   {
@@ -138,7 +138,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 55,
     scopes: 2,
-    revision: '20261111',
+    revision: '20261115',
     note: 'Accounts, properties, data streams, custom dimensions and metrics, conversion events, and the Ads and Firebase links.',
   },
   {
@@ -147,7 +147,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1beta',
     methods: 11,
     scopes: 2,
-    revision: '20261112',
+    revision: '20261114',
     note: 'Run reports — standard, realtime, pivot, and batch — plus compatibility checks, metadata, and audience exports.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261115',
+    revision: '20261116',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
