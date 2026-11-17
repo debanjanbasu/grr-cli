@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T13:29:13.068Z",
+  "generatedAt": "2026-11-17T14:16:46.667Z",
   "repository": "debanjanbasu/grr-cli",
   "releases": [
     {
@@ -212,6 +212,12 @@
             {
               "description": "refresh Google Discovery index",
               "scope": "discovery",
+              "type": "chore",
+              "note": null
+            },
+            {
+              "description": "refresh download counts and archive sizes",
+              "scope": "site",
               "type": "chore",
               "note": null
             }
