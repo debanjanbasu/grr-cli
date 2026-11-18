@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T13:23:32.665Z",
+  "generatedAt": "2026-11-18T13:01:30.871Z",
   "services": {
     "gmail": {
       "methods": 79,
@@ -9,22 +9,22 @@
     "calendar": {
       "methods": 38,
       "scopes": 18,
-      "revision": "20261111"
+      "revision": "20261113"
     },
     "drive": {
       "methods": 64,
       "scopes": 10,
-      "revision": "20261109"
+      "revision": "20261114"
     },
     "people": {
       "methods": 24,
       "scopes": 12,
-      "revision": "20261111"
+      "revision": "20261115"
     },
     "chat": {
       "methods": 56,
       "scopes": 41,
-      "revision": "20261113"
+      "revision": "20261115"
     },
     "forms": {
       "methods": 10,
@@ -59,17 +59,17 @@
     "analyticsadmin": {
       "methods": 55,
       "scopes": 2,
-      "revision": "20261115"
+      "revision": "20261116"
     },
     "analyticsdata": {
       "methods": 11,
       "scopes": 2,
-      "revision": "20261114"
+      "revision": "20261116"
     },
     "searchconsole": {
       "methods": 11,
       "scopes": 2,
-      "revision": "20261116"
+      "revision": "20261117"
     }
   }
 }
