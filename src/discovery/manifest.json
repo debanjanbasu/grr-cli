@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-11-18T13:01:30.871Z",
+  "generatedAt": "2026-11-19T13:02:09.410Z",
   "services": {
     "gmail": {
       "methods": 79,
       "scopes": 26,
-      "revision": "20261109"
+      "revision": "20261116"
     },
     "calendar": {
       "methods": 38,
       "scopes": 18,
-      "revision": "20261113"
+      "revision": "20261115"
     },
     "drive": {
       "methods": 64,
@@ -19,22 +19,22 @@
     "people": {
       "methods": 24,
       "scopes": 12,
-      "revision": "20261115"
+      "revision": "20261116"
     },
     "chat": {
       "methods": 56,
       "scopes": 41,
-      "revision": "20261115"
+      "revision": "20261116"
     },
     "forms": {
       "methods": 10,
       "scopes": 6,
-      "revision": "20261111"
+      "revision": "20261115"
     },
     "tasks": {
       "methods": 14,
       "scopes": 2,
-      "revision": "20261114"
+      "revision": "20261117"
     },
     "docs": {
       "methods": 3,
@@ -59,17 +59,17 @@
     "analyticsadmin": {
       "methods": 55,
       "scopes": 2,
-      "revision": "20261116"
+      "revision": "20261118"
     },
     "analyticsdata": {
       "methods": 11,
       "scopes": 2,
-      "revision": "20261116"
+      "revision": "20261117"
     },
     "searchconsole": {
       "methods": 11,
       "scopes": 2,
-      "revision": "20261117"
+      "revision": "20261118"
     }
   }
 }
