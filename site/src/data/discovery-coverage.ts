@@ -57,7 +57,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 64,
     scopes: 10,
-    revision: '20261114',
+    revision: '20261117',
     note: 'Files, permissions, comments, revisions, changes, drives, and team drives.',
   },
   {
@@ -66,7 +66,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 24,
     scopes: 12,
-    revision: '20261116',
+    revision: '20261117',
     note: 'Contacts, connections, other contacts, contact groups, and directory people.',
   },
   {
@@ -75,7 +75,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 56,
     scopes: 41,
-    revision: '20261116',
+    revision: '20261117',
     note: 'Spaces, messages, memberships, reactions, attachments, sections, and availability.',
   },
   {
@@ -93,7 +93,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v4',
     methods: 17,
     scopes: 5,
-    revision: '20261111',
+    revision: '20261116',
     note: 'Spreadsheet values, batch updates, data filters, and developer metadata.',
   },
   {
@@ -111,7 +111,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 5,
     scopes: 7,
-    revision: '20261111',
+    revision: '20261116',
     note: 'Presentation batch updates, page reads, and thumbnails.',
   },
   {
@@ -120,7 +120,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 3,
     scopes: 5,
-    revision: '20261111',
+    revision: '20261116',
     note: 'Document create, read, and batch update.',
   },
   {
