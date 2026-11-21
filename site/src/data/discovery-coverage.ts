@@ -48,7 +48,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v3',
     methods: 38,
     scopes: 18,
-    revision: '20261115',
+    revision: '20261118',
     note: 'Calendars, events, instances, ACL, free/busy, colors, and settings.',
   },
   {
@@ -66,7 +66,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 24,
     scopes: 12,
-    revision: '20261117',
+    revision: '20261118',
     note: 'Contacts, connections, other contacts, contact groups, and directory people.',
   },
   {
@@ -93,7 +93,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v4',
     methods: 17,
     scopes: 5,
-    revision: '20261116',
+    revision: '20261118',
     note: 'Spreadsheet values, batch updates, data filters, and developer metadata.',
   },
   {
@@ -111,7 +111,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 5,
     scopes: 7,
-    revision: '20261116',
+    revision: '20261118',
     note: 'Presentation batch updates, page reads, and thumbnails.',
   },
   {
@@ -120,7 +120,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 3,
     scopes: 5,
-    revision: '20261116',
+    revision: '20261118',
     note: 'Document create, read, and batch update.',
   },
   {
