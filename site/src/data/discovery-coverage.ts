@@ -75,7 +75,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 56,
     scopes: 41,
-    revision: '20261117',
+    revision: '20261120',
     note: 'Spaces, messages, memberships, reactions, attachments, sections, and availability.',
   },
   {
@@ -156,7 +156,7 @@ export const discoveryServices: DiscoveryService[] = [
     version: 'v1',
     methods: 11,
     scopes: 2,
-    revision: '20261118',
+    revision: '20261121',
     note: 'Search analytics queries, sitemaps, sites, and URL inspection.',
   },
 ];
