@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-22T12:34:33.260Z",
+  "generatedAt": "2026-11-23T14:36:14.917Z",
   "services": {
     "gmail": {
       "methods": 79,
@@ -59,7 +59,7 @@
     "analyticsadmin": {
       "methods": 55,
       "scopes": 2,
-      "revision": "20261118"
+      "revision": "20261121"
     },
     "analyticsdata": {
       "methods": 11,
@@ -69,7 +69,7 @@
     "searchconsole": {
       "methods": 11,
       "scopes": 2,
-      "revision": "20261121"
+      "revision": "20261122"
     }
   }
 }
