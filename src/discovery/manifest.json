@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-24T14:51:34.783Z",
+  "generatedAt": "2026-11-25T14:20:02.334Z",
   "services": {
     "gmail": {
       "methods": 79,
@@ -19,12 +19,12 @@
     "people": {
       "methods": 24,
       "scopes": 12,
-      "revision": "20261118"
+      "revision": "20261122"
     },
     "chat": {
       "methods": 56,
       "scopes": 41,
-      "revision": "20261120"
+      "revision": "20261122"
     },
     "forms": {
       "methods": 10,
@@ -69,7 +69,7 @@
     "searchconsole": {
       "methods": 11,
       "scopes": 2,
-      "revision": "20261123"
+      "revision": "20261124"
     }
   }
 }
